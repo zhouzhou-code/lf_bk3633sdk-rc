@@ -1,0 +1,1 @@
+copy .\output\bk3633_boot.bin ..\app_gatt_codesize_cut\output\boot
