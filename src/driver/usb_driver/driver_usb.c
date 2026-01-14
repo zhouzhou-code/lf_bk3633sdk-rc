@@ -123,7 +123,7 @@ uint32 HwUsb_EndpRead(int endpn,void*buf){
     //print("rxpack",buf,cnt);
     if(endpn){
          REG_USB_RXCSR1=0;
-//        REG_USB_RXCSR1|=BIT(4);//3288µÄusb fifoÓ¦¸ÃÊÇÓĞ2¼¶£¬Èç¹û½øĞĞflush fifo£¬ÄÇÃ´ËùÓĞfifoÒÑ½ÓÊÕµ½µÄĞÅÏ¢¶¼±»Çå³ı
+//        REG_USB_RXCSR1|=BIT(4);//3288çš„usb fifoåº”è¯¥æ˜¯æœ‰2çº§ï¼Œå¦‚æœè¿›è¡Œflush fifoï¼Œé‚£ä¹ˆæ‰€æœ‰fifoå·²æ¥æ”¶åˆ°çš„ä¿¡æ¯éƒ½è¢«æ¸…é™¤
     }else{
         REG_USB_CSR0=0;
     }
@@ -169,18 +169,18 @@ void HwUsb_SendZlp(int endpn){
 }
 
 /*
-* º¯ÊıÃû:
+* å‡½æ•°å:
 *    HwUdpSendPkt
-* ¹¦ÄÜ:
-*    udp¶Ëµã·¢ËÍ°ü
-* ²ÎÊı:
-*    1.udp:usbÉè±¸Ö¸Õë
-*    2.epn:¶ËµãºÅ
-*    3.endp:¶Ëµã¹ÜÀíÆ÷
-* Êä³ö:
-*    ÎŞ
-* ·µ»Ø:
-*    ÎŞ
+* åŠŸèƒ½:
+*    udpç«¯ç‚¹å‘é€åŒ…
+* å‚æ•°:
+*    1.udp:usbè®¾å¤‡æŒ‡é’ˆ
+*    2.epn:ç«¯ç‚¹å·
+*    3.endp:ç«¯ç‚¹ç®¡ç†å™¨
+* è¾“å‡º:
+*    æ— 
+* è¿”å›:
+*    æ— 
 */
 void HwUsb_SendPkt(UI8 epn,CEndpoint*endp)  {
     PUI8 ptr;
@@ -237,7 +237,7 @@ void usb_init(void*usb_mod_ctrl_cbk,void*usb_mod_int_ie_cbk)
     USB_MOD_CTRL_CBK ctrl_cbk=(USB_MOD_CTRL_CBK)usb_mod_ctrl_cbk;
     USB_MOD_IE_CBK ie_cbk=(USB_MOD_IE_CBK)usb_mod_int_ie_cbk;
 
-    ctrl_cbk(1);//usb modal enable£¬Ê¹ÄÜUSBÄ£¿é
+    ctrl_cbk(1);//usb modal enableï¼Œä½¿èƒ½USBæ¨¡å—
 
     REG_USB_INTRUSBE = 0x0;
     HwUsb_SetRxIE(0x0000);//default 0x001e
@@ -268,7 +268,7 @@ void usb_init(void*usb_mod_ctrl_cbk,void*usb_mod_int_ie_cbk)
 
     REG_USB_FADDR=0;
     REG_USB_DEVCTL=BIT(0);//start device 'B'
-    ie_cbk(1);//Ê¹ÄÜusbÖĞ¶Ï
+    ie_cbk(1);//ä½¿èƒ½usbä¸­æ–­
     suspend_status.usb_frame_old = 0;
 }
 

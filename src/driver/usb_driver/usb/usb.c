@@ -58,8 +58,8 @@ extern void*USBDesc_GetStringDesc(int idx);
 /*variable implement section*/
 
 typedef struct{
-    CBufferBaseDesc rxBuf;//½ÓÊÕbuf
-    CBufferBaseDesc txBuf;//·¢ËÍbuf
+    CBufferBaseDesc rxBuf;//æ¥æ”¶buf
+    CBufferBaseDesc txBuf;//å‘é€buf
     CBK_USBAPP txcbk;
     CBK_USBAPP rxcbk;
 }CUsbAppIntf;
@@ -73,15 +73,15 @@ UI8 ep0PktMaxSz=0x40;
 CSuspendMode suspend_status;
 
 /*
- *º¯ÊıÃû:
- *    ±ê×¼usbÇëÇóÃèÊö·û
- *¹¦ÄÜ:
+ *å‡½æ•°å:
+ *    æ ‡å‡†usbè¯·æ±‚æè¿°ç¬¦
+ *åŠŸèƒ½:
  *
- *²ÎÊı:
- *    ÎŞ
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    æ— 
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *
 */
 /*function implement section*/
@@ -290,16 +290,16 @@ int config_device(){
     return _config_endp(pcfg->ptr,pcfg->sz);
 }
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    HalUsbAttibuteInit
- *¹¦ÄÜ:
- *    ³õÊ¼»¯USBÉè±¸µÄÌØĞÔ
- *²ÎÊı:
- *    ÎŞ
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
- *    1.¸Ä±ä:
+ *åŠŸèƒ½:
+ *    åˆå§‹åŒ–USBè®¾å¤‡çš„ç‰¹æ€§
+ *å‚æ•°:
+ *    æ— 
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
+ *    1.æ”¹å˜:
  *    2.stack:
 */
 void HalUsbAttributeInit(){
@@ -307,16 +307,16 @@ void HalUsbAttributeInit(){
 }
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    HwUsbOpen
- *¹¦ÄÜ:
- *    ´ò¿ªUSB
- *²ÎÊı:
- *    ÎŞ
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
- *    1.¸Ä±ä:
+ *åŠŸèƒ½:
+ *    æ‰“å¼€USB
+ *å‚æ•°:
+ *    æ— 
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
+ *    1.æ”¹å˜:
  *    2.stack:
 */
 void HwUsbOpen(){
@@ -329,18 +329,18 @@ void HwUsbOpen(){
 typedef void (*CFunPtr)(void*setupPkt,CEndpoint*endp);
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_NOT_SUPPORT
- *¹¦ÄÜ:
- *    ²»Ö§³ÖµÄURB
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
- *    1.¸Ä±ä:
+ *åŠŸèƒ½:
+ *    ä¸æ”¯æŒçš„URB
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
+ *    1.æ”¹å˜:
  *    2.stack:
 */
 void URB_NOT_SUPPORT(void*setupPkt,CEndpoint*endp)
@@ -351,19 +351,19 @@ void URB_NOT_SUPPORT(void*setupPkt,CEndpoint*endp)
 
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    SetRxParameter
- *¹¦ÄÜ:
- *    Éè¶¨¶Ëµã·¢ËÍ²ÎÊı
- *²ÎÊı:
- *    1.endp:¶Ëµã¹ÜÀíÆ÷
- *    2.setupPkt:setup°ü
- *    3.dat:·¢ËÍ»º³åÇøÖ¸Õë
- *    4.sz:·¢ËÍÊı¾İ³¤¶È
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
- *    ÎŞ
+ *åŠŸèƒ½:
+ *    è®¾å®šç«¯ç‚¹å‘é€å‚æ•°
+ *å‚æ•°:
+ *    1.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    2.setupPkt:setupåŒ…
+ *    3.dat:å‘é€ç¼“å†²åŒºæŒ‡é’ˆ
+ *    4.sz:å‘é€æ•°æ®é•¿åº¦
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
+ *    æ— 
 */
 static void SetTxParameter(CEndpoint*endp,void*setupPkt,void*dat,UI32 sz)  {
     UI16*ptr=(UI16*)setupPkt;
@@ -378,16 +378,16 @@ static void SetTxParameter(CEndpoint*endp,void*setupPkt,void*dat,UI32 sz)  {
     endp->status|=USB_EndpStt_Tx;
 }
 
-//È¡ÇëÇóµÄ½ÓÊÕ¶Ë,usb±ê×¼¶¨Òå3ÖÖ±ê×¼½ÓÊÕ¶Ë:
-//    0.Éè±¸,device;1.½Ó¿Ú,interface;2.¶Ëµã,endpoint
+//å–è¯·æ±‚çš„æ¥æ”¶ç«¯,usbæ ‡å‡†å®šä¹‰3ç§æ ‡å‡†æ¥æ”¶ç«¯:
+//    0.è®¾å¤‡,device;1.æ¥å£,interface;2.ç«¯ç‚¹,endpoint
 UI8 GetRqtRecipient(void*setupPkt)  {
     UI8*ptr=(UI8*)setupPkt;
     UI8 rcp=ptr[0];
     return(GET_BFD(rcp,0,5));
 }
 
-//È¡ÇëÇóµÄÀàĞÍ,usb±ê×¼¶¨Òå3ÖÖÀàĞÍ:
-//    0.±ê×¼,standard;1.Àà,class;2.³§ÉÌ×Ô¶©,vendor
+//å–è¯·æ±‚çš„ç±»å‹,usbæ ‡å‡†å®šä¹‰3ç§ç±»å‹:
+//    0.æ ‡å‡†,standard;1.ç±»,class;2.å‚å•†è‡ªè®¢,vendor
 UI8 GetRqtType(void*setupPkt)  {
     UI8*ptr=(UI8*)setupPkt;
     UI8 rcp=ptr[0];
@@ -395,17 +395,17 @@ UI8 GetRqtType(void*setupPkt)  {
 }
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_GET_STATUS
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    GET_STATUS
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 uint16 usb_status[3]={
@@ -441,17 +441,17 @@ void URB_GET_STATUS(void*setupPkt,CEndpoint*endp){
 }
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_CLEAR_FEATURE
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    CLEAR_FEATURE
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 void URB_CLEAR_FEATURE(void*setupPkt,CEndpoint*endp){
@@ -489,17 +489,17 @@ void URB_CLEAR_FEATURE(void*setupPkt,CEndpoint*endp){
     UNS_SET(endp,UNS_Complete);
 }
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_SET_FEATURE
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    SET_FEATURE
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 // void HwUsb_HaltEndp(int endpn){
@@ -531,17 +531,17 @@ void URB_SET_FEATURE(void*setupPkt,CEndpoint*endp){
 }
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_SET_ADDRESS
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    SET_ADDRESS
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 extern void DelayNops_usb(volatile unsigned long nops);
@@ -561,17 +561,17 @@ void URB_SET_ADDRESS(void*setupPkt,CEndpoint*endp){
     //HwUdpStatusOut(udp);
 }
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_GET_DESCRIPTOR
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    GET_DESCRIPTOR
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 void URB_GET_DESCRIPTOR(void*setupPkt,CEndpoint*endp){
@@ -639,17 +639,17 @@ void URB_GET_DESCRIPTOR(void*setupPkt,CEndpoint*endp){
     //HwUdpStatusOut(udp);
 }
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_GET_CONFIGURATION
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    GET_CONFIGURATION
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 void URB_GET_CONFIGURATION(void*setupPkt,CEndpoint*endp){
@@ -658,17 +658,17 @@ void URB_GET_CONFIGURATION(void*setupPkt,CEndpoint*endp){
     HwUsb_SendPkt(0,endp);
 }
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_SET_CONFIGURATION
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    SET_CONFIGURATION
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 void URB_SET_CONFIGURATION(void*setupPkt,CEndpoint*endp){
@@ -697,17 +697,17 @@ void URB_SET_CONFIGURATION(void*setupPkt,CEndpoint*endp){
 
 }
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_GET_INTERFACE
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    GET_INTERFACE
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 void URB_GET_INTERFACE(void*setupPkt,CEndpoint*endp){
@@ -723,17 +723,17 @@ void URB_GET_INTERFACE(void*setupPkt,CEndpoint*endp){
     }
 }
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    URB_SET_INTERFACE
- *¹¦ÄÜ:
+ *åŠŸèƒ½:
  *    SET_INTERFACE
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 extern void _endp_tx(int endpn);
@@ -773,17 +773,17 @@ const CFunPtr tUsbStdRequest[]={
 };
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    HalUsbStandardRequest
- *¹¦ÄÜ:
- *    usb±ê×¼ÇëÇó´¦Àí
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *åŠŸèƒ½:
+ *    usbæ ‡å‡†è¯·æ±‚å¤„ç†
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 void HalUsbStandardRequest(void*setupPkt,CEndpoint*endp){
@@ -794,17 +794,17 @@ void HalUsbStandardRequest(void*setupPkt,CEndpoint*endp){
 }
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    HalUsbSetupHandle
- *¹¦ÄÜ:
- *    usb setup·â°ü´¦Àí
- *²ÎÊı:
- *    1.setupPkt:setup°üÖ¸Õë
- *    2.endp:¶Ëµã¹ÜÀíÆ÷
- *    3.udp:udpÖ¸Õë
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
+ *åŠŸèƒ½:
+ *    usb setupå°åŒ…å¤„ç†
+ *å‚æ•°:
+ *    1.setupPkt:setupåŒ…æŒ‡é’ˆ
+ *    2.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    3.udp:udpæŒ‡é’ˆ
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
  *    1.
 */
 void HalUsbSetupHandle(void*setupPkt,CEndpoint *endp)

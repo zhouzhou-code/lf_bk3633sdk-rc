@@ -155,7 +155,7 @@ uint8_t user_flash_data1[16] = {0x12,0x34,0xaa,0x00,0x00,0x20,0x00,0x00,
                                 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,};
 void Ep2_RxCbk(void*ptr,int sz){
 //    int i;
-    /*�iif(((char*)ptr)[0]==0x10){
+    /*�iif(((char*)ptr)[0]==0x10){
         mouseTest=1;
         uart_printf("recieved a cmd\r\n");
     }
@@ -449,7 +449,19 @@ int main(void)
         }
     }
     #endif
-    fn24main();
+
+    uart_printf("in rf_simple_init,\r\n");
+    rf_simple_init();
+    uart_printf("complete rf_simple_init,\r\n");
+
+    //发送
+   //bk24_send_data();
+
+    //接收
+    rf_simple_receive();
+
+    //fn24main();
+   
     while(1)
     {
         stack_integrity_check();

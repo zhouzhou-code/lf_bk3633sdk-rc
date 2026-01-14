@@ -7,14 +7,14 @@ typedef int (*CCallback)();
 
 //----------------------------------------------
 typedef unsigned char                BYTE;
-typedef signed   long                int32;      //  �з���32λ���ͱ���
-typedef signed   short                int16;      //  �з���16λ���ͱ���
-typedef signed   char                int8;       //  �з���8λ���ͱ���
-typedef unsigned long                uint32;     //  �޷���32λ���ͱ���
-typedef unsigned short                uint16;     //  �޷���16λ���ͱ���
-typedef unsigned char                uint8;      //  �޷���8λ���ͱ���
-typedef float                        fp32;       //  �����ȸ�������32λ���ȣ�
-typedef double                        fp64;       //  ˫���ȸ�������64λ���ȣ�
+typedef signed   long                int32;      //  有符号32位整型变量
+typedef signed   short                int16;      //  有符号16位整型变量
+typedef signed   char                int8;       //  有符号8位整型变量
+typedef unsigned long                uint32;     //  无符号32位整型变量
+typedef unsigned short                uint16;     //  无符号16位整型变量
+typedef unsigned char                uint8;      //  无符号8位整型变量
+typedef float                        fp32;       //  单精度浮点数（32位长度）
+typedef double                        fp64;       //  双精度浮点数（64位长度）
 //typedef __int64                        int64,INT64,SI64;
 //typedef unsigned __int64            uint64,UINT64,UI64;
 typedef long long                    LONGLONG;
@@ -28,12 +28,12 @@ typedef unsigned short                u16,UI16,*PUI16,WORD;
 typedef unsigned char                u8,UI8,*PUI8;
 typedef void*                        PVOID;
 
-typedef signed   char       int8_t;     // �з���8λ���ͱ���
-typedef signed   short      int16_t;    // �з���16λ���ͱ���
-//typedef signed   int       int32_t;    // �з���32λ���ͱ���
-typedef unsigned char       uint8_t;    // �޷���8λ���ͱ���
-typedef unsigned short      uint16_t;   // �޷���16λ���ͱ���
-typedef unsigned int       uint32_t;   // �޷���32λ���ͱ���
+typedef signed   char       int8_t;     // 有符号8位整型变量
+typedef signed   short      int16_t;    // 有符号16位整型变量
+//typedef signed   int       int32_t;    // 有符号32位整型变量
+typedef unsigned char       uint8_t;    // 无符号8位整型变量
+typedef unsigned short      uint16_t;   // 无符号16位整型变量
+typedef unsigned int       uint32_t;   // 无符号32位整型变量
 
 //typedef enum { false=0, true=!false}  bool;
 // typedef enum { FALSE=0, TRUE=!FALSE }  bool;
@@ -63,7 +63,7 @@ typedef unsigned int       uint32_t;   // �޷���32λ���ͱ���
 //BIG ENDIAN to LITTLE ENDIAN
 #define _BYTE(n,v) \
     (((v)>>(8*n))&0xff)
-//����2�ָ�ʽ�ı任
+//用于2种格式的变换
 #define B2L_32(bv) \
     ((_BYTE(0, bv)<<24)|\
     (_BYTE(1, bv)<<16)|\
@@ -75,15 +75,15 @@ typedef unsigned int       uint32_t;   // �޷���32λ���ͱ���
     (_BYTE(1, bv)))
 
 #define RW
-    //�ɶ�д
+    //可读写
 #define RO
-    //ֻ��
+    //只读
 #define WO
-    //ֻд
+    //只写
 #define W1C
-    //д1��0
+    //写1清0
 #define RC
-    //������0
+    //读出清0
 
 // #define PRT(var)    bim1_uart_printf(#var##"=%.8x\r\n",var)
 #define REG32(x)            (*((volatile uint32 *)(x)))

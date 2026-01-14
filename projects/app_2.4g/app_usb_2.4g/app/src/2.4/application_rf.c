@@ -120,9 +120,9 @@ void application_mouse_rf_send(void)
         //  system_data.wheel = 0;
     }
 //    RF_CMD_CLEAR_STATUS_ALL;
-    if((RF_flag & flag_rf_last_state ) && (sync_count==0))    //Èç¹ûÌøÆµ°ü·¢ËÍ³É¹¦ÁË£¬ flag_rf_last_state»áÖÃÎ»£¬µ«ÊÇsync_count==2
+    if((RF_flag & flag_rf_last_state ) && (sync_count==0))    //å¦‚æœè·³é¢‘åŒ…å‘é€æˆåŠŸäº†ï¼Œ flag_rf_last_stateä¼šç½®ä½ï¼Œä½†æ˜¯sync_count==2
     {
-        if(application_mouse_rf_send_start())//Õı³£·¢ËÍ¼°·¢ËÍÌøÆµ°ü
+        if(application_mouse_rf_send_start())//æ­£å¸¸å‘é€åŠå‘é€è·³é¢‘åŒ…
         {
             sync_count = 0;
             system_data.time.tick_rf_send_fail = 0x0;
@@ -277,7 +277,7 @@ uint8_t application_mouse_rf_send_start(void)
         driver_rf_maxRT_clear();
     }
 
-    //////////////////////////¿ªÊ¼·¢ËÍÌøÆµ°ü
+    //////////////////////////å¼€å§‹å‘é€è·³é¢‘åŒ…
     rf_fifo_data[0] &= ~SYSTEM_SYNCHRONIZE;
     system_data.rf_connect = SYSTEM_NEXT_CH;
     rf_fifo_data[0] |= system_data.rf_connect;

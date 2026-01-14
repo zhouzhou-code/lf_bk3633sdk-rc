@@ -32,9 +32,9 @@ void f24Init(void)
     Rf_Init();
 //  while(1);
     #ifdef __RF250_RF__
-    SetDataRate(0);  // data rate:1M
+    SetDataRate(0);  // data rate:250kbps
     #else
-    SetDataRate(2);  // data rate:1M
+    SetDataRate(2);  // data rate:2Mbps 
     #endif
 }
 void f24GetFreqConfigValue(void)
@@ -85,7 +85,7 @@ void application_initial(void)
     Timer_Initial(0,1,15); // T0,1M
     Timer_Initial(1,0,0); // T1,32k
     Timer0_Start(1,2000000); // 2ms
-    //注册IO回调
+    //???IO???
     timer_cb_register(0,1,app_timer0_1_int_cb);
 
     gpio_config(TEST_PIN1,OUTPUT, PULL_NONE);
@@ -105,7 +105,7 @@ void application_initial(void)
     gpio_set(TEST_PIN3,0);
     gpio_set(TEST_PIN4,0);
 
-    app_sensor_init();      //清buff数据，免得对码成功瞬间光标会移动
+    app_sensor_init();      //??buff??????????????????????
 
     LED_Ctrl(cLEDOff);
 
@@ -202,21 +202,22 @@ void fn24main(void)
 
     while(1)
     {
-        if(system_data.system_mode==SYSTEM_NORMAL)
-        {
-            application_normal_mode();
-        }
-        else if(system_data.system_mode == SYSTEM_PAGE)
-        {
-            application_page_mode();
-        }
-        else if(system_data.system_mode == SYSTEM_TEST)
-        {
-            application_test_mode();
-        }
-        else if(system_data.system_mode == SYSTEM_PCBA)
-        {
-            application_PCBA_mode();
-        }
+        
+        // if(system_data.system_mode==SYSTEM_NORMAL)
+        // {
+        //     application_normal_mode();
+        // }
+        // else if(system_data.system_mode == SYSTEM_PAGE)
+        // {
+        //     application_page_mode();
+        // }
+        // else if(system_data.system_mode == SYSTEM_TEST)
+        // {
+        //     application_test_mode();
+        // }
+        // else if(system_data.system_mode == SYSTEM_PCBA)
+        // {
+        //     application_PCBA_mode();
+        // }
     }
 }

@@ -211,7 +211,7 @@ void Reserved_Exception(void)
 }
 
 
-#pragma ARM//不要修改以下两个文件
+#pragma ARM//涓嶈淇敼浠ヤ笅涓や釜鏂囦欢
 __IRQ FAST_IRQ_ENTRY void SYSirq_IRQ_Handler(void)
 {
     intc_irq();

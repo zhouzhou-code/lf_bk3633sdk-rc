@@ -10,7 +10,7 @@
       <TargetName>Target1</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5050041::V5.05 (build 41)::.\ARMCC</pCCUsed>
+      <pCCUsed>5060960::V5.06 update 7 (build 960)::.\ARM_Compiler_5.06u7</pCCUsed>
       <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
@@ -577,6 +577,16 @@
               <FileName>driver_rf.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\app\src\2.4\driver_rf.c</FilePath>
+            </File>
+            <File>
+              <FileName>test_my_rf_fun.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\2.4\test_my_rf_fun.c</FilePath>
+            </File>
+            <File>
+              <FileName>test_my_rf_fun.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\2.4\test_my_rf_fun.h</FilePath>
             </File>
           </Files>
         </Group>

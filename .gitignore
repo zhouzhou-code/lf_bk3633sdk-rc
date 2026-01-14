@@ -1,0 +1,47 @@
+# 编译输出
+*.o
+*.obj
+*.elf
+*.axf
+*.bin
+*.hex
+*.map
+*.out
+*.lnp
+*.d
+*.lst
+*.crf
+*.sct
+
+# Keil相关
+*.uvopt
+*.uvproj
+*.uvprojx
+*.uvgui.*
+*.bak
+
+# 日志和临时文件
+*.log
+*.htm
+*.tmp
+*.swp
+*.swo
+*.swn
+
+# 目录
+obj/
+output/
+Listings/
+
+# IDE相关
+.vscode/
+*.sdf
+*.opensdf
+*.user
+*.suo
+*.ncb
+*.db
+
+# 其他
+.DS_Store
+Thumbs.db

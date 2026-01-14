@@ -189,7 +189,7 @@ void application_page_mode(void)
         Delay_ms(100);
         if((u32FlashProtect1 == cFlashProtect1) && (u32FlashProtect2 == cFlashProtect2) && (u32FlashProtect3 == cFlashProtect3))
         {
-          /*   flash_wp_256k(); // ÓĞ bug 1¡¢ ±£»¤¿Õ¼ä²»¶Ô£¬2¡¢Ğ´ÍêÃ»ÓĞ»Ö¸´±£»¤
+          /*   flash_wp_256k(); // æœ‰ bug 1ã€ ä¿æŠ¤ç©ºé—´ä¸å¯¹ï¼Œ2ã€å†™å®Œæ²¡æœ‰æ¢å¤ä¿æŠ¤
 
             flash_read(0,0x7d210, 14,temp, (void*)0);//the addr is the word,so the addr +20
             flash_erase(0,0x7d210,0x1000,0);*/
@@ -211,7 +211,7 @@ void application_page_mode(void)
             P0_Address[0] = RF_ADDRESS_FIRST_BYTE;
 
             app_val.powered_bind = 0;
-            app_sensor_init();        //ÇåbuffÊı¾İ£¬ÃâµÃ¶ÔÂë³É¹¦Ë²¼ä¹â±ê»áÒÆ¶¯
+            app_sensor_init();        //æ¸…buffæ•°æ®ï¼Œå…å¾—å¯¹ç æˆåŠŸç¬é—´å…‰æ ‡ä¼šç§»åŠ¨
         }
     }
     memcpy_2461(&TRX_RX_ADDR_P0_0, P0_Address, RF_ADDRESS_LEN);

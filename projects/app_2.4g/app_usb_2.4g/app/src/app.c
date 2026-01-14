@@ -112,7 +112,7 @@ void app_mouse_key_check(void)
     if(RF_flag & flag_key_short)
     {
         RF_flag &= ~flag_key_short ;
-        // ÏÖÔÚsensorµÄ²¿·Ö²»¼Ó
+        // ç°åœ¨sensorçš„éƒ¨åˆ†ä¸åŠ 
         // if((system_data.key_valid & MOUSE_STANDARD_KEY_DPI) && !flag_dongle_lost)                                                //cpi switch
         //driver_sensor_dpi_switch();
     }

@@ -16,9 +16,9 @@ extern uint8_t rf_fifo_data[MAX_PACKET_LEN];
 
 extern volatile uint32_t XVR_ANALOG_REG_BAK[32];
 
-//ÅäÖÃµ¥ÔØ²¨·¢Éä
-//freq:ÆµµãÉèÖÃ£¬Ë«Æµµã(2-80)
-//power:¹¦ÂÊµÈ¼¶(0x1-0xf)
+//é…ç½®å•è½½æ³¢å‘å°„
+//freq:é¢‘ç‚¹è®¾ç½®ï¼ŒåŒé¢‘ç‚¹(2-80)
+//power:åŠŸç‡ç­‰çº§(0x1-0xf)
 void driver_rf_mode_single_wave(uint8_t freq)
 {
     uint32_t val = 0;
@@ -40,7 +40,7 @@ void driver_rf_mode_single_wave(uint8_t freq)
 //    while(1);
 }
 /*
-    ¸Ãº¯Êı´ÓPN9Ä£Ê½ÇĞ»»µ½Õı³£Ä£Ê½ÇĞ²»¹ıÀ´
+    è¯¥å‡½æ•°ä»PN9æ¨¡å¼åˆ‡æ¢åˆ°æ­£å¸¸æ¨¡å¼åˆ‡ä¸è¿‡æ¥
 */
 void driver_rf_mode_normal(void)
 {

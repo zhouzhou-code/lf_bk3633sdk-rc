@@ -27,19 +27,19 @@ extern void HwUsb_SendStall(int endpn);
 extern void HwUsb_SendZlp(int endpn);
 //extern void SetRxParameter(CEndpoint * endp, void * setupPkt, void * dat, UI32 sz)
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    SetRxParameter
- *¹¦ÄÜ:
- *    Éè¶¨¶Ëµã½ÓÊÕ²ÎÊı
- *²ÎÊı:
- *    1.endp:¶Ëµã¹ÜÀíÆ÷
- *    2.setupPkt:setup°ü
- *    3.dat:½ÓÊÕ»º³åÇøÖ¸Õë
- *    4.sz:½ÓÊÕ»º³åÇø³¤¶È
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
- *    1.Ä¿Ç°Ö»Ö§³ÖĞ¡ÓÚ8bytesµÄÊı¾İ½ÓÊÕ£¬´óÓÚ8µÄĞèÖØĞÂ¶¨Òå
+ *åŠŸèƒ½:
+ *    è®¾å®šç«¯ç‚¹æ¥æ”¶å‚æ•°
+ *å‚æ•°:
+ *    1.endp:ç«¯ç‚¹ç®¡ç†å™¨
+ *    2.setupPkt:setupåŒ…
+ *    3.dat:æ¥æ”¶ç¼“å†²åŒºæŒ‡é’ˆ
+ *    4.sz:æ¥æ”¶ç¼“å†²åŒºé•¿åº¦
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
+ *    1.ç›®å‰åªæ”¯æŒå°äº8bytesçš„æ•°æ®æ¥æ”¶ï¼Œå¤§äº8çš„éœ€é‡æ–°å®šä¹‰
 */
 //static
 void SetRxParameter(CEndpoint*endp,void*setupPkt,void*dat,UI32 sz) {
@@ -52,16 +52,16 @@ void SetRxParameter(CEndpoint*endp,void*setupPkt,void*dat,UI32 sz) {
 }
 
 /*
- *º¯ÊıÃû:
+ *å‡½æ•°å:
  *    HalUsbClassRequest
- *¹¦ÄÜ:
- *    USB±ê×¼ÇëÇó´¦Àíº¯Êı
- *²ÎÊı:
- *    ÎŞ
- *·µ»Ø:
- *    ÎŞ
- *ÌØÊâ:
- *    1.¸Ä±ä:
+ *åŠŸèƒ½:
+ *    USBæ ‡å‡†è¯·æ±‚å¤„ç†å‡½æ•°
+ *å‚æ•°:
+ *    æ— 
+ *è¿”å›:
+ *    æ— 
+ *ç‰¹æ®Š:
+ *    1.æ”¹å˜:
  *    2.stack:
 */
 void HalUsbClassRequest(void*setupPkt,CEndpoint*endp) {
