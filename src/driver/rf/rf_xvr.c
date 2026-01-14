@@ -907,10 +907,10 @@ uint32_t value_kcal_result_2M;
 void kmod_calibration(void) 
 {
 
-/* 1ï¿½ï¿½ï¿½Ú³ï¿½Ê¼ï¿½ï¿½0X26ï¿½ï¿½ [16:28] = 0x1084 
-            2ï¿½ï¿½ï¿½ï¿½0X30ï¿½ï¿½BT ï¿½ï¿½ï¿½Ã³ï¿½ BT = 1È¥Ð£×¼
+/* 1??0X26 [16:28] = 0x1084 
+            20X30BT ó BT = 1???
     
-        3ï¿½ï¿½Ð£×¼ï¿½ï¿½Éºï¿½ï¿½ï¿½0X30ï¿½ï¿½BT ï¿½ï¿½ï¿½Ã³ï¿½ BT = 0.5
+        3???0X30BT ó BT = 0.5
     
     
     */
@@ -1252,9 +1252,9 @@ void CLK32K_AutoCali_End(void)
 #endif
 
 
-//ï¿½ï¿½ï¿½Ãµï¿½ï¿½Ø²ï¿½ï¿½ï¿½ï¿½ï¿½
-//freq:Æµï¿½ï¿½ï¿½ï¿½ï¿½Ã£ï¿½Ë«Æµï¿½ï¿½(2-80)
-//power:ï¿½ï¿½ï¿½ÊµÈ¼ï¿½(0x1-0xf)
+//õ?
+//freq:?ã??(2-80)
+//power:??(0x1-0xf)
 void singleWaveCfg(uint8_t freq, uint8_t power_level)
 {
     uint32_t val = 0;
@@ -1271,8 +1271,8 @@ void singleWaveCfg(uint8_t freq, uint8_t power_level)
 }
 
 
-//ï¿½Þ¸Ä·ï¿½ï¿½ä¹¦ï¿½ï¿½,Ä¬ï¿½ï¿½Îªï¿½È¼ï¿½7
-//power_level:ï¿½ï¿½ï¿½ÊµÈ¼ï¿½(0x0-0xf) :4->0db,7->4.5db f->9db
+//???,???7
+//power_level:??(0x0-0xf) :4->0db,7->4.5db f->9db
 void set_power(uint8_t power_level)
 {
     uint32_t val = 0;
@@ -1285,8 +1285,8 @@ void set_power(uint8_t power_level)
     addXVR_Reg0x24 |= val;
 }
 
-///ï¿½ï¿½ï¿½ï¿½ÆµÆ«ï¿½ï¿½ï¿½ï¿½
-///cal_dataÄ¬ï¿½ï¿½Îª0x35,ï¿½ï¿½Î§0x00~0x7f
+///??
+///cal_data??0x35,?0x00~0x7f
 void xtal_cal_set(uint8_t cal_data)
 {
     if(cal_data>0x7f)

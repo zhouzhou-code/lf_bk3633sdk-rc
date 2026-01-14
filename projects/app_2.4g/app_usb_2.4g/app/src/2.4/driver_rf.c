@@ -131,7 +131,7 @@ void W_TX_PAYLOAD_NOACK(uint8_t *pBuf, uint8_t bytes)
     }
     TRX_CMD = 0x00;
 }
-void W_ACK_PAYLOAD(uint8_t *pBuf, uint8_t bytes, uint8_t pipe)
+void W_ACK_PAYLOAD(uint8_t *pBuf, uint8_t bytes, uint8_t pipe)//预制应答数据
 {
     uint8_t i;
     TRX_CMD = 0x68 + pipe;
@@ -168,7 +168,7 @@ void Rf_Init(void)
     TRX_SETUP_RETR = 0x33;      // 自动重传延时750us, 重传3次
     TRX_RF_CH      = 0x05;       // 频道5
     TRX_RF_SETUP   = 0x0f;      // 2Mbps
-
+    
     //管道0~5接收地址 pipeline address
     memcpy_2461(&TRX_RX_ADDR_P0_0, P0_Address, RF_ADDRESS_LEN); 
     memcpy_2461(&TRX_RX_ADDR_P1_0, P1_Address, RF_ADDRESS_LEN);
@@ -426,7 +426,7 @@ uint32_t driver_rf_data_send(uint8_t len)
     do
     {
         status = TRX_IRQ_STATUS;  // 读取中断状态寄存器
-        Delay_us(5);              // 延时5微秒，避免过度占用CPU
+        Delay_us(5);              
         
         // 检查是否超时（等待超过5次循环，即25μs）
         if(uRF_TXTime > 5) //uRF_TXTime在定时器中断中更新

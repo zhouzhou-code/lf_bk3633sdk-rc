@@ -69,7 +69,7 @@ extern "C" {
 
 #define  TRX_RF_CH              XBYTE[0x05]  /* RF频道设置寄存器 */
 /* 位定义:
- * bit[7]:   自动频率选择 (0=使用cur_cfg_chn, 1=使用RF_CH[6:0])
+ * bit[7]:   自动频率选择 (0=XVR使用cur_cfg_chn, 1=使用RF_CH[6:0])
  * bit[6:0]: RF_CH - RF频率通道 (0-127)
  */
 
@@ -95,7 +95,7 @@ extern "C" {
 #define  TRX_RX_ADDR_P1_3       XBYTE[0x0f]  /* RX_ADDR_P1 字节3 */
 #define  TRX_RX_ADDR_P1_4       XBYTE[0x10]  /* RX_ADDR_P1 字节4 (MSB) */
 
-/* 接收地址寄存器 - 管道2-5 (仅LSB字节) */
+/* 接收地址寄存器 - 管道2-5 (仅一个LSB字节) */
 #define  TRX_RX_ADDR_P2         XBYTE[0x11]  /* RX_ADDR_P2 (仅LSB, MSB部分与P1相同) */
 #define  TRX_RX_ADDR_P3         XBYTE[0x12]  /* RX_ADDR_P3 (仅LSB, MSB部分与P1相同) */
 #define  TRX_RX_ADDR_P4         XBYTE[0x13]  /* RX_ADDR_P4 (仅LSB, MSB部分与P1相同) */
@@ -124,9 +124,9 @@ extern "C" {
 
 #define  TRX_FEATURE            XBYTE[0x21]  /* 特性使能寄存器 */
 /* 位定义:
- * bit[2]: EN_DPL - 启用动态有效载荷长度
- * bit[1]: EN_ACK_PAY - 启用ACK有效载荷
- * bit[0]: EN_DYN_ACK - 启用动态ACK (W_TX_PAYLOAD_NOACK命令)
+ * bit[2]: EN_DPL - 启用动态有效载荷长度，接收通道能解析动态长度包
+ * bit[1]: EN_ACK_PAY - 启用ACK有效载荷，允许接收方在ACK包中附加数据(附加数据使用TRX_CMD=0x68~0x6D命令写入)，依赖TRX_EN_AA寄存器
+ * bit[0]: EN_DYN_ACK - 允许发送无需ACK确认的数据包
  */
 
 /* ============== 配置寄存器扩展 ============== */
@@ -179,11 +179,13 @@ extern "C" {
 /* ============== 状态寄存器 ============== */
 #define  TRX_IRQ_STATUS         XBYTE[0x40]  /* 中断状态寄存器 */
 /* 中断状态位定义 */
-#define  B_IRQ_RX_DR            0x40  /* bit[6]: 接收数据就绪中断 */
-#define  B_IRQ_TX_DS            0x20  /* bit[5]: 发送完成中断 */
-#define  B_IRQ_MAX_RT           0x10  /* bit[4]: 最大重传次数中断 */
-#define  B_IRQ_TX_FULL          0x01  /* bit[0]: TX FIFO满中断 */
+#define  B_IRQ_RX_DR            (1<<6)  /* bit[6]: 接收数据就绪中断 */
+#define  B_IRQ_TX_DS            (1<<5)  /* bit[5]: 发送完成中断 */
+#define  B_IRQ_MAX_RT           (1<<4)  /* bit[4]: 最大重传次数中断 */
+#define  B_IRQ_TX_FULL          (1<<0)  /* bit[0]: TX FIFO满中断 */
 
+/* 自己添加的 */
+#define  B_RX_P_NO              (1<<1|1<<2|1<<3)  /* bit[3:1]: 指示当前FIFO的数据来自哪个管道 */
 /* 说明:
  * RX_DR: 当新数据到达RX FIFO时置位
  * TX_DS: 当TX数据发送完成时置位 (如果启用了AUTO_ACK，则仅在收到ACK时置位)
@@ -199,12 +201,11 @@ extern "C" {
 
 #define  TRX_FIFO_STATUS        XBYTE[0x43]  /* FIFO状态寄存器 */
 /* FIFO状态位定义 */
-#define  B_FIFO_TX_REUSE        0x40  /* bit[6]: TX数据重用标志 */
-#define  B_FIFO_TX_FULL         0x20  /* bit[5]: TX FIFO满标志 */
-#define  B_FIFO_TX_EMPTY        0x10  /* bit[4]: TX FIFO空标志 */
-#define  B_FIFO_RX_FULL         0x02  /* bit[1]: RX FIFO满标志 */
-#define  B_FIFO_RX_EMPTY        0x01  /* bit[0]: RX FIFO空标志 */
-
+#define  B_FIFO_TX_REUSE        (1<<6)  /* bit[6]: TX数据重用标志 */
+#define  B_FIFO_TX_FULL         (1<<5)  /* bit[5]: TX FIFO满标志 */
+#define  B_FIFO_TX_EMPTY        (1<<4)  /* bit[4]: TX FIFO空标志 */
+#define  B_FIFO_RX_FULL         (1<<1)  /* bit[1]: RX FIFO满标志 */
+#define  B_FIFO_RX_EMPTY        (1<<0)  /* bit[0]: RX FIFO空标志 */
 #define  TRX_RX_RPL_WIDTH       XBYTE[0x44]  /* RX有效载荷宽度寄存器 */
 /* 位定义:
  * bit[5:0]: BK2423_rpl_width - 有效载荷宽度

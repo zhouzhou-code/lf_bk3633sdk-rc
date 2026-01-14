@@ -450,8 +450,6 @@
 
 
 
-
-
 #define posSYS_Reg0xf_spi_fla_sel                               1
 #define bitSYS_Reg0xf_spi_fla_sel                               0x2
 #define set_SYS_Reg0xf_spi_fla_sel(val)                         addSYS_Reg0xf = ((addSYS_Reg0xf & (~0x2)) | ((val) << 1))

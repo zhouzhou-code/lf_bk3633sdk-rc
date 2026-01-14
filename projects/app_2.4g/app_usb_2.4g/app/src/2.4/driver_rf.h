@@ -42,6 +42,7 @@ void SwitchToRxMode(void); //切换到接收模式
 void SwitchToTxMode(void); //切换到发送模式
 void ChangeTxPipe(uint8_t pipe); //切换发送管道
 
+/* 基本收发接口 数据读写硬件FIFO */
 void R_RX_PAYLOAD(uint8_t *pBuf, uint8_t bytes); //读取接收FIFO的数据到pBuf
 void W_TX_PAYLOAD(uint8_t *pBuf, uint8_t bytes); //将pBuf数据写入发送FIFO
 void W_TX_PAYLOAD_NOACK(uint8_t *pBuf, uint8_t bytes); //写入发送数据，无需应答
