@@ -103,31 +103,196 @@ RF_ConfgTypeDef Init_S_normal=
     .DataRate = BPS_2M,
     .TxPower = RF_TX_POWER_0dBm,
     .Channel = 0x05, // 频道5
-
-    .Address =
-    {
+    .Protocol ={
         .AddressWidth = 5,
-        .TxAddress = {0x10, 0x11, 0x36, 0x0, 0x0},
-        .RxAddrP0 = {0x10, 0x11, 0x36, 0x0, 0x0},
-        .RxAddrP1 = {0x10, 0x56, 0x24, 0xCD, 0x78},
-        .RxAddrP2 = 0x11,
-        .RxAddrP3 = 0x12,
-        .RxAddrP4 = 0x13,
-        .RxAddrP5 = 0x14
-    },
-
-    .Protocol =
-    {
-        .alloc_noAck = 1,             
-        .DynamicPayloadEnable = 1,       //启用动态包长                     
-        .PayloadWidth = 32,              // 固定包长 32字节 (仅在 DynamicPayloadEnable=0 时有效)
-        .RxPipesEn_Mask = 0x03,          // 启用所有pipes的接收
-        .RxPipesAutoAckEn_Mask = 0x03,   // 启用所有pipes的自动应答
+        .TxAddress = {0x10, 0x11, 0x36, 0x00, 0x00},
+        .Support_NoAck = 1,             
+        .AutoRetransmitDelay = 3,        // 最大重传延迟 750us
         .AutoRetransmitCount = 3,        // 最大重传次数 3
-        .AutoRetransmitDelay = 5,        // 最大重传延迟 1250us
+        
+        .RxPipes[0] = {
+            .PipeNum = 0,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x10, 0x11, 0x36, 0x00, 0x00}
+        },
+        .RxPipes[1] = {
+            .PipeNum = 1,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x10, 0x56, 0x24, 0xCD, 0x78}
+        },
+        .RxPipes[2]={
+            .PipeNum = 2,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x11, 0, 0, 0, 0}
+        },
+        .RxPipes[3]={
+            .PipeNum = 3,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x12, 0, 0, 0, 0}
+        },
+        .RxPipes[4]={
+            .PipeNum = 4,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x13, 0, 0, 0, 0}
+        },
+        .RxPipes[5]={
+            .PipeNum = 5,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x14, 0, 0, 0, 0}
+        }
     }
 
 };
+
+uint8_t RF_ADDRESS_LEN=5;
+
+static printf_all_registers(void)
+{
+    uart_printf("TRX_CONFIG     = 0x%02X\r\n", TRX_CONFIG);
+    uart_printf("TRX_EN_AA      = 0x%02X\r\n", TRX_EN_AA);
+    uart_printf("TRX_EN_RXADDR  = 0x%02X\r\n", TRX_EN_RXADDR);
+    uart_printf("TRX_SETUP_AW   = 0x%02X\r\n", TRX_SETUP_AW);
+    uart_printf("TRX_SETUP_RETR = 0x%02X\r\n", TRX_SETUP_RETR);
+    uart_printf("TRX_RF_CH      = 0x%02X\r\n", TRX_RF_CH);
+    uart_printf("TRX_RF_SETUP   = 0x%02X\r\n", TRX_RF_SETUP);
+
+    uart_printf("TRX_RX_ADDR_P0 = ");
+    for(int i=0;i<RF_ADDRESS_LEN;i++) uart_printf("%02X ", ((volatile uint8_t*)&TRX_RX_ADDR_P0_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_ADDR_P1 = ");
+    for(int i=0;i<RF_ADDRESS_LEN;i++) uart_printf("%02X ", ((volatile uint8_t*)&TRX_RX_ADDR_P1_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_ADDR_P2 = 0x%02X\r\n", TRX_RX_ADDR_P2);
+    uart_printf("TRX_RX_ADDR_P3 = 0x%02X\r\n", TRX_RX_ADDR_P3);
+    uart_printf("TRX_RX_ADDR_P4 = 0x%02X\r\n", TRX_RX_ADDR_P4);
+    uart_printf("TRX_RX_ADDR_P5 = 0x%02X\r\n", TRX_RX_ADDR_P5);
+
+    uart_printf("TRX_TX_ADDR    = ");
+    for(int i=0;i<RF_ADDRESS_LEN;i++) uart_printf("%02X ", ((volatile uint8_t*)&TRX_TX_ADDR_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_PW_P0   = 0x%02X\r\n", TRX_RX_PW_P0);
+    uart_printf("TRX_RX_PW_P1   = 0x%02X\r\n", TRX_RX_PW_P1);
+    uart_printf("TRX_RX_PW_P2   = 0x%02X\r\n", TRX_RX_PW_P2);
+    uart_printf("TRX_RX_PW_P3   = 0x%02X\r\n", TRX_RX_PW_P3);
+    uart_printf("TRX_RX_PW_P4   = 0x%02X\r\n", TRX_RX_PW_P4);
+    uart_printf("TRX_RX_PW_P5   = 0x%02X\r\n", TRX_RX_PW_P5);
+
+    uart_printf("TRX_DYNPD      = 0x%02X\r\n", TRX_DYNPD);
+    uart_printf("TRX_FEATURE    = 0x%02X\r\n", TRX_FEATURE);
+
+    uart_printf("addXVR_Reg0x24 = 0x%08lX\r\n", addXVR_Reg0x24);
+    uart_printf("addXVR_Reg0x3b = 0x%08lX\r\n", addXVR_Reg0x3b);
+    uart_printf("addXVR_Reg0x2e = 0x%08lX\r\n", addXVR_Reg0x2e);
+    uart_printf("addXVR_Reg0x26 = 0x%08lX\r\n", addXVR_Reg0x26);
+    uart_printf("addXVR_Reg0x2  = 0x%08lX\r\n", addXVR_Reg0x2);
+    uart_printf("addXVR_Reg0x2c = 0x%08lX\r\n", addXVR_Reg0x2c);
+    uart_printf("addXVR_Reg0x2d = 0x%08lX\r\n", addXVR_Reg0x2d);
+    uart_printf("addXVR_Reg0x3a = 0x%08lX\r\n", addXVR_Reg0x3a);
+}
+
+static void memcpy_2461(volatile uint32 *p, uint32 *val, uint8 len)
+{
+    uint8_t i = 0;
+    for ( i = 0; i < len ; i++ )
+    {
+        p[i] = val[i];
+    }
+}
+void rf_simple_init_old(void)
+{
+    clrf_SYS_Reg0x3_bk24_pwd;
+   
+    uint32 Cfg_0c_Val[4] = {0x1F, 0x1B, 0x73, 0x00};
+    uint32 Cfg_0d_Val[4] = {0x36, 0xB4, 0x80, 0x28};
+    uint32 P0_Address[5] = {0x10, 0x11, 0x36, 0x0, 0x0};  
+    uint32 P1_Address[5] = {0x10, 0x56, 0x24, 0xCD, 0x78};
+
+    memcpy_2461(&TRX_CFG_0C_0, Cfg_0c_Val, 4);
+    memcpy_2461(&TRX_CFG_0D_0, Cfg_0d_Val, 4);
+//    memcpy_2461(&TRX_RAMP_TABLE_0, Ramp_Table_Val, 11);
+    TRX_CONFIG     = 0x0C;     // default PTX
+    TRX_EN_AA      = 0x3F;     // 使能6个管道自动应答
+    TRX_EN_RXADDR  = 0X3F;     // 使能6个管道接收地址
+    TRX_SETUP_AW   = 0x03;      // 地址宽度5字节
+    TRX_SETUP_RETR = 0x33;      // 自动重传延时750us, 重传3次
+    TRX_RF_CH      = 0x05;       // 频道5
+    TRX_RF_SETUP   = 0x0f;      // 2Mbps
+    
+    //管道0~5接收地址 pipeline address
+    memcpy_2461(&TRX_RX_ADDR_P0_0, P0_Address, RF_ADDRESS_LEN); 
+    memcpy_2461(&TRX_RX_ADDR_P1_0, P1_Address, RF_ADDRESS_LEN);
+    TRX_RX_ADDR_P2 = 0x11;
+    TRX_RX_ADDR_P3 = 0x12;
+    TRX_RX_ADDR_P4 = 0x13;
+    TRX_RX_ADDR_P5 = 0x14;
+
+    memcpy_2461(&TRX_TX_ADDR_0, P0_Address, RF_ADDRESS_LEN);
+    
+    //pipline 0~5 单次数据包长度
+    TRX_RX_PW_P0 = 0x20; //32字节
+    TRX_RX_PW_P1 = 0x20;
+    TRX_RX_PW_P2 = 0x20;
+    TRX_RX_PW_P3 = 0x20;
+    TRX_RX_PW_P4 = 0x20;
+    TRX_RX_PW_P5 = 0x20;
+
+    TRX_DYNPD    = 0x3F; 
+    TRX_FEATURE  = 0x07; 
+//    TRX_PLL_SDM &= 0xEF;    // open_loop_en=0
+   
+    TRX_CONFIG &= 0xFD;
+    
+    //设置xvr寄存器初始值
+    addXVR_Reg0x24 = 0x000e0782;
+    addXVR_Reg0x3b = 0x36340048;
+
+    addXVR_Reg0x2e &= 0xfffffe00 ;
+    addXVR_Reg0x2e |= 0x100 ;
+    addXVR_Reg0x26 &= 0xe000ffff;
+    addXVR_Reg0x26 |= 0x10200000;
+    TRX_RF_SETUP = 0x0F;
+
+    uart_printf("in 2.4 mode1===============\r\n");
+
+    xvr_reg_initial_24();
+    TRX_CONFIG |= 0x02; // 射频模块上电
+    TRX_CE = 0x01;     // 使能射频芯片
+    TRX_CMD = 0xA0;    // 清空发送FIFO
+    
+    uart_printf("--------------now show all registers in old_init-------------------\r\n");
+    printf_all_registers();
+    uart_printf("--------------now end all registers in old_init-------------------\r\n");
+    uart_printf("------------------------------------------------------------------\r\n");
+    uart_printf("-------------------------------------------------------------------\r\n");
+}
+
 
 RF_HandleTypeDef hrf;
 void rf_simple_init(void)
@@ -141,6 +306,13 @@ void rf_simple_init(void)
     // HAL_RF_Init(&hrf,&hrf.Params);
 
     HAL_RF_Init(&hrf,&Init_S_normal);
+
+    uart_printf("--------------now show all registers in new_init-------------------\r\n");
+    printf_all_registers();
+    uart_printf("--------------now end all registers in new_init-------------------\r\n");
+    uart_printf("------------------------------------------------------------------\r\n");
+    uart_printf("-------------------------------------------------------------------\r\n");
+
 }
 
 static void RF_Write_fifo(uint8_t *pBuf, uint8_t bytes)
@@ -164,8 +336,7 @@ static void RF_Read_fifo(uint8_t *pBuf, uint8_t bytes)
     __HAL_RF_CMD_NOP();
 }
 
-
-void bk24_send_data(void)
+void bk24_send_data_old(void)
 {
     static uint32_t packet_count = 0;
     uint8_t rf_fifo_data[32];
@@ -174,19 +345,22 @@ void bk24_send_data(void)
     {
         rf_fifo_data[i] = i;
     }
-
-    __HAL_RF_Set_TxMode();
+    
+    FLUSH_TX;
+    TRX_CE = 0;
+    TRX_CONFIG &= 0xFE;
+    TRX_CE = 1;
 
     while(1)
     {
-        __HAL_RF_CMD_FLUSH_TXFIFO();      // 清空TX FIFO
-        __HAL_RF_CLEAR_IRQ_FLAGS(RX_DR|TX_DS|MAX_RT|RX_P_NO);  // 清除中断标志
+        TRX_CMD = 0xA0;              // 清空TX FIFO
+        TRX_IRQ_STATUS = 0x7e;      // 清除中断标志
         
         // 写入数据并发送
         RF_Write_fifo(rf_fifo_data, 32);
-        __HAL_RF_CHIP_EN();
+        TRX_CE = 0x01;
         Delay_us(15);
-        __HAL_RF_CHIP_DIS();
+        TRX_CE = 0x00;
         
         packet_count++;
         
@@ -201,19 +375,57 @@ void bk24_send_data(void)
     }
 }
 
+
+
+
+void bk24_send_data(void)
+{
+    static uint32_t packet_count = 0;
+    uint8_t rf_fifo_data[32];
+
+    for(uint8_t i = 0; i < 32; i++) 
+    {
+        rf_fifo_data[i] = i;
+    }
+
+    HAL_RF_SetTxMode(&hrf);
+
+    while(1)
+    {
+        __HAL_RF_CMD_FLUSH_TXFIFO();      // 清空TX FIFO
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR|IRQ_TX_DS|IRQ_MAX_RT|RX_P_NO);  // 清除中断标志
+        
+        // 写入数据并发送
+        RF_Write_fifo(rf_fifo_data, 32);
+        __HAL_RF_CHIP_EN();
+        Delay_us(15);
+        __HAL_RF_CHIP_DIS();
+        
+        packet_count++;
+        
+        // 简单打印，每100包打印一次
+        if(packet_count % 100 == 0) 
+        {
+            uart_printf("send %ld packet\n", packet_count);
+        }
+        // 简单延时，控制发送速率
+        Delay_us(100);
+    }
+}
+
 void rf_simple_receive()
 {
-    __HAL_RF_Set_RxMode();
+    HAL_RF_SetRxMode(&hrf);
     uint8_t rec[32];
     uint16_t count_packet; 
     uint16_t count_printf; 
     while(1)
     {
         uint8_t status = __HAL_RF_GET_IRQ_Status();
-        if (__HAL_RF_GET_IRQ_FLAGS(RX_DR) == SET)
+        if (__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR) !=RESET)
         {
             RF_Read_fifo(rec,32);
-            __HAL_RF_CLEAR_IRQ_FLAGS(RX_DR);
+            __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR);
             count_packet++;
             uart_printf("recieve %ld packet: ", count_packet);
             // 按照十进制打印接收到的数据
@@ -228,8 +440,51 @@ void rf_simple_receive()
             count_printf++;
             if(count_printf % 10000 == 0)
             {
+                uart_printf("%d\n",status & RX_P_NO );
                 uart_printf("not received\n");
             }
         }
     }
+}
+
+void rf_simple_receive_old()
+{
+    //切换到RX模式
+    TRX_CONFIG |= 0x02;
+    FLUSH_RX;
+    TRX_CE = 0;
+    TRX_CONFIG |= 0x01;
+    TRX_CE = 1;
+
+
+    uint8_t rec[32];
+    uint16_t count_packet; 
+    uint16_t count_printf; 
+    while(1)
+    {
+        if (TRX_IRQ_STATUS & (1<<6))
+        {
+            RF_Read_fifo(rec,32);
+            TRX_IRQ_STATUS = (1<<6);//FLUSH_RX;
+            count_packet++;
+            uart_printf("recieve %ld packet: ", count_packet);
+            // 按照十进制打印接收到的数据
+            for(uint8_t i = 0; i < 32; i++)
+            {   
+                uart_printf("%d ", rec[i]);
+            }
+            uart_printf("\n");
+        }
+        else
+        {
+            count_printf++;
+            if(count_printf % 10000 == 0)
+            {
+                uart_printf("not received\n");
+            }
+
+        }
+
+    }
+
 }

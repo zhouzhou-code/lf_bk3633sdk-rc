@@ -51,6 +51,7 @@ void SwitchToRxMode(void)
     TRX_CONFIG |= 0x01;
     TRX_CE = 1;
 }
+
 void SwitchToTxMode(void)
 {
     PowerUp_Rf();
@@ -734,7 +735,10 @@ void driver_rf_receive_package(void)
             if(len <= MAX_PACKET_LEN)
             {
                 R_RX_PAYLOAD(rf_fifo_data,len);            // read receive payload from RX_FIFO buffer
-                if(!(RF_flag&flag_rf_receive_page) && ((rf_fifo_data[0] == DATATYPE_PAGE_START) || (rf_fifo_data[0] == DATATYPE_PAGE_END_MOUSE)))
+                
+                if(!(RF_flag&flag_rf_receive_page) && 
+                ((rf_fifo_data[0] == DATATYPE_PAGE_START) || 
+                (rf_fifo_data[0] == DATATYPE_PAGE_END_MOUSE)))
                 {
 //                    if(rf_fifo_data[3] & 0x01)
                     {

@@ -450,15 +450,22 @@ int main(void)
     }
     #endif
 
-    uart_printf("in rf_simple_init,\r\n");
+
+
+    //uart_printf("in rf_simple_init,\r\n");
     rf_simple_init();
-    uart_printf("complete rf_simple_init,\r\n");
+    //uart_printf("complete rf_simple_init,\r\n");
+
+
+  // rf_simple_init_old();
 
     //发送
-    //bk24_send_data();
+    bk24_send_data();
+   // bk24_send_data_old();
 
     //接收
-    rf_simple_receive();
+    //rf_simple_receive();
+    //rf_simple_receive_old();
 
     //fn24main();
    
