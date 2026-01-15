@@ -49,6 +49,7 @@ void rf_init(struct rwip_rf_api *api);
 void  xvr_reg_initial_BT(void);
 
 void xvr_reg_initial(void) ;
+void xvr_reg_initial_24(void) ;//rf上层调用了这函数，所以zms把他加到头文件声明
 void kmod_calibration(void) ;
 void kmod_calibration_2M(void) ;
 void  rf_debug_gpio_init(uint8_t GPIO_C_D);

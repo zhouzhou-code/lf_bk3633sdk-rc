@@ -12,20 +12,69 @@
 
 #define RF_MAX_PACKET_LEN     RX_PLOAD_MAX_WIDTH  /* 最大接收有效载荷宽度 (32字节) */
 
-/* 操作宏 */
+/* 寄存器位操作宏 */
+#define __HAL_RF_Set_RxMode()                 (TRX_CONFIG |= (1<<0) )
+#define __HAL_RF_Set_TxMode()                 (TRX_CONFIG &= ~(1<<0) )
 #define __HAL_RF_PowerUp()                    (TRX_CONFIG |= (1<<1) )
 #define __HAL_RF_PowerDown()                  (TRX_CONFIG &= ~(1<<1) )  
-#define __HAL_RF_ChipEnable()                 (TRX_CE = 0x01)
-#define __HAL_RF_ChipDisable()                (TRX_CE = 0x00)
-#define __HAL_RF_FLUSH_TXFIFO()               { TRX_CMD = 0xA0 }
-#define __HAL_RF_FLUSH_RXFIFO()               { TRX_CMD = 0x80 }
-#define __HAL_RF_CLEAR_IRQ_FLAGS(__FLAGS__)   HAL_RF_ClearIRQFlags(NULL, __FLAGS__)
-#define __HAL_RF_GET_IRQ_FLAGS()              (TRX_IRQ_STATUS)
+#define __HAL_RF_Set_CRCO_1Byte()              (TRX_CONFIG &= ~(1<<2) )  
+#define __HAL_RF_Set_CRCO_2Byte()              (TRX_CONFIG |= (1<<2) )  
+#define __HAL_RF_EN_CRC()                      (TRX_CONFIG |= (1<<3) )
+#define __HAL_RF_DIS_CRC()                     (TRX_CONFIG &= ~(1<<3) )
+#define __HAL_RF_EN_IRQ_RX_DR()               (TRX_CONFIG &= ~(1<<6) )
+#define __HAL_RF_DIS_IRQ_RX_DR()              (TRX_CONFIG |= (1<<6) )
+#define __HAL_RF_EN_IRQ_TX_DS()               (TRX_CONFIG &= ~(1<<5) )
+#define __HAL_RF_DIS_IRQ_TX_DS()              (TRX_CONFIG |= (1<<5) )
+#define __HAL_RF_EN_IRQ_MAX_RT()              (TRX_CONFIG &= ~(1<<4) )
+#define __HAL_RF_DIS_IRQ_MAX_RT()             (TRX_CONFIG |= (1<<4) )
 
-#define __HAL_EN_AA_PIPE(__PIPE__)        (TRX_EN_AA |= (1U << (__PIPE__)))
-#define __HAL_DIS_AA_PIPE(__PIPE__)       (TRX_EN_AA &= ~(1U << (__PIPE__)))
-#define __HAL_EN_RXADDR_PIPE(__PIPE__)    (TRX_EN_RXADDR |= (1U << (__PIPE__)))
-#define __HAL_DIS_RXADDR_PIPE(__PIPE__)   (TRX_EN_RXADDR &= ~(1U << (__PIPE__)))
+#define __HAL_RF_CHIP_EN()                 (TRX_CE = 0x01)
+#define __HAL_RF_CHIP_DIS()                (TRX_CE = 0x00)
+/* 命令码*/
+#define __HAL_RF_CMD_FLUSH_TXFIFO()               (TRX_CMD = 0xA0)
+#define __HAL_RF_CMD_FLUSH_RXFIFO()               (TRX_CMD = 0x80)
+#define __HAL_RF_CMD_W_TX_PAYLOAD_NOACK()         (TRX_CMD = 0x70) // 无需ACK发送  命令码
+#define __HAL_RF_CMD_W_TX_PAYLOAD()               (TRX_CMD = 0x60) // 带ACK发送    命令码
+#define __HAL_RF_CMD_R_RX_PAYLOAD()               (TRX_CMD = 0x40) // 读取接收数据  命令码
+#define __HAL_RF_CMD_RX_W_ACK_PAYLOAD(pipes)      (TRX_CMD = 0x68+pipes) // Rx的pipes预写入回ACK时携带的PAYLOAD 命令码
+#define __HAL_RF_CMD_NOP()                        (TRX_CMD = 0x00) // 空操作 命令码
+
+/* Rx,Tx地址宽度设置,__WIDTH__为地址字节数 (3~5) */
+#define __HAL_RF_SET_ADDR_WIDTH(__WIDTH__)    (TRX_SETUP_AW = ((__WIDTH__ - 2) & 0x03))
+
+/* 带Ack时，Tx重发延迟和次数,__DELAY__(0~15)->(250us~4000us)和__COUNT__(0~15)->(0~15) */
+#define __HAL_RF_TX_RETRY(__DELAY__,__COUNT__)    (TRX_SETUP_RETR = ((__DELAY__ & 0x0F) << 4) | (__COUNT__ & 0x0F))
+#define __HAL_RF_SET_RETRY_DELAY(__DELAY__)   (TRX_SETUP_RETR = (TRX_SETUP_RETR & 0x0F) | ((__DELAY__ & 0x0F) << 4))
+#define __HAL_RF_SET_RETRY_COUNT(__COUNT__)   (TRX_SETUP_RETR = (TRX_SETUP_RETR & 0xF0) | (__COUNT__ & 0x0F))
+
+/* 允许发送方不带Ack发送 (W_TX_PAYLOAD_NOACK) */
+#define __HAL_RF_EN_NOACK()                  (TRX_FEATURE |= (1U << 0))
+#define __HAL_RF_DIS_NOACK()                 (TRX_FEATURE &= ~(1U << 0))
+
+/* Rx接收通道使能 */
+#define __HAL_RF_EN_RXADDR_PIPE(__PIPE__)    (TRX_EN_RXADDR |= (1U << (__PIPE__)))
+#define __HAL_RF_DIS_RXADDR_PIPE(__PIPE__)   (TRX_EN_RXADDR &= ~(1U << (__PIPE__)))
+
+/* Rx自动应答使能 */
+#define __HAL_RF_EN_AA_PIPE(__PIPE__)        (TRX_EN_AA |= (1U << (__PIPE__)))
+#define __HAL_RF_DIS_AA_PIPE(__PIPE__)       (TRX_EN_AA &= ~(1U << (__PIPE__)))
+
+/* Rx通道动态载荷总开关 */
+#define __HAL_RF_EN_DPL()                    (TRX_FEATURE |= (1U << 2))
+#define __HAL_RF_DIS_DPL()                   (TRX_FEATURE &= ~(1U << 2))
+
+/* Rx通道动态载荷开关(使能了TRX_FEATURE：bit2即EN_DPL才有用) */
+#define __HAL_RF_EN_DPL_PIPE(__PIPE__)       (TRX_DYNPD |= (1U << (__PIPE__)))
+#define __HAL_RF_DIS_DPL_PIPE(__PIPE__)      (TRX_DYNPD &= ~(1U << (__PIPE__)))
+
+/* 允许接收方发ACK时附带数据 */
+#define __HAL_RF_EN_ACK_PAY()                (TRX_FEATURE |= (1U << 1))
+#define __HAL_RF_DIS_ACK_PAY()               (TRX_FEATURE &= ~(1U << 1))
+
+/* 中断标志相关 */
+#define __HAL_RF_GET_IRQ_Status()             (TRX_IRQ_STATUS)
+#define __HAL_RF_CLEAR_IRQ_FLAGS(__FLAGS__)   HAL_RF_ClearIRQFlags(NULL, __FLAGS__)
+#define __HAL_RF_GET_IRQ_FLAGS(__FLAGS__)     HAL_RF_GetIRQFlags(NULL, __FLAGS__)
 
 
 /** 
@@ -38,6 +87,15 @@ typedef enum
   HAL_BUSY     = 0x02U,
   HAL_TIMEOUT  = 0x03U
 } HAL_StatusTypeDef;
+
+/** 
+  * @brief  Bit_StatusTypeDef
+  */
+typedef enum 
+{
+    RESET = 0,
+    SET = !RESET
+} Bit_StatusTypeDef;
 
 /** 
   * @brief  RF 驱动状态枚举定义
@@ -81,12 +139,12 @@ typedef enum
 typedef struct
 {
     uint8_t   AddressWidth;     /*!< 全局地址宽度: 3, 4 或 5 字节 */
-    uint8_t   TxAddress[5];     /*!< 发送地址 (本机作为PTX发包时的目标地址) */
-
+    uint32_t   TxAddress[5];     /*!< 发送地址 (本机作为PTX发包时的目标地址) */
+    
     /* 接收通道地址配置 */
     /* 注意：Pipe 2-5 的高位地址共用 Pipe 1 的高位 */
-    uint8_t   RxAddrP0[5];      /*!< 通道0接收地址 (若使用ACK，则RxAddrP0等于TxAddress) */
-    uint8_t   RxAddrP1[5];      /*!< 通道1接收地址 */
+    uint32_t   RxAddrP0[5];      /*!< 通道0接收地址 (若使用ACK，则RxAddrP0等于TxAddress) */
+    uint32_t   RxAddrP1[5];      /*!< 通道1接收地址 */
     uint8_t   RxAddrP2;         /*!< 通道2接收地址 (仅LSB:最低字节和P1共用高四位地址) */
     uint8_t   RxAddrP3;         /*!< 通道3接收地址 (仅LSB:最低字节) */
     uint8_t   RxAddrP4;         /*!< 通道4接收地址 (仅LSB:最低字节) */
@@ -110,7 +168,7 @@ typedef enum
 typedef struct
 {
 
-    bool alloc_noAck;                /*!< 是否支持无ACK发送命令 (W_TX_PAYLOAD_NOACK) */
+    uint8_t alloc_noAck;                /*!< 是否支持无ACK发送命令 1==支持 (W_TX_PAYLOAD_NOACK) */
 
     uint8_t   DynamicPayloadEnable;   /*!< 全局动态包长使能 (0:禁用, 1:启用)
                                            - 若启用: 硬件自动处理包长，PayloadWidth无效
@@ -138,7 +196,7 @@ typedef struct
   */
 typedef struct 
 {
-    RF_ModeTypeDef Mode;               /*!< 工作模式: 接收或发送 */
+    RF_ModeTypeDef Mode;                /*!< 工作模式: 接收或发送 */
     RF_DataRateTypeDef  DataRate;       /*!< 数据速率 */
     RF_TxPowerTypeDef   TxPower;        /*!< 发射功率 */
     uint8_t             Channel;        /*!< 初始频段 channel */
@@ -157,12 +215,14 @@ typedef struct
   */
 typedef struct 
 {
-    RF_ConfgTypeDef           Init;           /*!< 通信参数配置 */
+    RF_ConfgTypeDef           Params;        /*!< 通信参数配置 */
     __IO uint8_t             *pTxBuff;       /*!< 发送缓存指针 */
     __IO uint8_t             *pRxBuff;       /*!< 接收缓存指针 */
     __IO HAL_RF_StateTypeDef State;          /*!< 驱动运行状态 */
     __IO uint8_t             ErrorCode;      /*!< 错误代码 */
     
+    //中断相关：中断挂起位，中断回调函数
+    //待施工
 
     uint8_t                 CurrentChannel; 
     uint8_t                 LastRxLen;      
@@ -182,9 +242,9 @@ typedef enum
     
 } IRQ_StatusBitsTypeDef;
 
-HAL_StatusTypeDef HAL_RF_StructInit(RF_InitTypeDef *Init);
+//HAL_StatusTypeDef HAL_RF_StructInit(RF_ConfgTypeDef *Param);
 /* 初始化与反初始化 */
-HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef *hrf);
+HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init);
 HAL_StatusTypeDef HAL_RF_DeInit(RF_HandleTypeDef *hrf);
 HAL_StatusTypeDef HAL_RF_MspInit(RF_HandleTypeDef *hrf); //弱定义，用于GPIO/SPI底层初始化
 
@@ -207,6 +267,7 @@ void HAL_RF_SetRxMode(RF_HandleTypeDef *hrf);
 void HAL_RF_SetTxMode(RF_HandleTypeDef *hrf);
 
 void HAL_RF_ClearIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef _Flags);
+Bit_StatusTypeDef HAL_RF_GetIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef Flags);
 
 /* 状态查询 */
 HAL_RF_StateTypeDef HAL_RF_GetState(RF_HandleTypeDef *hrf);

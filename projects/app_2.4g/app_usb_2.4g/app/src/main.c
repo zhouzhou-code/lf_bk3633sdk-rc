@@ -455,7 +455,7 @@ int main(void)
     uart_printf("complete rf_simple_init,\r\n");
 
     //发送
-   //bk24_send_data();
+    //bk24_send_data();
 
     //接收
     rf_simple_receive();

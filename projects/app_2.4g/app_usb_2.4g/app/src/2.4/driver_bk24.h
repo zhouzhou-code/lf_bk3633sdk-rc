@@ -32,9 +32,9 @@ extern "C" {
 /* CONFIG - 配置寄存器 (0x00) */
 #define  TRX_CONFIG             XBYTE[0x00]  /* 收发器主配置寄存器 */
 /* 位定义: 
- * bit[6]: MASK_RX_DR - 屏蔽接收数据就绪中断
- * bit[5]: MASK_TX_DS - 屏蔽发送完成中断
- * bit[4]: MASK_MAX_RT - 屏蔽最大重传次数中断
+ * bit[6]: MASK_RX_DR - 屏蔽接收数据就绪中断(1=屏蔽，0=允许且低电平触发)
+ * bit[5]: MASK_TX_DS - 屏蔽发送完成中断(1=屏蔽，0=允许且低电平触发)
+ * bit[4]: MASK_MAX_RT - 屏蔽最大重传次数中断(1=屏蔽，0=允许且低电平触发)
  * bit[3]: EN_CRC - 启用CRC校验
  * bit[2]: CRCO - CRC编码方案 (0=1字节, 1=2字节)
  * bit[1]: PWR_UP - 电源控制 (0=掉电, 1=上电)
@@ -124,9 +124,9 @@ extern "C" {
 
 #define  TRX_FEATURE            XBYTE[0x21]  /* 特性使能寄存器 */
 /* 位定义:
- * bit[2]: EN_DPL - 启用动态有效载荷长度，接收通道能解析动态长度包
- * bit[1]: EN_ACK_PAY - 启用ACK有效载荷，允许接收方在ACK包中附加数据(附加数据使用TRX_CMD=0x68~0x6D命令写入)，依赖TRX_EN_AA寄存器
- * bit[0]: EN_DYN_ACK - 允许发送无需ACK确认的数据包
+ * bit[2]: EN_DPL - 启用动态有效载荷长度，接收pipes能解析动态长度包
+ * bit[1]: EN_ACK_PAY - 允许接收方在ACK包中附加数据(附加数据使用TRX_CMD=0x68~0x6D命令写入)，依赖TRX_EN_AA寄存器
+ * bit[0]: EN_DYN_ACK - 允许发送无需ACK确认的数据包(W_TX_PAYLOAD_NOACK命令)
  */
 
 /* ============== 配置寄存器扩展 ============== */
@@ -166,7 +166,7 @@ extern "C" {
  * 0x40: READ_RX_PAYLOAD - 读RX有效载荷
  * 0x60: WRITE_TX_PAYLOAD - 写TX有效载荷
  * 0x68~0x6D: W_ACK_PAYLOAD (管道0-5) - 写ACK有效载荷
- * 0x70: W_TX_PAYLOAD_NOACK - 写TX有效载荷(无ACK)
+ * 0x70: W_TX_PAYLOAD_NOACK - 写TX有效载荷(不期待ACK)
  * 0x00: NOP - 空操作
  */
 

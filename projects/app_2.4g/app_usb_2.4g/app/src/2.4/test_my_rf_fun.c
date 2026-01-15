@@ -2,84 +2,16 @@
 #include "bk3633_reglist.h"
 #include "icu.h"
 #include "driver_timer.h"
-#include "application_mode.h"
-#include "application_mode_test.h"
-#include "application_mode_PCBA.h"
-#include <string.h>
-#include "driver_sensor.h"
-
-#include "gpio.h"
-
 #include <string.h>
 
-extern uint32 P0_Address[5] ;
-extern uint32_t RF_flag;
-extern uint8_t local_addr[6];
-extern APP_VAL_T     app_val;
-extern void  xvr_reg_initial_24(void);
+#include "hal_drv_rf.h"
 
 #define UART_PRINTF    uart_printf
 int uart_printf(const char *fmt,...);
 
-// void f24Init(void)
-// {
-//    //f24_xvr_init();
-//     Rf_Init();
-//     SetDataRate(2);  // data rate:2Mbp
-// }
 
 
-// void fWorkModeInit(void)
-// {
-
-//     channel_search = 0;
-//     flag_test = 0;
-//     RF_flag = 0x0;
-
-//     RF_POWER_UP;
-//     RF_CMD_FLUSH_TX;
-//     RF_CMD_FLUSH_RX;
-//     SwitchToTxMode();
-//     if(app_bt.bPwrOnModeCK)
-//     {
-//         app_bt.bPwrOnModeCK = 0x0;
-//         if((!gpio_get_input(KEY_LEFT)) && (!gpio_get_input(KEY_RIGHT)) && (!gpio_get_input(KEY_MIDDLE)))
-//         {
-//             system_data.system_mode = SYSTEM_TEST;
-//         }
-//         else if((!gpio_get_input(KEY_RIGHT)) && (!gpio_get_input(KEY_MIDDLE)))
-//         {
-//             system_data.system_mode = SYSTEM_PCBA;
-//         }
-//         else
-//         {
-//             system_data.system_mode = SYSTEM_NORMAL;
-//         }
-//     }
-//     else
-//     {
-//         system_data.system_mode = SYSTEM_NORMAL;
-//     }
-
-//     if(system_data.system_mode == SYSTEM_NORMAL)
-//     {
-//         driver_rf_ouput_power_value_set(cRFPWR);
-//         general_dongle_search();
-//     }
-// }
-// void fn24main(void)
-// {
-//     uart_printf("in 2.4 mode1===============\r\n");
-//     xvr_reg_initial_24();
-
-//     application_initial();
-
-//     app_set_24page_timer();
-
-//     fWorkModeInit();
-// }
-
-
+#if 0
 void rf_simple_init(void)
 {
     Rf_Init();           // 射频模块初始化
@@ -161,4 +93,143 @@ void rf_simple_receive()
 
     }
 
+}
+
+#endif
+
+RF_ConfgTypeDef Init_S_normal=
+{
+    .Mode = MODE_TX,
+    .DataRate = BPS_2M,
+    .TxPower = RF_TX_POWER_0dBm,
+    .Channel = 0x05, // 频道5
+
+    .Address =
+    {
+        .AddressWidth = 5,
+        .TxAddress = {0x10, 0x11, 0x36, 0x0, 0x0},
+        .RxAddrP0 = {0x10, 0x11, 0x36, 0x0, 0x0},
+        .RxAddrP1 = {0x10, 0x56, 0x24, 0xCD, 0x78},
+        .RxAddrP2 = 0x11,
+        .RxAddrP3 = 0x12,
+        .RxAddrP4 = 0x13,
+        .RxAddrP5 = 0x14
+    },
+
+    .Protocol =
+    {
+        .alloc_noAck = 1,             
+        .DynamicPayloadEnable = 1,       //启用动态包长                     
+        .PayloadWidth = 32,              // 固定包长 32字节 (仅在 DynamicPayloadEnable=0 时有效)
+        .RxPipesEn_Mask = 0x03,          // 启用所有pipes的接收
+        .RxPipesAutoAckEn_Mask = 0x03,   // 启用所有pipes的自动应答
+        .AutoRetransmitCount = 3,        // 最大重传次数 3
+        .AutoRetransmitDelay = 5,        // 最大重传延迟 1250us
+    }
+
+};
+
+RF_HandleTypeDef hrf;
+void rf_simple_init(void)
+{
+    // Rf_Init();           // 射频模块初始化
+    // SetDataRate(2);      // 设置速率为2Mbps
+
+    // uart_printf("in 2.4 mode1===============\r\n");
+    // xvr_reg_initial_24();
+    // HAL_RF_StructInit(&hrf.Params);
+    // HAL_RF_Init(&hrf,&hrf.Params);
+
+    HAL_RF_Init(&hrf,&Init_S_normal);
+}
+
+static void RF_Write_fifo(uint8_t *pBuf, uint8_t bytes)
+{
+    uint8_t i;
+    __HAL_RF_CMD_W_TX_PAYLOAD();
+    for(i=0; i<bytes; i++)
+    {
+        TRX_FIFO = pBuf[i];
+    }
+    __HAL_RF_CMD_NOP();
+}
+static void RF_Read_fifo(uint8_t *pBuf, uint8_t bytes)
+{
+    uint8_t i;
+    __HAL_RF_CMD_R_RX_PAYLOAD();
+    for(i=0; i<bytes; i++)
+    {
+        pBuf[i] = TRX_FIFO;
+    }
+    __HAL_RF_CMD_NOP();
+}
+
+
+void bk24_send_data(void)
+{
+    static uint32_t packet_count = 0;
+    uint8_t rf_fifo_data[32];
+
+    for(uint8_t i = 0; i < 32; i++) 
+    {
+        rf_fifo_data[i] = i;
+    }
+
+    __HAL_RF_Set_TxMode();
+
+    while(1)
+    {
+        __HAL_RF_CMD_FLUSH_TXFIFO();      // 清空TX FIFO
+        __HAL_RF_CLEAR_IRQ_FLAGS(RX_DR|TX_DS|MAX_RT|RX_P_NO);  // 清除中断标志
+        
+        // 写入数据并发送
+        RF_Write_fifo(rf_fifo_data, 32);
+        __HAL_RF_CHIP_EN();
+        Delay_us(15);
+        __HAL_RF_CHIP_DIS();
+        
+        packet_count++;
+        
+        // 简单打印，每100包打印一次
+        if(packet_count % 100 == 0) 
+        {
+            uart_printf("send %ld packet\n", packet_count);
+        }
+        
+        // 简单延时，控制发送速率
+        Delay_us(100);
+    }
+}
+
+void rf_simple_receive()
+{
+    __HAL_RF_Set_RxMode();
+    uint8_t rec[32];
+    uint16_t count_packet; 
+    uint16_t count_printf; 
+    while(1)
+    {
+        uint8_t status = __HAL_RF_GET_IRQ_Status();
+        if (__HAL_RF_GET_IRQ_FLAGS(RX_DR) == SET)
+        {
+            RF_Read_fifo(rec,32);
+            __HAL_RF_CLEAR_IRQ_FLAGS(RX_DR);
+            count_packet++;
+            uart_printf("recieve %ld packet: ", count_packet);
+            // 按照十进制打印接收到的数据
+            for(uint8_t i = 0; i < 32; i++)
+            {
+                uart_printf("%d ", rec[i]);
+            }
+            uart_printf("\n");
+        }
+        else
+        {
+            count_printf++;
+            if(count_printf % 10000 == 0)
+            {
+                uart_printf("not received\n");
+            }
+        }
+    }
 }
