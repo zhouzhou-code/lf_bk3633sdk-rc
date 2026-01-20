@@ -71,7 +71,7 @@
 #define INTC_UNUSED1    (1)
 #define INTC_UNUSED0    (0)
 
-                //@@// 3633//rwip
+//@@// 3633//rwip
 #define INTC_TIMER      (2)//(10)
 #define INTC_UART       (4)//(3)
 #define INTC_UART_2     (5)//(11)

@@ -26,6 +26,8 @@ static uint32_t Cfg_0d_Val[4] = {0x36, 0xB4, 0x80, 0x28};
 static void RF_Write_fifo(uint8_t *pBuf, uint8_t bytes)
 {
     uint8_t i;
+    __HAL_RF_CMD_FLUSH_TXFIFO();
+
     __HAL_RF_CMD_W_TX_PAYLOAD();
     for(i=0; i<bytes; i++)
     {
@@ -33,7 +35,7 @@ static void RF_Write_fifo(uint8_t *pBuf, uint8_t bytes)
     }
     __HAL_RF_CMD_NOP();
 }
-static void RF_Write_fifo_NoAck(uint8_t *pBuf, uint8_t bytes)
+static void RF_Write_fifo_NoACK(uint8_t *pBuf, uint8_t bytes)
 {
     uint8_t i;
     __HAL_RF_CMD_W_TX_PAYLOAD_NOACK();
@@ -75,10 +77,13 @@ static void RF_MemCpy(volatile uint32 *pDest, uint32_t *pSrc, uint8_t len)
     }
 }
 
-static void RF_DelayUs(volatile uint32_t us) 
+static void RF_DelayUs(uint32_t us) 
 {
-    volatile uint32_t i;
-    for(i=0; i<us*10; i++); 
+    volatile int x, y;
+    for(y = 0; y < us; y ++ )
+    {
+        for(x = 0; x < 10; x++);
+    }
 }
 
 
@@ -216,33 +221,42 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
     __HAL_RF_PowerUp();
     __HAL_RF_CMD_FLUSH_RXFIFO();
     __HAL_RF_CMD_FLUSH_TXFIFO();
-    __HAL_RF_CLEAR_IRQ_FLAGS((IRQ_RX_DR|IRQ_TX_DS|IRQ_MAX_RT|RX_P_NO));
+    __HAL_RF_CLEAR_IRQ_FLAGS((IRQ_RX_DR_MASK|IRQ_TX_DS_MASK|IRQ_MAX_RT_MASK|RX_P_NO));
+
+    //中断配置
+    Init->IRQ_Manager[IRQ_Event_RX_DR].enable ? __HAL_RF_EN_IRQ_RX_DR() : __HAL_RF_DIS_IRQ_RX_DR();
+    Init->IRQ_Manager[IRQ_Event_TX_DS].enable ? __HAL_RF_EN_IRQ_TX_DS() : __HAL_RF_DIS_IRQ_TX_DS();
+    Init->IRQ_Manager[IRQ_Event_MAX_RT].enable ? __HAL_RF_EN_IRQ_MAX_RT() : __HAL_RF_DIS_IRQ_MAX_RT();
 
     // 3. 初始化 RF_HandleTypeDef 结构体
     hrf->Params = *Init;
+    hrf->TimeManager.Tx_TimeOut = ((Init->Protocol.AutoRetransmitDelay*250+250)*   //每次重发间隔
+                                    Init->Protocol.AutoRetransmitCount +           //重发次数
+                                    200 )/1000  ;                                  //200是冗余时间
     hrf->State = HAL_RF_STATE_READY;
 
     return HAL_OK;
 }
-/** 
-  * @brief 弱定义的 MSP Params (MCU特定配置，如时钟、GPIO)
-  */
-// __attribute__((weak)) void HAL_RF_MspParams(RF_HandleTypeDef *hrf)
-// {
-//     // Prevent unused warning
-//     (void)hrf;
-//     // 用户在应用层实现此函数，开启时钟等
-// }
+
+HAL_StatusTypeDef HAL_RF_TimeManager_register(RF_HandleTypeDef *hrf, uint32_t (*GetSysTimeMs)(void))
+{
+    if (hrf == NULL || GetSysTimeMs == NULL) return HAL_ERROR;
+
+    hrf->TimeManager.GetSysTimeMs = GetSysTimeMs;
+
+    return HAL_OK;
+}
 
 /* IO 操作函数 */
 
 /**
-  * @brief  阻塞式发送数据
-  * @return 状态 HAL_RF_STATE_READY (成功) 或 HAL_RF_STATE_TIMEOUT/ERROR
+  * @brief  阻塞式发送数据(调通)
+  * @return
   */
-HAL_RF_StateTypeDef HAL_RF_Transmit(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
+HAL_RF_StateTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
 {
-    uint8_t status;
+    HAL_RF_StateTypeDef ret;
+    uint8_t irq_status;         //中断挂起状态
     uint8_t isTimeout = 0;      // 是否超时标志
     uint32_t txWaitCounter = 0; // 发送等待计数器（用于超时判断）
     const uint16_t MAX_TX_TIMEOUT = 1000; // 最大等待时间，单位10us (1000*10us=10ms)
@@ -255,86 +269,168 @@ HAL_RF_StateTypeDef HAL_RF_Transmit(RF_HandleTypeDef *hrf, uint8_t *pData, uint8
     //清空FIFO和中断
     __HAL_RF_CMD_FLUSH_RXFIFO();
     __HAL_RF_CMD_FLUSH_TXFIFO();
-    __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR | IRQ_TX_DS | IRQ_MAX_RT | RX_P_NO);
+    __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK | IRQ_TX_DS_MASK | IRQ_MAX_RT_MASK | RX_P_NO);
 
     __HAL_RF_CHIP_EN();
     RF_Write_fifo(pData, Size);
 
-    while(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS | IRQ_MAX_RT) == 0){ //等待发送完成或最大重传中断
+    do{
+        irq_status = __HAL_RF_GET_IRQ_Status();
         RF_DelayUs(10);
         txWaitCounter++;
+        uart_printf("txWaitCounter: %d\r\n", txWaitCounter);
         if (txWaitCounter > MAX_TX_TIMEOUT) {
             isTimeout = 1;
             break; 
         }
-    } 
-
-    if (__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR)) {
-        __HAL_RF_CMD_FLUSH_RXFIFO();
-        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR);
-        hrf->State = HAL_RF_STATE_READY;
-        return HAL_RF_STATE_READY; // 发送并收到ACK
     }
+    while((irq_status & IRQ_TX_DS_MASK) == 0x00); //没有发送完成标志则继续等待
 
-    if (__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS)) {
+    //如果发送完成(收到ACK)，则清除标志位和FIFO
+    if (irq_status & IRQ_TX_DS_MASK) {
         __HAL_RF_CMD_FLUSH_TXFIFO();
-        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS);
-        hrf->State = HAL_RF_STATE_READY;
-        return HAL_RF_STATE_READY; // 发送成功
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
+        ret = HAL_RF_STATE_READY;
     }
 
-    if ((__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT)) || isTimeout) {
+    //如果在发送时，接收FIFO里有数据，忽略之
+    if (irq_status & IRQ_RX_DR_MASK) {
+        __HAL_RF_CMD_FLUSH_RXFIFO();
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
+        ret = HAL_RF_STATE_READY;
+    }
+
+    //如果达到最大重发次数仍未收到ACK，则视为发送超时，重新初始化RF(原厂写法，有待商榷)
+    if ((irq_status & IRQ_MAX_RT_MASK) || isTimeout) {
         __HAL_RF_CMD_FLUSH_RXFIFO();
         __HAL_RF_CMD_FLUSH_TXFIFO();
         __HAL_RF_PowerDown();
         __HAL_RF_PowerUp();
-        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_MAX_RT);
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_MAX_RT_MASK);
+
         hrf->State = HAL_RF_STATE_TIMEOUT;
-        return HAL_RF_STATE_TIMEOUT; // 超时或最大重传，重启芯片
+        ret = HAL_RF_STATE_TIMEOUT; //发送超时
     }
 
     __HAL_RF_CHIP_DIS();
-    hrf->State = HAL_RF_STATE_ERROR;
-    return HAL_RF_STATE_ERROR;
+    return ret;
+}
+
+/**
+  * @brief  借助中断方式实现发送状态机(调通)
+  * @param  hrf: RF 句柄
+  * @param  pData: 待发送数据指针
+  * @param  Size: 待发送数据长度
+  * @return HAL 状态
+  */
+HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
+{
+    /* 入参检查 */
+    if (hrf == NULL || pData == NULL || Size == 0) return HAL_ERROR;
+    /* 查询当前模式 */
+    if(hrf->Cur_Mode !=MODE_TX) {
+        uart_printf("Current mode is not TX,return \r\n");
+        return HAL_BUSY;
+    }   
+
+    /* 查询是否空闲 */
+     /* 如果正在发送，检查是否超时 */
+    if (hrf->TxState != TX_IDLE) {
+        uint32_t cur_time = hrf->TimeManager.GetSysTimeMs();
+        uint32_t elapsed_time = cur_time - hrf->TimeManager.Tx_start_time;
+        if (elapsed_time >= hrf->TimeManager.Tx_TimeOut) {
+            /* 发送超时处理 */
+            uart_printf("TX timeout detected\r\n");
+            hrf->TxState = TX_TIMEOUT;
+            hrf->TimeManager.Tx_Timeout_cnt++;
+            /* 清除缓冲区 */
+            __HAL_RF_CMD_FLUSH_TXFIFO();
+            /* 重置为IDLE状态*/
+            hrf->TxState = TX_IDLE;
+        }else{
+            /* 仍在发送中，返回忙碌状态 */
+            return HAL_BUSY;
+        }
+    }
+    
+    /* 准备发送 */
+    hrf->TxState = TX_BUSY_Tramsmit;
+    hrf->TimeManager.Tx_TimeOut_flag=0;
+    hrf->TimeManager.Tx_start_time = hrf->TimeManager.GetSysTimeMs();
+    RF_Write_fifo(pData, Size);
+
+    return HAL_OK;
+
+}
+
+/**
+  * @brief  无ACK发送数据(调通)
+  * @return
+  */
+HAL_RF_StateTypeDef HAL_RF_Transmit_NoACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
+{
+
+    if(hrf->Params.Protocol.Support_NoAck !=1)
+    {
+        return HAL_RF_STATE_ERROR;
+    }
+    
+    uint8_t irq_status;
+    __HAL_RF_CMD_FLUSH_RXFIFO();
+    __HAL_RF_CMD_FLUSH_TXFIFO();
+    __HAL_RF_CHIP_EN();
+    RF_Write_fifo_NoACK(pData, Size);
+
+    //sleep and wake up by rf interrupt
+    //ENABLE_RF_WAKEUP;
+    //driver_idle_osc8mhz();
+    //DISABLE_RF_WAKEUP;
+    do {
+        irq_status = TRX_IRQ_STATUS;
+    }
+    while((irq_status & IRQ_TX_DS_MASK) == 0x00); //等待发送完成标志
+    
+    if(irq_status & IRQ_TX_DS_MASK){
+        //RF_CMD_FLUSH_TX;
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
+    }
+
+    __HAL_RF_CHIP_DIS();
+    return 1;
+
 }
 /**  
-  * @brief  接收数据查询
+  * @brief  RF轮询接收数据
   * @param  pData: 接收缓冲区
   * @param  Size:  期望读取长度 (如果 FIFO 数据小于此长度，将只读取实际长度)
-  * @return HAL_RF_STATE_READY (有数据) 或 HAL_RF_STATE_BUSY_RX (无数据)
+  * @return 
   */
 HAL_RF_StateTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
 {
-    uint8_t status;
+    uint8_t irq_status;
     uint8_t fifo_status;
     uint8_t len;
     uint8_t rx_cnt = 0;
 
     if (hrf == NULL || pData == NULL || Size == 0) return HAL_RF_STATE_ERROR;
 
-    status = __HAL_RF_GET_IRQ_Status();
+    irq_status = __HAL_RF_GET_IRQ_Status();
 
-    if (__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR)){  //接收标志位置1，接收FIFO中的数据就绪
-        do
-        {
+    if (irq_status & IRQ_RX_DR_MASK){  //接收标志位置1，接收FIFO中的数据就绪
+        do {
             len = TRX_RX_RPL_WIDTH;
-            if (len <= RF_MAX_PACKET_LEN)
-            {
-                // 读取接收数据
+            if (len <= RF_MAX_PACKET_LEN) { //数据长度有效，读取
                 RF_Read_fifo(pData, len);
                 rx_cnt++;
-            }
-            else
-            {
+            } else {                        //数据长度无效，清空FIFO
                 __HAL_RF_CMD_FLUSH_RXFIFO();
                 break;
             }
             fifo_status = __HAL_RF_GET_IRQ_Status();
-        }
-        while (__HAL_RF_GET_FIFO_STATUS_FLAGS(RF_RX_EMPTY)!=0); // FIFO非空则继续
+        } while (__HAL_RF_GET_FIFO_STATUS_FLAGS(RF_RX_EMPTY)!=0); // FIFO非空则继续
 
         // 清除中断标志
-        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR);
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
 
         hrf->State = HAL_RF_STATE_READY;
         return HAL_RF_STATE_READY;
@@ -343,7 +439,12 @@ HAL_RF_StateTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_
     return HAL_RF_STATE_BUSY_RX; // 没有数据
 }
 
-/* 控制函数实现 */
+/**
+  * @brief  附加应答负载数据到指定接收管道
+  * @param  pipes: 接收管道号 (0-5)
+  * @param  pBuf: 负载数据指针
+  * @param  len:  负载数据长度 (最大32字节)
+  */
 void HAL_RF_Attach_PL2ACK(uint8_t pipes, uint8_t *pBuf, uint8_t len) 
 {
     uint8_t i;
@@ -354,7 +455,6 @@ void HAL_RF_Attach_PL2ACK(uint8_t pipes, uint8_t *pBuf, uint8_t len)
     }
     __HAL_RF_CMD_NOP();
 }
-
 
 
 /* 不太理解这个，还需要斟酌 */
@@ -406,13 +506,61 @@ void HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
 
     __HAL_RF_PowerUp();
     __HAL_RF_CMD_FLUSH_TXFIFO();
-
     __HAL_RF_CHIP_DIS();
     __HAL_RF_Set_TxMode_Bit();
     __HAL_RF_CHIP_EN();
 
     hrf->State = HAL_RF_STATE_BUSY_TX;
 }
+
+/**
+  * @brief  RF 中断处理函数，在intc.c的intc_irq/intc_fiq中调用
+  * @param  hrf: RF 句柄
+  */
+void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
+{
+    if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
+        uart_printf("in RX_DR\r\n");
+        /* 读取数据到APP队列 */
+        // RF_Read_fifo((uint8_t*)(hrf->RxBuff), __HAL_RF_GET_RX_RPL_WIDTH());
+        RF_Read_fifo((uint8_t*)(hrf->RxBuff), 32);
+        hrf->RxBuff_valid = 1;
+
+        if(hrf->Params.IRQ_Manager[IRQ_Event_RX_DR].user_cb != NULL){
+            hrf->Params.IRQ_Manager[IRQ_Event_RX_DR].user_cb();
+        }
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
+        __HAL_RF_CMD_FLUSH_RXFIFO();
+    }
+
+    if(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS_MASK)){
+        uart_printf("in TX_DS\r\n");
+        hrf->TxState = TX_Tramsmit_SUCCESS;
+        if(hrf->Params.IRQ_Manager[IRQ_Event_TX_DS].user_cb != NULL){
+            hrf->Params.IRQ_Manager[IRQ_Event_TX_DS].user_cb();
+        }
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
+        //__HAL_RF_CMD_FLUSH_TXFIFO();
+        hrf->TxState = TX_IDLE;
+    }
+        
+    if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
+        uart_printf("in MAX_RT\r\n");
+        hrf->TxState = TX_Tramsmit_FAIL;
+        if(hrf->Params.IRQ_Manager[IRQ_Event_MAX_RT].user_cb != NULL){
+            hrf->Params.IRQ_Manager[IRQ_Event_MAX_RT].user_cb();
+        }
+        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_MAX_RT_MASK);
+        __HAL_RF_CMD_FLUSH_TXFIFO();//发送失败必须要清空TX FIFO，下次才能继续写FIFO发送
+       
+        hrf->TxState = TX_IDLE;
+    }
+
+   // return;
+
+}
+
+
 /**
   * @brief  清除指定的中断标志
   * @param  hrf: RF 句柄
@@ -442,7 +590,7 @@ uint8_t HAL_RF_GetIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef IRQ_Flag
   * @brief  检查FIFO状态标志位是否置位
   * @param  hrf: RF 句柄
   * @param  Flags: 要检查的FIFO状态标志位掩码组合 RF_FIFOStatusBitsTypeDef
-  * @return 注意返回的是0或者非0值,非零值不一定是1
+  * @return 注意返回的是0或者非0值,非零值不一定是1；  判断返回值时请与0做比较
   */
 uint8_t HAL_RF_Get_FifoStatus_Flags(RF_HandleTypeDef *hrf, RF_FIFOStatusBitsTypeDef Flags)
 {

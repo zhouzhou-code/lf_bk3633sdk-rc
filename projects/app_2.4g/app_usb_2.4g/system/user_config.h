@@ -17,15 +17,16 @@
 /// Use RC 32Kif INTER_RC32K set to 1
 #define INTER_RC32K            1
 #define UART_PRINTF_ENABLE     1
-#define DEBUG_HW               0
+#define DEBUG_HW               1
 #define GPIO_DBG_MSG           0
 #define MALLCO_DEFINE          1
+#define DEBUG_HW_DIGITAL       0
 
 
 //DRIVER CONFIG
 #define UART0_DRIVER            1
 #define UART2_DRIVER            1
-#define GPIO_DRIVER                1
+#define GPIO_DRIVER             1
 #define AUDIO_DRIVER            0
 #define RTC_DRIVER                0
 #define ADC_DRIVER                1
@@ -35,10 +36,14 @@
 #define SPI_DRIVER              0
 #define AON_RTC_DRIVER          0
 
+#define RF_DRIVER          1
+
+
+
 
 
 #define uart_printf              uart2_printf
-
+//#define uart_printf              uart0_printf
 
 #ifndef NULL
 #define NULL (void*)0

@@ -137,14 +137,14 @@ void gpio_init(void)
     SYS_REG0X0C |= (0x01 << 4);
     SYS_REG0X0C |= (0x01 << 5);
 #endif    
-    gpio_config(0x20,SC_FUN,PULL_NONE);
-    gpio_config(0x21,SC_FUN,PULL_NONE);
+    gpio_config(0x20,SC_FUN,PULL_NONE); //port2,pin0
+    gpio_config(0x21,SC_FUN,PULL_NONE); //port2,pin1
     gpio_config(0x22,SC_FUN,PULL_NONE);
     gpio_config(0x23,SC_FUN,PULL_NONE);
     gpio_config(0x24,SC_FUN,PULL_NONE);
     gpio_config(0x25,SC_FUN,PULL_NONE);
     gpio_config(0x26,SC_FUN,PULL_NONE);
-    gpio_config(0x27,SC_FUN,PULL_NONE);
+    gpio_config(0x27,SC_FUN,PULL_NONE); //port2,pin7
 #if(!DEBUG_HW_DIGITAL)    
     SYS_REG0X0C |= (0x01 << 3);
     SYS_REG0X0C &= ~(0x07 << 0);

@@ -4,12 +4,23 @@
 #include "driver_timer.h"
 #include <string.h>
 
+#include "intc.h"            // interrupt controller
+#include "uart.h"            // uart definitions
+#include "BK3633_Reglist.h"
+#include "gpio.h"
+#include "spi.h"
+#include "i2c.h"
+#include "icu.h"
+#include "dma.h"
+#include "reg_intc.h"
+#include "driver_timer.h"
+#include "app.h"
+
+
 #include "hal_drv_rf.h"
 
 #define UART_PRINTF    uart_printf
 int uart_printf(const char *fmt,...);
-
-
 
 #if 0
 void rf_simple_init(void)
@@ -97,6 +108,28 @@ void rf_simple_receive()
 
 #endif
 
+volatile uint16_t isq_count_rxdr = 0;
+volatile uint16_t isq_count_txds = 0;
+volatile uint16_t isq_count_maxrt = 0;
+volatile uint32_t packt_count_intc=0;
+
+void rxdr_callback(void)
+{
+    isq_count_rxdr++;
+}
+void txds_callback(void)
+{
+    isq_count_txds++;
+    uart_printf("%d,%d\n", isq_count_txds, packt_count_intc);
+    // packt_count_intc++;
+   
+}
+void maxrt_callback(void)
+{
+    isq_count_maxrt++;
+    uart_printf("%d\n", isq_count_maxrt);
+}
+
 RF_ConfgTypeDef Init_S_normal=
 {
     .Mode = MODE_TX,
@@ -107,8 +140,8 @@ RF_ConfgTypeDef Init_S_normal=
         .AddressWidth = 5,
         .TxAddress = {0x10, 0x11, 0x36, 0x00, 0x00},
         .Support_NoAck = 1,             
-        .AutoRetransmitDelay = 3,        // 最大重传延迟 750us
-        .AutoRetransmitCount = 3,        // 最大重传次数 3
+        .AutoRetransmitDelay = 2,        // 最大重传延迟 750us
+        .AutoRetransmitCount = 3,        // 最大重传次数 15
         
         .RxPipes[0] = {
             .PipeNum = 0,
@@ -164,8 +197,19 @@ RF_ConfgTypeDef Init_S_normal=
             .Support_Payload_Attach_ACK = 1,
             .Address = {0x14, 0, 0, 0, 0}
         }
+    },
+    .IRQ_Manager[IRQ_Event_RX_DR]={
+        .enable = 1,
+        .user_cb = rxdr_callback,
+    },        
+    .IRQ_Manager[IRQ_Event_TX_DS]={
+        .enable = 1,
+        .user_cb = txds_callback,
+    },
+    .IRQ_Manager[IRQ_Event_MAX_RT]={
+        .enable = 1,
+        .user_cb = maxrt_callback,
     }
-
 };
 
 uint8_t RF_ADDRESS_LEN=5;
@@ -294,18 +338,31 @@ void rf_simple_init_old(void)
 }
 
 
+extern volatile uint32_t XVR_ANALOG_REG_BAK[32];
+extern  uint32_t XVR_REG24_BAK = 0;
+static void rf_ouput_power_value_set(uint8_t power_level)
+{
+    uint32_t regv_0x24;
+    XVR_ANALOG_REG_BAK[4] |=1<<29;
+    addXVR_Reg0x4 = XVR_ANALOG_REG_BAK[4];
+    regv_0x24=addXVR_Reg0x24&0xFFFFF87F;
+    regv_0x24=regv_0x24|(power_level<<7);
+    addXVR_Reg0x24 = regv_0x24;
+    XVR_REG24_BAK = addXVR_Reg0x24;
+}
+
+__IO uint32_t SysTick_Value_ms;
+uint32_t get_system_time_ms(void)
+{
+    return SysTick_Value_ms;
+}
 RF_HandleTypeDef hrf;
 void rf_simple_init(void)
 {
-    // Rf_Init();           // 射频模块初始化
-    // SetDataRate(2);      // 设置速率为2Mbps
-
-    // uart_printf("in 2.4 mode1===============\r\n");
-    // xvr_reg_initial_24();
-    // HAL_RF_StructInit(&hrf.Params);
-    // HAL_RF_Init(&hrf,&hrf.Params);
 
     HAL_RF_Init(&hrf,&Init_S_normal);
+    HAL_RF_TimeManager_register(&hrf, get_system_time_ms);
+    rf_ouput_power_value_set(0);
 
     uart_printf("--------------now show all registers in new_init-------------------\r\n");
     printf_all_registers();
@@ -325,6 +382,17 @@ static void RF_Write_fifo(uint8_t *pBuf, uint8_t bytes)
     }
     __HAL_RF_CMD_NOP();
 }
+static void RF_Write_fifo_Noack(uint8_t *pBuf, uint8_t bytes)
+{
+    uint8_t i;
+    __HAL_RF_CMD_W_TX_PAYLOAD_NOACK();
+    for(i=0; i<bytes; i++)
+    {
+        TRX_FIFO = pBuf[i];
+    }
+    __HAL_RF_CMD_NOP();
+}
+
 static void RF_Read_fifo(uint8_t *pBuf, uint8_t bytes)
 {
     uint8_t i;
@@ -336,52 +404,12 @@ static void RF_Read_fifo(uint8_t *pBuf, uint8_t bytes)
     __HAL_RF_CMD_NOP();
 }
 
-void bk24_send_data_old(void)
-{
-    static uint32_t packet_count = 0;
-    uint8_t rf_fifo_data[32];
-
-    for(uint8_t i = 0; i < 32; i++) 
-    {
-        rf_fifo_data[i] = i;
-    }
-    
-    FLUSH_TX;
-    TRX_CE = 0;
-    TRX_CONFIG &= 0xFE;
-    TRX_CE = 1;
-
-    while(1)
-    {
-        TRX_CMD = 0xA0;              // 清空TX FIFO
-        TRX_IRQ_STATUS = 0x7e;      // 清除中断标志
-        
-        // 写入数据并发送
-        RF_Write_fifo(rf_fifo_data, 32);
-        TRX_CE = 0x01;
-        Delay_us(15);
-        TRX_CE = 0x00;
-        
-        packet_count++;
-        
-        // 简单打印，每100包打印一次
-        if(packet_count % 100 == 0) 
-        {
-            uart_printf("send %ld packet\n", packet_count);
-        }
-        
-        // 简单延时，控制发送速率
-        Delay_us(100);
-    }
-}
-
-
-
 
 void bk24_send_data(void)
 {
     static uint32_t packet_count = 0;
     uint8_t rf_fifo_data[32];
+    uint16_t delay;
 
     for(uint8_t i = 0; i < 32; i++) 
     {
@@ -392,46 +420,145 @@ void bk24_send_data(void)
 
     while(1)
     {
-        __HAL_RF_CMD_FLUSH_TXFIFO();      // 清空TX FIFO
-        __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR|IRQ_TX_DS|IRQ_MAX_RT|RX_P_NO);  // 清除中断标志
+        __HAL_RF_CMD_FLUSH_TXFIFO();      // 清空TX FIFO        
         
+        rf_fifo_data[0] = packet_count & 0xFF;
         // 写入数据并发送
-        RF_Write_fifo(rf_fifo_data, 32);
-        __HAL_RF_CHIP_EN();
-        Delay_us(15);
-        __HAL_RF_CHIP_DIS();
-        
+        RF_Write_fifo_Noack(rf_fifo_data, 32);
+
+        // __HAL_RF_CHIP_EN();
+        // Delay_us(15);
+        // __HAL_RF_CHIP_DIS();
         packet_count++;
-        
-        // 简单打印，每100包打印一次
-        if(packet_count % 100 == 0) 
-        {
-            uart_printf("send %ld packet\n", packet_count);
+        packt_count_intc ++;
+        //uart_printf("%d %d\n", packt_count_intc, isq_count_txds);
+
+        // 简单打印，每1000包打印一次
+        delay++;
+        if(delay % 10 == 0) {
+        // uart_printf("send %ld packet\n", packet_count);
+       // uart_printf("counts rxdr: %d txds: %d maxrt: %d\n", isq_count_rxdr, isq_count_txds, isq_count_maxrt);
         }
+
         // 简单延时，控制发送速率
-        Delay_us(100);
+        Delay_us(10000);
     }
 }
 
+// void bk24_send_data(void)
+// {
+//     static uint32_t packet_count = 0;
+//     uint8_t rf_fifo_data[32];
+//     uint16_t delay;
+
+//     for(uint8_t i = 0; i < 32; i++) 
+//     {
+//         rf_fifo_data[i] = i;
+//     }
+
+//     HAL_RF_SetTxMode(&hrf);
+
+//     while(1)
+//     {
+//         __HAL_RF_CMD_FLUSH_TXFIFO();      // 清空TX FIFO        
+        
+//         rf_fifo_data[0] = packet_count & 0xFF;
+//         // 写入数据并发送
+//         //RF_Write_fifo_Noack(rf_fifo_data, 8);
+//         HAL_RF_Transmit_ACK(&hrf, rf_fifo_data, 32);
+
+//         // __HAL_RF_CHIP_EN();
+//         // Delay_us(15);
+//         // __HAL_RF_CHIP_DIS();
+//         packet_count++;
+//         packt_count_intc ++;
+//         //uart_printf("%d %d\n", packt_count_intc, isq_count_txds);
+
+//         // 简单打印，每1000包打印一次
+//         delay++;
+//         if(delay % 10 == 0) {
+//         // uart_printf("send %ld packet\n", packet_count);
+//        // uart_printf("counts rxdr: %d txds: %d maxrt: %d\n", isq_count_rxdr, isq_count_txds, isq_count_maxrt);
+//         }
+
+//         // 简单延时，控制发送速率
+//         Delay_us(10000);
+//     }
+// }
+
+
+
+void bk24_send_data_intc(void)
+{
+    static uint32_t packet_count = 0;
+    uint16_t max_timeout;
+    uint8_t rf_fifo_data[32];
+    uint16_t delay;
+
+    for(uint8_t i = 0; i < 32; i++) 
+    {
+        rf_fifo_data[i] = i;
+    }
+
+    __HAL_RF_CMD_FLUSH_TXFIFO();
+    __HAL_RF_CMD_FLUSH_RXFIFO();
+    __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK | IRQ_MAX_RT_MASK|IRQ_RX_DR_MASK);
+    HAL_RF_SetTxMode(&hrf);
+    hrf.TxState = TX_IDLE;
+        
+    uart_printf("interrupt_status_init: %d\n", __HAL_RF_GET_IRQ_Status());        
+    while(1){
+        // 写入数据并发送
+        // if(hrf.TxState==TX_IDLE ){
+        //     packet_count=0;
+        //     hrf.TxState = TX_BUSY_Tramsmit;
+        //     RF_Write_fifo(rf_fifo_data, 32);
+        // }
+
+        HAL_RF_Transmit_IT(&hrf, rf_fifo_data, 32);
+
+        packet_count++;
+        packt_count_intc ++;
+        delay++;
+        //if(delay % 400 == 0) {
+        uart_printf("while1 counts rxdr: %d txds: %d maxrt: %d int_status\n", isq_count_rxdr, isq_count_txds, isq_count_maxrt,__HAL_RF_GET_IRQ_Status());
+        //uart_printf("tx state: %d,timeout_cnt: %d,sys_time: %d\n", hrf.TxState, hrf.TimeManager.Tx_Timeout_cnt, SysTick_Value_ms);
+        //打印当前时间，超时时间设定，开始时间，超时标志位和次数
+        // uart_printf("Tx_start_time: %d, Tx_TimeOut: %d, Tx_TimeOut_flag: %d,cur_time: %d,timeout_cnt: %d\n",
+        //             hrf.TimeManager.Tx_start_time, 
+        //             hrf.TimeManager.Tx_TimeOut, 
+        //             hrf.TimeManager.Tx_TimeOut_flag, 
+        //             SysTick_Value_ms, 
+        //             hrf.TimeManager.Tx_Timeout_cnt);
+        
+        //uart_printf("interrupt_status: %d\n", __HAL_RF_GET_IRQ_Status());
+        //}
+        Delay_us(1000);
+        SysTick_Value_ms++;
+    }
+}
+
+/* 轮询方式接收 */
 void rf_simple_receive()
 {
     HAL_RF_SetRxMode(&hrf);
     uint8_t rec[32];
     uint16_t count_packet; 
     uint16_t count_printf; 
+    uart_printf("in rf_simple_receive\n");
     while(1)
     {
-        uint8_t status = __HAL_RF_GET_IRQ_Status();
-        if (__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR) !=RESET)
+        uint8_t irq_status = __HAL_RF_GET_IRQ_Status();
+        if (irq_status & IRQ_RX_DR_MASK)
         {
             RF_Read_fifo(rec,32);
-            __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR);
+            __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
             count_packet++;
-            uart_printf("recieve %ld packet: ", count_packet);
+           // uart_printf("recieve %ld packet: ", count_packet);
             // 按照十进制打印接收到的数据
-            for(uint8_t i = 0; i < 32; i++)
+            //for(uint8_t i = 0; i < 8; i++)
             {
-                uart_printf("%d ", rec[i]);
+                uart_printf("%d ", rec[0]);
             }
             uart_printf("\n");
         }
@@ -440,51 +567,29 @@ void rf_simple_receive()
             count_printf++;
             if(count_printf % 10000 == 0)
             {
-                uart_printf("%d\n",status & RX_P_NO );
+                uart_printf("%d\n",irq_status & RX_P_NO );
                 uart_printf("not received\n");
             }
         }
     }
 }
 
-void rf_simple_receive_old()
-{
-    //切换到RX模式
-    TRX_CONFIG |= 0x02;
-    FLUSH_RX;
-    TRX_CE = 0;
-    TRX_CONFIG |= 0x01;
-    TRX_CE = 1;
-
-
-    uint8_t rec[32];
+/* 中断方式接收 */
+void rf_intc_receive() {
+    HAL_RF_SetRxMode(&hrf);
     uint16_t count_packet; 
-    uint16_t count_printf; 
-    while(1)
-    {
-        if (TRX_IRQ_STATUS & (1<<6))
-        {
-            RF_Read_fifo(rec,32);
-            TRX_IRQ_STATUS = (1<<6);//FLUSH_RX;
+    uart_printf("in rf_simple_receive\n");
+    while(1){
+        if(hrf.RxBuff_valid==1){
+            uart_printf("counts rxdr: %d\n", isq_count_rxdr);
+            hrf.RxBuff_valid=0;
             count_packet++;
-            uart_printf("recieve %ld packet: ", count_packet);
-            // 按照十进制打印接收到的数据
-            for(uint8_t i = 0; i < 32; i++)
-            {   
-                uart_printf("%d ", rec[i]);
+            uart_printf("recieve %d packet, length = %d ,packet=", count_packet, __HAL_RF_GET_RX_RPL_WIDTH());
+            for(uint8_t i = 0; i < 32; i++){
+                uart_printf("%d ", hrf.RxBuff[i]);
             }
-            uart_printf("\n");
+            uart_printf("\r\n");
         }
-        else
-        {
-            count_printf++;
-            if(count_printf % 10000 == 0)
-            {
-                uart_printf("not received\n");
-            }
-
-        }
-
+    
     }
-
 }

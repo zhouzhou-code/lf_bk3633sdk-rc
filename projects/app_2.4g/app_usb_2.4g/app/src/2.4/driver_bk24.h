@@ -166,7 +166,7 @@ extern "C" {
  * 0x40: READ_RX_PAYLOAD - 读RX有效载荷
  * 0x60: WRITE_TX_PAYLOAD - 写TX有效载荷
  * 0x68~0x6D: W_ACK_PAYLOAD (管道0-5) - 写ACK有效载荷
- * 0x70: W_TX_PAYLOAD_NOACK - 写TX有效载荷(不期待ACK)
+ * 0x68: W_TX_PAYLOAD_NOACK - 写TX有效载荷(不期待ACK)
  * 0x00: NOP - 空操作
  */
 

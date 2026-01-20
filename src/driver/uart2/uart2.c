@@ -120,7 +120,7 @@ void uart2_isr(void)
         }
 
         if ( uart_int_status & (1<<POS_UART2_REG0X5_UART_RX_STOP_END ) )
-        uart2_rx_done = 1;    // 此处应该先判断是否满足RX STOP
+        uart2_rx_done = 1;    // 姝ゅ搴旇鍏堝垽鏂槸鍚︽弧瓒砇X STOP
     }
 
     UART2_REG0X5 = uart_int_status;

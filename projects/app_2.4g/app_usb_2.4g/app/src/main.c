@@ -239,8 +239,10 @@ int main(void)
     #if(!USB_DRIVER)
     uart_init(115200);
     #endif
+    uart_init(115200);
     uart2_init(115200);//
     #endif
+    uart2_printf("main start2~~~~~\r\n");
     uart_printf("main start~~~~~\r\n");
 
     gpio_init();
@@ -455,18 +457,16 @@ int main(void)
     //uart_printf("in rf_simple_init,\r\n");
     rf_simple_init();
     //uart_printf("complete rf_simple_init,\r\n");
-
-
-  // rf_simple_init_old();
+    // }
+    // rf_simple_init_old();
 
     //发送
-    bk24_send_data();
-   // bk24_send_data_old();
+    //bk24_send_data();
+    bk24_send_data_intc();
 
     //接收
-    //rf_simple_receive();
-    //rf_simple_receive_old();
-
+   // rf_simple_receive();
+    //rf_intc_receive();
     //fn24main();
    
     while(1)

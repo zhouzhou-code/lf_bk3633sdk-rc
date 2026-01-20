@@ -11,6 +11,10 @@
 #include "reg_intc.h"
 #include "driver_timer.h"
 #include "app.h"
+#include "hal_drv_rf.h"
+#include "test_my_rf_fun.h"
+
+
 
 #if(ADC_DRIVER)
 #include "adc.h"
@@ -41,7 +45,7 @@
 #define RWCOMMON_INT  CO_BIT(INTC_COMMON)
 #define TIMER_INT     CO_BIT(INTC_TIMER)
 
-
+extern void bk24_isr();
 // enable the supported interrupts
 #define PLF_INT     (UART_INT | UART_2_INT | TIMER_INT)
 
@@ -64,6 +68,10 @@ void intc_init(void)
   //  setf_SYS_Reg0x11_int_rwbt_pri; // 1:fiq
   //  setf_SYS_Reg0x10_int_dma_en;
 
+  setf_SYS_Reg0x10_int_bk24_en; //使能bk24系统级中断
+  //setf_SYS_Reg0x11_int_bk24_pri; //bk24系统级中断设为fiq
+  clrf_SYS_Reg0x11_int_bk24_pri;
+  uart_printf("intc_init  bk24\r\n");
 }
 
 
@@ -72,11 +80,18 @@ void intc_init(void)
 {
 
     uint32_t IntStat;
-    uint32_t irq_status = 0;
+    uint32_t irq_status = 0; //记录挂起位，方便最后统一清除
 
     cpu_wakeup();
 
     IntStat = intc_status_get();
+
+    if(IntStat & INT_BK24_bit)
+    {
+        //uart_printf("in intc_fiq\n");
+        irq_status |= INT_BK24_bit;
+        HAL_RF_IRQ_Handler(&hrf);
+    }
 
     // call the function handler
     if(IntStat & INT_STATUS_UART0_bit)
@@ -160,6 +175,7 @@ void intc_init(void)
     }
 #endif
 
+    
     intc_status_clear(irq_status);
 }
 
@@ -172,7 +188,6 @@ void intc_init(void)
 
     if(IntStat & INT_STATUS_RWDM_bit)
     {
-//    uart_printf("rwble\r\n");
         fiq_status |= INT_STATUS_RWDM_bit;
         rwip_isr();
     }
@@ -182,6 +197,15 @@ void intc_init(void)
         fiq_status |= INT_STATUS_DMA_bit;
         dma_isr();
     }
+
+    // if(IntStat & INT_BK24_bit)
+    // {
+    //     uart_printf("in intc_fiq\n");
+    //     //fiq_status |= INT_BK24_bit;
+    //     intc_status_clear(INT_BK24_bit);//先清除中断标志，防止丢失中断
+    //     HAL_RF_IRQ_Handler(&hrf);
+    // }
+
     intc_status_clear(fiq_status);
 }
 

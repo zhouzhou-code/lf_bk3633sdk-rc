@@ -51,6 +51,19 @@
 /// Macro to write a platform register
 #define REG_PL_WR(addr, value)       (*(volatile uint32_t *)(addr)) = (value)
 
+/*-------------------------自定义------------------------------------------------*/
+/// 掩码置位：将 mask 对应的一个或多个位 置 1
+#define REG_PL_MASK_SET(addr, mask)  REG_PL_WR(addr, REG_PL_RD(addr) | (mask))
+
+/// 掩码清零：将 mask 对应的一个或多个位 置 0
+#define REG_PL_MASK_CLR(addr, mask)  REG_PL_WR(addr, REG_PL_RD(addr) & ~(mask))
+
+/// 检查位：判断 mask 对应的位是否为 1
+#define REG_PL_MASK_IS_SET(addr, mask)  ((REG_PL_RD(addr) & (mask)) == (mask))
+
+/*-------------------------自定义------------------------------------------------*/
+
+
 /// Macro to read a common ip register
 #define REG_IP_RD(addr)              (*(volatile uint32_t *)(addr))
 
