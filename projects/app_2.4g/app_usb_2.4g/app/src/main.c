@@ -462,11 +462,11 @@ int main(void)
 
     //发送
     //bk24_send_data();
-    bk24_send_data_intc();
+    //bk24_send_data_intc();
 
     //接收
    // rf_simple_receive();
-    //rf_intc_receive();
+    rf_intc_receive();
     //fn24main();
    
     while(1)

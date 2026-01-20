@@ -215,16 +215,6 @@ typedef struct {
 
 
 /** 
-  * @brief 中断事件下标索引
-  */
-typedef enum {
-    IRQ_Event_RX_DR    = 0,   
-    IRQ_Event_TX_DS    = 1,   
-    IRQ_Event_MAX_RT   = 2,  
-} IRQEvent_Index_E;
-
-
-/** 
   * @brief  RF中断管理结构体
   */
 typedef struct {
@@ -258,7 +248,6 @@ typedef struct {
     RF_ProtocolTypeDef  Protocol;       /*!< 协议相关配置 */
     
     /* 中断 */
-    // RF_IRQManager_TypeDef IRQ_Manager[3];  /*!< 中断管理,下标传入IRQEvent_Index_E */
     struct {
         RF_IRQManager_TypeDef RxDR;     /*!< 接收到数据中断RxDataReady  */
         RF_IRQManager_TypeDef TxDS;     /*!< 发送完成中断TxDataSent */
@@ -278,13 +267,13 @@ typedef struct
     RF_TimeManager_TypeDef    TimeManager;    /*!< 时间管理 */
     __IO uint8_t             *pTxBuff;        /*!< 发送缓存指针 */
     __IO uint8_t              RxBuff[32];     /*!< 接收缓存数组 */
-    __IO uint8_t              RxBuff_valid;     /*!< 接收缓存有效标志 */
+    __IO uint8_t              RxBuff_valid;   /*!< 接收缓存有效标志 */
     HAL_RF_StateTypeDef       State;          /*!< 驱动运行状态 */
     __IO uint8_t              ErrorCode;      /*!< 错误代码 */
     
     /*运行时参数 */
-    __IO HAL_RF_TxFSMTypeDef   TxState;     /*!< 发送状态 */
-    __IO RF_ModeTypeDef          Cur_Mode;    /*!< 当前工作模式 */
+    __IO HAL_RF_TxFSMTypeDef  TxState;       /*!< 发送状态 */
+    RF_ModeTypeDef            Cur_Mode;    /*!< 当前工作模式 */
 
     uint8_t                 CurrentChannel; 
     uint8_t                 LastRxLen;      
@@ -296,22 +285,18 @@ typedef struct
 HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init);
 /* 注册获取系统时间的函数,用于超时管理 */
 HAL_StatusTypeDef HAL_RF_TimeManager_register(RF_HandleTypeDef *hrf, uint32_t (*GetSysTimeMs)(void));
-
 HAL_StatusTypeDef HAL_RF_MspInit(RF_HandleTypeDef *hrf); //弱定义，用于GPIO/SPI底层初始化
 
 
-
 /* 数据收发函数 */
-HAL_RF_StateTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
+HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
+HAL_StatusTypeDef HAL_RF_Transmit_NoACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
+HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
 
 HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
-HAL_StatusTypeDef HAL_RF_Receive_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
+HAL_StatusTypeDef HAL_RF_Receive_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);//不需要函数，直接读缓冲区
 
-
-HAL_RF_StateTypeDef HAL_RF_Transmit_NoACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
-HAL_RF_StateTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
-void HAL_RF_Attach_PL2ACK(uint8_t pipes, uint8_t *pBuf, uint8_t len);
-
+HAL_StatusTypeDef HAL_RF_Attach_PL2ACK(RF_HandleTypeDef *hrf, uint8_t pipes, uint8_t *pBuf, uint8_t len);
 
 /* 中断处理函数, 在intc.c的intc_irq/intc_fiq中调用，自动判断中断类型并处理中断事件回调 */
 void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf);
@@ -321,15 +306,15 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf);
 void HAL_RF_SetChannel(RF_HandleTypeDef *hrf, uint8_t channel);
 void HAL_RF_GetChannel(RF_HandleTypeDef *hrf, uint8_t channel);
 
-void HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr);
-void HAL_RF_GetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr);
+HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr,uint8_t length);
+HAL_StatusTypeDef HAL_RF_GetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr);
 
-void HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint32_t *dev_addr);
-void HAL_RF_GetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint32_t *dev_addr);
+HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint32_t *dev_addr,uint8_t length);
+HAL_StatusTypeDef HAL_RF_GetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint32_t *dev_addr);
 
 //注意，切换模式不可只改变寄存器位，还需PowerUp以及拉低CE
-void HAL_RF_SetRxMode(RF_HandleTypeDef *hrf);
-void HAL_RF_SetTxMode(RF_HandleTypeDef *hrf);
+HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf);
+HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf);
 
 
 void HAL_RF_ClearIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef _Flags);

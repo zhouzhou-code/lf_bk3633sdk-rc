@@ -3,7 +3,7 @@
 #include "driver_timer.h"
 #include "bk3633_reglist.h"
 #include "user_config.h"
-
+#include <string.h> 
 
 
 #define UART_PRINTF    uart_printf
@@ -97,7 +97,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
 {
     if (Init == NULL || hrf == NULL) return HAL_ERROR;
 
-    hrf->State = HAL_RF_STATE_BUSY;
+    hrf->State = HAL_RF_STATE_RESET;
     
     // 1. 底层硬件复位/时钟开启 (MSP Params)
     //HAL_RF_MspParams(hrf);
@@ -254,9 +254,9 @@ HAL_StatusTypeDef HAL_RF_TimeManager_register(RF_HandleTypeDef *hrf, uint32_t (*
   * @brief  阻塞式发送数据(调通)
   * @return
   */
-HAL_RF_StateTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
+HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
 {
-    HAL_RF_StateTypeDef ret;
+    HAL_StatusTypeDef ret;
     uint8_t irq_status;         //中断挂起状态
     uint8_t isTimeout = 0;      // 是否超时标志
     uint32_t txWaitCounter = 0; // 发送等待计数器（用于超时判断）
@@ -368,7 +368,7 @@ HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint
   * @brief  无ACK发送数据(调通)
   * @return
   */
-HAL_RF_StateTypeDef HAL_RF_Transmit_NoACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
+HAL_StatusTypeDef HAL_RF_Transmit_NoACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
 {
 
     if(hrf->Params.Protocol.Support_NoAck !=1)
@@ -406,7 +406,7 @@ HAL_RF_StateTypeDef HAL_RF_Transmit_NoACK(RF_HandleTypeDef *hrf, uint8_t *pData,
   * @param  Size:  期望读取长度 (如果 FIFO 数据小于此长度，将只读取实际长度)
   * @return 
   */
-HAL_RF_StateTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
+HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
 {
     uint8_t irq_status;
     uint8_t fifo_status;
@@ -446,8 +446,16 @@ HAL_RF_StateTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_
   * @param  pBuf: 负载数据指针
   * @param  len:  负载数据长度 (最大32字节)
   */
-void HAL_RF_Attach_PL2ACK(uint8_t pipes, uint8_t *pBuf, uint8_t len) 
+HAL_StatusTypeDef HAL_RF_Attach_PL2ACK(RF_HandleTypeDef *hrf, uint8_t pipes, uint8_t *pBuf, uint8_t len) 
 {
+    /* 入参检查 */
+    if(pipes > 5 || pBuf == NULL || len == 0 || len > 32) {
+        return HAL_RF_STATE_ERROR; 
+    }
+    if(hrf->Params.Protocol.RxPipes[pipes].Support_Payload_Attach_ACK != 1) {
+        return HAL_RF_STATE_ERROR; 
+    }
+
     uint8_t i;
     __HAL_RF_CMD_RX_W_ACK_PAYLOAD(pipes);
     for(i = 0; i < len; i++) 
@@ -455,6 +463,8 @@ void HAL_RF_Attach_PL2ACK(uint8_t pipes, uint8_t *pBuf, uint8_t len)
         TRX_FIFO = pBuf[i];
     }
     __HAL_RF_CMD_NOP();
+
+    return HAL_RF_STATE_READY;
 }
 
 
@@ -471,20 +481,25 @@ void HAL_RF_SetChannel(RF_HandleTypeDef *hrf, uint8_t channel)
   * @brief  设置发送地址
   * @param  hrf: RF 句柄
   * @param  dev_addr: 发送地址指针
-  * @detail 地址宽度由 hrf->Params.AddressWidth 决定
+  * @param  length: 地址宽度 必须传入和AddressWidth相同的值！
   */
-void HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr)
-{
-    // hrf->Params.Address.TxAddress = dev_addr;
-    // RF_MemCpy(&TRX_TX_ADDR_0, dev_addr, hrf->Params.AddressWidth);
+HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr,uint8_t length)
+{   
+    if(length!=hrf->Params.Protocol.AddressWidth) 
+        return HAL_RF_STATE_ERROR;
+    
+    memcpy(hrf->Params.Protocol.TxAddress, dev_addr, hrf->Params.Protocol.AddressWidth);
+    RF_MemCpy(&TRX_TX_ADDR_0, hrf->Params.Protocol.TxAddress, hrf->Params.Protocol.AddressWidth);
+    return HAL_RF_STATE_READY;
 }
 
 /**
   * @brief  设置为接收模式
   * @param  hrf: RF 句柄
   * @param  dev_addr: 发送地址指针
+  * @param  length: 地址宽度 必须传入和AddressWidth相同的值
   */
-void HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
+HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
 {
     hrf->Params.Mode = MODE_RX;
     __HAL_RF_PowerUp();
@@ -494,14 +509,53 @@ void HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
     __HAL_RF_Set_RxMode_Bit() ;
     __HAL_RF_CHIP_EN();
 
-    hrf->State = HAL_RF_STATE_BUSY_RX;
+    hrf->State = HAL_RF_STATE_READY;
+    return HAL_RF_STATE_READY;
 }
+
+/**
+  * @brief  设置接收通道地址
+  * @param  hrf: RF 句柄
+  * @param  dev_addr: 接收地址指针
+  * @param  length: 地址宽度 必须传入和AddressWidth相同的值！
+  */
+HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint32_t *dev_addr,uint8_t length)
+{
+    if(pipe >5 || dev_addr == NULL) return HAL_RF_STATE_ERROR;
+    if(length!=hrf->Params.Protocol.AddressWidth) return HAL_RF_STATE_ERROR;
+
+    memcpy(hrf->Params.Protocol.RxPipes[pipe].Address, dev_addr, hrf->Params.Protocol.AddressWidth);
+    switch(pipe){
+        case 0:
+            RF_MemCpy(&TRX_RX_ADDR_P0_0, hrf->Params.Protocol.RxPipes[0].Address, hrf->Params.Protocol.AddressWidth);
+            break;
+        case 1:
+            RF_MemCpy(&TRX_RX_ADDR_P1_0, hrf->Params.Protocol.RxPipes[1].Address, hrf->Params.Protocol.AddressWidth);
+            break;
+        case 2:
+            TRX_RX_ADDR_P2 = hrf->Params.Protocol.RxPipes[2].Address[0];
+            break;
+        case 3:
+            TRX_RX_ADDR_P3 = hrf->Params.Protocol.RxPipes[3].Address[0];
+            break;
+        case 4:
+            TRX_RX_ADDR_P4 = hrf->Params.Protocol.RxPipes[4].Address[0];
+            break;
+        case 5:
+            TRX_RX_ADDR_P5 = hrf->Params.Protocol.RxPipes[5].Address[0];
+            break;
+        default:
+            break;
+    }
+    return HAL_RF_STATE_READY;
+}
+
 
 /**
   * @brief  设置为发送模式
   * @param  hrf: RF 句柄
   */
-void HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
+HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
 {
     hrf->Params.Mode = MODE_TX;
 
@@ -511,7 +565,8 @@ void HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
     __HAL_RF_Set_TxMode_Bit();
     __HAL_RF_CHIP_EN();
 
-    hrf->State = HAL_RF_STATE_BUSY_TX;
+    hrf->State = HAL_RF_STATE_READY;
+    return HAL_RF_STATE_READY;
 }
 
 /**
