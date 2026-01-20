@@ -258,7 +258,12 @@ typedef struct {
     RF_ProtocolTypeDef  Protocol;       /*!< 协议相关配置 */
     
     /* 中断 */
-    RF_IRQManager_TypeDef IRQ_Manager[3];  /*!< 中断管理,下标传入IRQEvent_Index_E */         
+    // RF_IRQManager_TypeDef IRQ_Manager[3];  /*!< 中断管理,下标传入IRQEvent_Index_E */
+    struct {
+        RF_IRQManager_TypeDef RxDR;     /*!< 接收到数据中断RxDataReady  */
+        RF_IRQManager_TypeDef TxDS;     /*!< 发送完成中断TxDataSent */
+        RF_IRQManager_TypeDef MaxRT;    /*!< 达到最大重传中断MaxRetry  */
+    } IRQ;       
         
 } RF_ConfgTypeDef;
 

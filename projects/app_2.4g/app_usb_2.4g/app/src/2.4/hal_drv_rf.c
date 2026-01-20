@@ -223,10 +223,11 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
     __HAL_RF_CMD_FLUSH_TXFIFO();
     __HAL_RF_CLEAR_IRQ_FLAGS((IRQ_RX_DR_MASK|IRQ_TX_DS_MASK|IRQ_MAX_RT_MASK|RX_P_NO));
 
-    //中断配置
-    Init->IRQ_Manager[IRQ_Event_RX_DR].enable ? __HAL_RF_EN_IRQ_RX_DR() : __HAL_RF_DIS_IRQ_RX_DR();
-    Init->IRQ_Manager[IRQ_Event_TX_DS].enable ? __HAL_RF_EN_IRQ_TX_DS() : __HAL_RF_DIS_IRQ_TX_DS();
-    Init->IRQ_Manager[IRQ_Event_MAX_RT].enable ? __HAL_RF_EN_IRQ_MAX_RT() : __HAL_RF_DIS_IRQ_MAX_RT();
+    /* 中断配置 */
+    Init->IRQ.RxDR.enable ? __HAL_RF_EN_IRQ_RX_DR() : __HAL_RF_DIS_IRQ_RX_DR();
+    Init->IRQ.TxDS.enable ? __HAL_RF_EN_IRQ_TX_DS() : __HAL_RF_DIS_IRQ_TX_DS();
+    Init->IRQ.MaxRT.enable ? __HAL_RF_EN_IRQ_MAX_RT() : __HAL_RF_DIS_IRQ_MAX_RT();
+
 
     // 3. 初始化 RF_HandleTypeDef 结构体
     hrf->Params = *Init;
@@ -526,8 +527,8 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
         RF_Read_fifo((uint8_t*)(hrf->RxBuff), 32);
         hrf->RxBuff_valid = 1;
 
-        if(hrf->Params.IRQ_Manager[IRQ_Event_RX_DR].user_cb != NULL){
-            hrf->Params.IRQ_Manager[IRQ_Event_RX_DR].user_cb();
+        if(hrf->Params.IRQ.RxDR.user_cb != NULL){
+            hrf->Params.IRQ.RxDR.user_cb();
         }
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
         __HAL_RF_CMD_FLUSH_RXFIFO();
@@ -536,8 +537,9 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS_MASK)){
         uart_printf("in TX_DS\r\n");
         hrf->TxState = TX_Tramsmit_SUCCESS;
-        if(hrf->Params.IRQ_Manager[IRQ_Event_TX_DS].user_cb != NULL){
-            hrf->Params.IRQ_Manager[IRQ_Event_TX_DS].user_cb();
+
+        if(hrf->Params.IRQ.TxDS.user_cb != NULL){
+            hrf->Params.IRQ.TxDS.user_cb();
         }
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
         //__HAL_RF_CMD_FLUSH_TXFIFO();
@@ -547,8 +549,8 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
         uart_printf("in MAX_RT\r\n");
         hrf->TxState = TX_Tramsmit_FAIL;
-        if(hrf->Params.IRQ_Manager[IRQ_Event_MAX_RT].user_cb != NULL){
-            hrf->Params.IRQ_Manager[IRQ_Event_MAX_RT].user_cb();
+        if(hrf->Params.IRQ.MaxRT.user_cb != NULL){
+            hrf->Params.IRQ.MaxRT.user_cb();
         }
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_MAX_RT_MASK);
         __HAL_RF_CMD_FLUSH_TXFIFO();//发送失败必须要清空TX FIFO，下次才能继续写FIFO发送

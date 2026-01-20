@@ -198,17 +198,19 @@ RF_ConfgTypeDef Init_S_normal=
             .Address = {0x14, 0, 0, 0, 0}
         }
     },
-    .IRQ_Manager[IRQ_Event_RX_DR]={
-        .enable = 1,
-        .user_cb = rxdr_callback,
-    },        
-    .IRQ_Manager[IRQ_Event_TX_DS]={
-        .enable = 1,
-        .user_cb = txds_callback,
-    },
-    .IRQ_Manager[IRQ_Event_MAX_RT]={
-        .enable = 1,
-        .user_cb = maxrt_callback,
+    .IRQ = {
+        .RxDR = {
+            .enable = 1,
+            .user_cb = rxdr_callback
+        },
+        .TxDS = {
+            .enable = 1,
+            .user_cb = txds_callback
+        },
+        .MaxRT = {
+            .enable = 1,
+            .user_cb = maxrt_callback
+        }
     }
 };
 
