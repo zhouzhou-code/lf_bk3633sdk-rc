@@ -18,7 +18,6 @@ volatile uint32_t     bk_timer0_T2_cnt,bk_timer1_T2_cnt;
 
 
 //#define TIMER_CLK_IS_1M
-
 static TIMER_INT_CALLBACK_T timer0_0_int_cb = NULL;
 static TIMER_INT_CALLBACK_T timer0_1_int_cb = NULL;
 

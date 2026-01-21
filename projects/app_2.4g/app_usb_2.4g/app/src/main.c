@@ -43,6 +43,7 @@
 #include "driver_icu.h"
 #endif
 #include "Application_mode.h"
+#include "rf_handler.h"
 
 
 extern void  xvr_reg_initial_24(void);
@@ -228,6 +229,12 @@ void AudioOut_Cbk(void*ptr,int sz){
 //    memset(ptr,0,sz);
 }
 #endif
+uint8_t test_sand_data[32];
+__IO uint32_t SysTick_Value_ms;
+uint32_t get_system_time_ms(void)
+{
+    return SysTick_Value_ms;
+}
 
 int main(void)
 {
@@ -451,22 +458,50 @@ int main(void)
         }
     }
     #endif
+    
+    static uint8_t txcount=0;
+    RF_Handler_Init();//初始化RF句柄及队列
+    HAL_RF_TimeManager_register(&hrf, get_system_time_ms); //一定要注册系统时间函数
+    // while(1) //发送
+    // {
+    //     txcount++;
+    //     SysTick_Value_ms++;
+    //     test_sand_data[0] = txcount;
+    //     RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
+    //     Delay_ms(1);
+    //     RF_Send_Handler(&hrf);  //处理发送队列，卡死在这里
+    // }
+    HAL_RF_SetRxMode(&hrf);//设置为接收模式
+    while(1)//接收
+    {
+        txcount++;
+        SysTick_Value_ms++;
+        uint8_t rec_data[32];
 
+        if(RF_rxQueue_Recv(rec_data, 32)!=0){
+            uart_printf("rec_data=");
+            for(int i=0;i<32;i++)
+                uart_printf("%x,",rec_data[i]);
+            uart_printf("\r\n");
+        }
+        Delay_ms(1);
+    }
 
+    
 
-    //uart_printf("in rf_simple_init,\r\n");
+    uart_printf("in rf_simple_init,\r\n");
     rf_simple_init();
-    //uart_printf("complete rf_simple_init,\r\n");
+    uart_printf("complete rf_simple_init,\r\n");
     // }
     // rf_simple_init_old();
 
     //发送
     //bk24_send_data();
-    //bk24_send_data_intc();
+    bk24_send_data_intc();
 
     //接收
    // rf_simple_receive();
-    rf_intc_receive();
+    //rf_intc_receive();
     //fn24main();
    
     while(1)

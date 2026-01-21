@@ -576,25 +576,25 @@ HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
 void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
 {
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
-        uart_printf("in RX_DR\r\n");
+        //uart_printf("in RX_DR\r\n");
         /* 读取数据到APP队列 */
-        // RF_Read_fifo((uint8_t*)(hrf->RxBuff), __HAL_RF_GET_RX_RPL_WIDTH());
         RF_Read_fifo((uint8_t*)(hrf->RxBuff), 32);
+
         hrf->RxBuff_valid = 1;
 
         if(hrf->Params.IRQ.RxDR.user_cb != NULL){
-            hrf->Params.IRQ.RxDR.user_cb();
+            hrf->Params.IRQ.RxDR.user_cb(hrf);
         }
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
         __HAL_RF_CMD_FLUSH_RXFIFO();
     }
 
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS_MASK)){
-        uart_printf("in TX_DS\r\n");
+        //uart_printf("in TX_DS\r\n");
         hrf->TxState = TX_Tramsmit_SUCCESS;
 
         if(hrf->Params.IRQ.TxDS.user_cb != NULL){
-            hrf->Params.IRQ.TxDS.user_cb();
+            hrf->Params.IRQ.TxDS.user_cb(hrf);
         }
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
         //__HAL_RF_CMD_FLUSH_TXFIFO();
@@ -602,10 +602,10 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
         
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
-        uart_printf("in MAX_RT\r\n");
+        //uart_printf("in MAX_RT\r\n");
         hrf->TxState = TX_Tramsmit_FAIL;
         if(hrf->Params.IRQ.MaxRT.user_cb != NULL){
-            hrf->Params.IRQ.MaxRT.user_cb();
+            hrf->Params.IRQ.MaxRT.user_cb(hrf);
         }
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_MAX_RT_MASK);
         __HAL_RF_CMD_FLUSH_TXFIFO();//发送失败必须要清空TX FIFO，下次才能继续写FIFO发送

@@ -51,8 +51,6 @@ void uart2_init(uint32_t baudrate)
 }
 
 
-
-
 static void uart2_send_byte(unsigned char data)
 {
     while( 0==(UART2_REG0X2&(1<<POS_UART2_REG0X2_FIFO_WR_READY)) );

@@ -213,14 +213,14 @@ typedef struct {
     
 } RF_ProtocolTypeDef;
 
-
+typedef struct __RF_HandleTypeDef RF_HandleTypeDef; 
 /** 
   * @brief  RF中断管理结构体
   */
 typedef struct {
     uint8_t enable;
     /* 处理函数指针 */  
-    void (*user_cb)(void);
+    void (*user_cb)(RF_HandleTypeDef *hrf);
 } RF_IRQManager_TypeDef;
 
 typedef struct {
@@ -261,7 +261,7 @@ typedef struct {
   * @brief  RF 句柄结构体
   *         包含实例上下文、配置信息和运行时状态
   */
-typedef struct 
+typedef struct __RF_HandleTypeDef
 {
     RF_ConfgTypeDef           Params;         /*!< 通信参数配置 */
     RF_TimeManager_TypeDef    TimeManager;    /*!< 时间管理 */
