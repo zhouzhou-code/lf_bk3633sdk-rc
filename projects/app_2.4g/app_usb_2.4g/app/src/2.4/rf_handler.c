@@ -3,6 +3,8 @@
 #include "user_config.h"
 #include "my_queue.h"
 #include "Types.h"
+#include "timer_handler.h"
+
 
 
 //简化处理，定义固定长度发送和接收队列，无线端每次接收定长32字节
@@ -128,6 +130,8 @@ void RF_Handler_Init(void)
 {
     /* 初始化RF模块 */
     HAL_RF_Init(&hrf, &Init_S);
+    HAL_RF_TimeManager_register(&hrf, Get_SysTick_ms);
+
     HAL_RF_SetTxMode(&hrf);
     /* 初始化发送和接收队列 */
     queue_init(&rf_txQueue, rf_send_queue_buffer, 

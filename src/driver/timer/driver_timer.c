@@ -11,22 +11,20 @@
 #include "driver_timer.h"
 
 
-volatile uint8_t bk_timer_hit=0x00;
-volatile uint32_t bk_timer0_T0_cnt,bk_timer0_T1_cnt;
-volatile uint32_t bk_timer1_T0_cnt,bk_timer1_T1_cnt;
-volatile uint32_t     bk_timer0_T2_cnt,bk_timer1_T2_cnt;
+volatile uint8_t  bk_timer_hit=0x00;
+//定时器装载值
+volatile uint32_t bk_timer0_T0_cnt,bk_timer0_T1_cnt,bk_timer0_T2_cnt;
+volatile uint32_t bk_timer1_T0_cnt,bk_timer1_T1_cnt,bk_timer1_T2_cnt;
 
 
 //#define TIMER_CLK_IS_1M
+//定时器中断回调函数
 static TIMER_INT_CALLBACK_T timer0_0_int_cb = NULL;
 static TIMER_INT_CALLBACK_T timer0_1_int_cb = NULL;
-
 static TIMER_INT_CALLBACK_T timer0_2_int_cb = NULL;
 
 static TIMER_INT_CALLBACK_T timer1_0_int_cb = NULL;
-
 static TIMER_INT_CALLBACK_T timer1_1_int_cb = NULL;
-
 static TIMER_INT_CALLBACK_T timer1_2_int_cb = NULL;
 
 void timer_cb_register(uint8_t Timer, uint8_t index,TIMER_INT_CALLBACK_T cb)
@@ -278,7 +276,6 @@ void Timer0_Stop(uint8_t index)
 }
 
 
-
 void Timer1_Stop(uint8_t index)
 {
     if(index==0)
@@ -342,19 +339,23 @@ void Timer_ISR1(void)
 {
     uint32_t timer_status;
     timer_status=addTIMER1_Reg0x3;
-    if(timer_status & (1<<posTIMER1_Reg0x3_timer0_int))
+    if(timer_status & (1<<posTIMER1_Reg0x3_timer0_int)) //检查T1_0中断是否置位
     {
         bk_timer_hit |= 0x10;
+        //重装载bk_timer1_T0_cnt
         addTIMER1_Reg0x0 = bk_timer1_T0_cnt;
+        //调用回调函数
         if(timer1_0_int_cb)
         {
             (*timer1_0_int_cb)();
         }
     }
-    if(timer_status & (1<<posTIMER1_Reg0x3_timer1_int))
+    if(timer_status & (1<<posTIMER1_Reg0x3_timer1_int)) //检查T1_1中断是否置位
     {
         bk_timer_hit |= 0x20;
+        //重装载bk_timer1_T1_cnt
         addTIMER1_Reg0x1 = bk_timer1_T1_cnt;
+        //调用回调函数
         if(timer1_1_int_cb)
         {
             (*timer1_1_int_cb)();

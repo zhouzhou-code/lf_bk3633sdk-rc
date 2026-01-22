@@ -69,6 +69,10 @@ void intc_init(void)
   //  setf_SYS_Reg0x11_int_rwbt_pri; // 1:fiq
   //  setf_SYS_Reg0x10_int_dma_en;
 
+
+  setf_SYS_Reg0x10_int_timer1_en; //enable timer_int irq
+  clrf_SYS_Reg0x11_int_timer1_pri; //timer系统级中断设为irq
+
   setf_SYS_Reg0x10_int_uart1_en; //enable uart1_int irq
   clrf_SYS_Reg0x11_int_uart1_pri; //uart1系统级中断设为irq
 

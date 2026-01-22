@@ -239,6 +239,11 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
     return HAL_OK;
 }
 
+/**
+  * @brief  注册系统时间获取函数，用于超时管理，一定要注册！发送函数依赖此函数
+  * @param  hrf: RF 句柄
+  * @param  GetSysTimeMs: 获取系统时间函数指针，单位ms
+  */
 HAL_StatusTypeDef HAL_RF_TimeManager_register(RF_HandleTypeDef *hrf, uint32_t (*GetSysTimeMs)(void))
 {
     if (hrf == NULL || GetSysTimeMs == NULL) return HAL_ERROR;

@@ -45,10 +45,13 @@
 #include "Application_mode.h"
 #include "rf_handler.h"
 #include "my_drv_uart2.h"
-
+#include "driver_timer.h"
+#include "rf.h"
+#include "timer_handler.h"
 
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
+
 
 static void stack_integrity_check(void)
 {
@@ -85,10 +88,6 @@ static void stack_integrity_check(void)
     }
 
 }
-
-
-
-
 
 
 
@@ -231,11 +230,6 @@ void AudioOut_Cbk(void*ptr,int sz){
 }
 #endif
 uint8_t test_sand_data[32];
-__IO uint32_t SysTick_Value_ms;
-uint32_t get_system_time_ms(void)
-{
-    return SysTick_Value_ms;
-}
 
 int main(void)
 {
@@ -252,6 +246,9 @@ int main(void)
     #endif
     uart2_printf("main start2~~~~~\r\n");
     uart_printf("main start~~~~~\r\n");
+
+    //定时器初始化
+    Timer_Handler_Init();
 
     gpio_init();
     flash_init();
@@ -461,8 +458,7 @@ int main(void)
     #endif
     
     // static uint8_t txcount=0;
-    // RF_Handler_Init();//初始化RF句柄及队列
-    // HAL_RF_TimeManager_register(&hrf, get_system_time_ms); //一定要注册系统时间函数
+    RF_Handler_Init();//初始化RF句柄及队列
     // while(1) //发送
     // {
     //     txcount++;
@@ -494,6 +490,8 @@ int main(void)
     {
         //uart_printf("in main loop\r\n");
         //串口queue测试
+        uart_printf("tick=%d\r\n", Get_SysTick_ms());
+
         if(!queue_is_empty((&uart2_rxQueue)))
         {
             uint8_t byte;
