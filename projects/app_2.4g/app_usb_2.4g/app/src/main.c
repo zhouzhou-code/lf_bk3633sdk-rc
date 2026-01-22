@@ -44,6 +44,7 @@
 #endif
 #include "Application_mode.h"
 #include "rf_handler.h"
+#include "my_drv_uart2.h"
 
 
 extern void  xvr_reg_initial_24(void);
@@ -459,9 +460,9 @@ int main(void)
     }
     #endif
     
-    static uint8_t txcount=0;
-    RF_Handler_Init();//初始化RF句柄及队列
-    HAL_RF_TimeManager_register(&hrf, get_system_time_ms); //一定要注册系统时间函数
+    // static uint8_t txcount=0;
+    // RF_Handler_Init();//初始化RF句柄及队列
+    // HAL_RF_TimeManager_register(&hrf, get_system_time_ms); //一定要注册系统时间函数
     // while(1) //发送
     // {
     //     txcount++;
@@ -471,33 +472,47 @@ int main(void)
     //     Delay_ms(1);
     //     RF_Send_Handler(&hrf);  //处理发送队列，卡死在这里
     // }
-    HAL_RF_SetRxMode(&hrf);//设置为接收模式
-    while(1)//接收
+    // HAL_RF_SetRxMode(&hrf);//设置为接收模式
+    // while(1)//接收
+    // {
+    //     txcount++;
+    //     SysTick_Value_ms++;
+    //     uint8_t rec_data[32];
+
+    //     if(RF_rxQueue_Recv(rec_data, 32)!=0){
+    //         uart_printf("rec_data=");
+    //         for(int i=0;i<32;i++)
+    //             uart_printf("%x,",rec_data[i]);
+    //         uart_printf("\r\n");
+    //     }
+    //     Delay_ms(1);
+    // }
+
+
+
+    while(1)
     {
-        txcount++;
-        SysTick_Value_ms++;
-        uint8_t rec_data[32];
-
-        if(RF_rxQueue_Recv(rec_data, 32)!=0){
-            uart_printf("rec_data=");
-            for(int i=0;i<32;i++)
-                uart_printf("%x,",rec_data[i]);
-            uart_printf("\r\n");
+        //uart_printf("in main loop\r\n");
+        //串口queue测试
+        if(!queue_is_empty((&uart2_rxQueue)))
+        {
+            uint8_t byte;
+            queue_pop(&uart2_rxQueue, &byte);
+            uart_printf("%d\r\n", byte);
         }
-        Delay_ms(1);
-    }
 
+    }
     
 
-    uart_printf("in rf_simple_init,\r\n");
-    rf_simple_init();
-    uart_printf("complete rf_simple_init,\r\n");
-    // }
-    // rf_simple_init_old();
+    // uart_printf("in rf_simple_init,\r\n");
+    // rf_simple_init();
+    // uart_printf("complete rf_simple_init,\r\n");
+    // // }
+    // // rf_simple_init_old();
 
-    //发送
-    //bk24_send_data();
-    bk24_send_data_intc();
+    // //发送
+    // //bk24_send_data();
+    // bk24_send_data_intc();
 
     //接收
    // rf_simple_receive();

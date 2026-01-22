@@ -105,7 +105,8 @@ void intc_init(void)
     }
     if(IntStat & INT_STATUS_UART2_bit)
     {
-        irq_status |= INT_STATUS_UART0_bit;
+        //uart2_printf("in ua2\r\n");
+        irq_status |= INT_STATUS_UART2_bit;
         uart2_isr();
     }
 #if (ADC_DRIVER)

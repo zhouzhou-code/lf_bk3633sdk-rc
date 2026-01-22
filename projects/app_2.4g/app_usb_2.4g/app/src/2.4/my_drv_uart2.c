@@ -40,15 +40,20 @@ void uart2_init(uint32_t baudrate)
                     (0x1          << POS_UART2_REG0X0_RX_ENABLE) |
                     (0x1          << POS_UART2_REG0X0_TX_ENABLE) ;
     
-    UART2_REG0X1 = 0x00004010;
-    UART2_REG0X4 = 0x42;
-    UART2_REG0X6 = 0x0;
-    UART2_REG0X7 = 0x0;
+    // 修改这里：设置32字节接收阈值，32位超时时间
+    UART2_REG0X1 = 0x00002020;  // RX_TH=32, TX_TH=32, STOP_DET=0
+    
+    UART2_REG0X4 = 0x42;  // 中断使能配置
+    UART2_REG0X6 = 0x0;   // 流控配置
+    UART2_REG0X7 = 0x0;   // 唤醒配置
 
     SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_UART2);
 
     uart2_rx_done = 0;
     uart2_rx_index = 0;
+
+    queue_init(&uart2_rxQueue, uart_rxQueue_buffer, UART2_FIFO_MAX_COUNT,UART2_FIFO_MAX_COUNT, sizeof(uint8_t));
+    queue_init(&uart2_txQueue, uart_txQueue_buffer, UART2_FIFO_MAX_COUNT, UART2_FIFO_MAX_COUNT, sizeof(uint8_t));
 
 }
 
@@ -122,7 +127,7 @@ int uart2_printf_null(const char *fmt,...)
 
 void uart2_isr(void)
 {
-    uart_printf("uart2_isr\r\n");
+    //uart_printf("uart2_isr\r\n");
     
     uint32_t irq_status = UART2_REG0X5;
     uint8_t rx_byte;
@@ -133,7 +138,6 @@ void uart2_isr(void)
     {
         // 阈值中断触发，表示FIFO中有至少32字节数据
         // 但我们只读取32字节，保持分块处理
-        
         bytes_to_read = 32;  // 每次阈值中断固定读取32字节
         
         for (uint8_t i = 0; i < bytes_to_read; i++)
@@ -149,26 +153,37 @@ void uart2_isr(void)
 
         }
         // 对于阈值中断，读取数据后会自动清除，无需软件操作
+        uart_printf("32B\r\n");
     }
     
-    //处理空闲中断（数据流停止）
+    //处理空闲中断
     if (irq_status & (1 << POS_UART2_REG0X5_UART_RX_STOP_END))
     {
-        // 空闲中断触发，表示数据流已停止
-        // 读取FIFO中剩余的所有数据（可能少于32字节）
+        // 读取FIFO中剩余的所有数据
+        // uint8_t bytes_in_fifo = 0;
         
-        uint8_t bytes_in_fifo = 0;
-        
-        // 读取所有剩余数据
-        while (UART2_REG0X2 & (1 << POS_UART2_REG0X2_FIFO_RD_READY))
+        // //读取所有剩余数据
+        // while (UART2_REG0X2 & (1 << POS_UART2_REG0X2_FIFO_RD_READY))
+        // {
+        //     rx_byte = (uint8_t)(UART2_REG0X3 >> 8);
+        //     queue_push_overwrite(&uart2_rxQueue, &rx_byte);
+        // }
+        uint8_t bytes_in_fifo = (UART2_REG0X2 >> 8) & 0xFF;
+        for (uint8_t i = 0; i < bytes_in_fifo; i++)
         {
-            rx_byte = (uint8_t)(UART2_REG0X3 >> 8);
-            queue_push_overwrite(&uart2_rxQueue, &rx_byte);
+            // 检查FIFO是否还有数据可读
+            if (UART2_REG0X2 & (1 << POS_UART2_REG0X2_FIFO_RD_READY)){
+                rx_byte = (uint8_t)(UART2_REG0X3 >> 8);
+                // push到环形FIFO
+                queue_push_overwrite(&uart2_rxQueue, &rx_byte);
+            }else{
+                // FIFO提前空了，跳出循环
+                break;
+            }
         }
-    
-        // 清除空闲中断标志（需要写1清零）
-        UART2_REG0X5 = (1 << POS_UART2_REG0X5_UART_RX_STOP_END);
+
+        // 清除空闲中断标志（需要写1清零）  1 << POS_UART2_REG0X5_UART_RX_STOP_END是1左移6位
+        UART2_REG0X5 |= (1 << POS_UART2_REG0X5_UART_RX_STOP_END);
+        uart_printf("IDLE\r\n");
     }
 }
-
-

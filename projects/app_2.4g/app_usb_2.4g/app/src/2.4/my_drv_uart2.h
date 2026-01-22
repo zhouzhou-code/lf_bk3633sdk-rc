@@ -17,6 +17,7 @@
 #include <stdbool.h>          // standard boolean definitions
 #include <stdint.h>           // standard integer functions
 #include "uart.h"
+#include "my_queue.h"
 
 #define BASEADDR_UART2                                      0x00806a00
 //addUART2_Reg0x0
@@ -91,9 +92,10 @@
 #define POS_UART2_REG0X7_RXD_NEGEDGE_WAKE_EN                 22
 
 
-#define UART2_FIFO_MAX_COUNT   128
+#define UART2_FIFO_MAX_COUNT   256
 
-
+extern my_queue_t uart2_rxQueue; //UART2接收队列
+extern my_queue_t uart2_txQueue; //UART2发送队列
 
 int uart2_printf(const char *fmt,...);
 int uart2_printf_null(const char *fmt,...);
