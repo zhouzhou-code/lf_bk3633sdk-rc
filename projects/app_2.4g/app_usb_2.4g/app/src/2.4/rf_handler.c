@@ -160,8 +160,8 @@ uint8_t RF_rxQueue_Recv(uint8_t *data_pack, uint8_t len)
 }
 
 
-// RF处理主函数，定时运行
-void RF_Send_Handler(RF_HandleTypeDef *hrf)
+// RF发送服务处理函数，定时运行
+void RF_Send_Service_Handler(RF_HandleTypeDef *hrf)
 {
     // 处理发送队列
     uint8_t tx_data[MAX_RF_PAYLOAD_LEN];
@@ -173,5 +173,4 @@ void RF_Send_Handler(RF_HandleTypeDef *hrf)
         }
         HAL_RF_Transmit_IT(hrf, tx_data, MAX_RF_PAYLOAD_LEN);
     }
-    
 }

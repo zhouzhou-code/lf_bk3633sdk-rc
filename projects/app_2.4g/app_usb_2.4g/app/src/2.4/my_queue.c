@@ -180,3 +180,30 @@ uint8_t queue_peek(my_queue_t *queue, void *p_dest)
 
     return 1;
 }
+
+/**
+ * @brief  查看队列中相对于读指针偏移位置的数据但不取出
+ * @param  queue: 队列指针
+ * @param  offset: 距离读指针的偏移量 (0表示队头第一个，1表示第二个...)
+ * @param  p_dest: 数据拷贝目标缓冲区
+ * @return 0:失败(队列空) n:实际查看的偏移量
+ */
+uint8_t queue_peek_at(my_queue_t *queue, uint16_t offset, void *p_dest)
+{
+    if (queue_is_empty(queue) || (p_dest == NULL)) {
+        return 0;
+    }
+
+    uint16_t count = queue_get_counts(queue);
+    
+    // 检查偏移量是否超出当前有效数据范围
+    uint16_t n = MIN(offset, count - 1);
+    
+    // 计算物理地址
+    uint8_t* target_ptr = queue_get_at(queue, n);
+    
+    // 拷贝数据
+    memcpy(p_dest, target_ptr, queue->item_size);
+
+    return n;
+}

@@ -458,7 +458,7 @@ int main(void)
     #endif
     
     // static uint8_t txcount=0;
-    RF_Handler_Init();//初始化RF句柄及队列
+    //RF_Handler_Init();//初始化RF句柄及队列
     // while(1) //发送
     // {
     //     txcount++;
@@ -483,6 +483,60 @@ int main(void)
     //     }
     //     Delay_ms(1);
     // }
+
+    //简易调度器，根据时间戳调用task
+    while(1){
+        //任务调用周期分别为 5ms 10ms 20ms 50ms
+        static uint32_t last_timestamp[10] = {0};
+
+        //主逻辑状态机
+        if((Get_SysTick_ms() - last_timestamp[0]) >= 5){
+            //5ms任务
+            //串口收到电池数据解包
+            Protocol_ParseByte(&uart2_rxQueue);
+            //RF接收数据处理
+
+
+            last_timestamp[0] = Get_SysTick_ms();
+        }
+
+        if((Get_SysTick_ms() - last_timestamp[1]) >= 10){
+            //10ms任务
+            
+            last_timestamp[1] = Get_SysTick_ms();
+        }
+
+        if((Get_SysTick_ms() - last_timestamp[2]) >= 20){
+            //20ms任务
+            last_timestamp[2] = Get_SysTick_ms();
+        }
+
+        if((Get_SysTick_ms() - last_timestamp[3]) >= 50){
+            //50ms任务
+            last_timestamp[3] = Get_SysTick_ms();
+        }
+
+        //100ms任务
+        if((Get_SysTick_ms() - last_timestamp[4]) >= 100){
+            last_timestamp[4] = Get_SysTick_ms();
+        }
+
+        //200ms任务
+        if((Get_SysTick_ms() - last_timestamp[5]) >= 200){
+            last_timestamp[5] = Get_SysTick_ms();
+        }
+
+        //500ms任务
+        if((Get_SysTick_ms() - last_timestamp[6]) >= 500){
+            RF_Send_Service_Handler(&hrf);  //RF发送服务处理函数
+            last_timestamp[6] = Get_SysTick_ms();
+        }
+        //1000ms任务
+        if((Get_SysTick_ms() - last_timestamp[7]) >= 1000){
+            last_timestamp[7] = Get_SysTick_ms();
+        }
+
+    }
 
 
 

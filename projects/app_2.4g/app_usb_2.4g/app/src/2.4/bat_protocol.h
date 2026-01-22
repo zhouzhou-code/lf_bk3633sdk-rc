@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <kfifo.h>
 
 
 // 协议参数
@@ -11,7 +12,7 @@
 #define PAIR_CMD         0xAA        // 配对命令码
 #define PAIR_RESP        0xBB        // 配对响应码
 
-//下行命令码
+//遥控下行命令码
 #define DOWNCMD_GET_STATIC   0x01        // 获取静态信息
 #define DOWNCMD_GET_DYNAMIC  0x02        // 获取动态信息
 #define DOWNCMD_GET_CELL_V   0x03        // 获取电芯电压
@@ -30,6 +31,10 @@
 #define UART_RX_BUF_SIZE 512         // 串口接收缓冲区
 #define UART_TX_BUF_SIZE 512         // 串口发送缓冲区
 #define WIRELESS_BUF_SIZE 128        // 无线缓冲区
+
+//协议固定开销  帧头(2) + 命令码(1) + 地址(1) + 长度(1) + 帧头校验和(1) + CRC16(2)
+#define PROTOCOL_OVERHEAD 8  
+
 
 //帧结构体
 #pragma pack(1)
@@ -57,9 +62,15 @@ typedef struct {
 } BatteryStaticInfo_t;
 #pragma pack()
 
-// 电池动态信息结构体 包含所有帧 则54字节
+// 电池动态信息结构体 包含所有帧 则54字节 //暂时只需要soc转发
 #pragma pack(1)
 typedef struct {
+    uint8_t header[2];     // 帧头 0xAA 0x55
+    uint8_t cmd;           // 命令码
+    uint8_t addr;          // 设备地址
+    uint8_t length;        // 数据长度
+    uint8_t chksum;        // 帧头校验和
+
     uint32_t volt_bat;     // 电池电压(mV)
     int32_t curr_bat;      // 电池电流(mA)
     uint8_t temp_cell;     // 电芯温度(偏移40℃)
@@ -76,10 +87,11 @@ typedef struct {
     uint32_t status;       // 状态标志
     uint32_t volt_pack;    // Pack端电压(mV)
     uint16_t soc_q10;      // 高精度SOC(0.1%/bit)
+
+    uint16_t crc16;        // CRC16校验值
+
 } BatteryDynamicInfo_t;
 #pragma pack()
-
-
 
 
 // 操作指令枚举
@@ -114,15 +126,9 @@ typedef struct {
     Frame_t current_frame;
 } ProtocolParser_t;
 
-// 函数声明
-void protocol_init(void);
-bool parse_byte(uint8_t byte, Frame_t *frame);
-bool validate_frame(const Frame_t *frame);
-bool is_pairing_command(const Frame_t *frame);
-uint8_t calculate_chksum(const uint8_t *data, uint8_t len);
-uint16_t calculate_crc16(const uint8_t *data, uint16_t len);
-bool build_pair_response(uint8_t result, uint8_t *buffer, uint16_t *len);
-bool build_frame(uint8_t cmd, uint8_t addr, const uint8_t *data, 
-                 uint8_t data_len, uint8_t *buffer, uint16_t *frame_len);
+
+extern uint8_t temp_Parsebuf[sizeof(BatteryDynamicInfo_t)];
+
+void Protocol_ParseByte(my_queue_t* uart_rx_queue);
 
 #endif /* __BAT_PROTOCOL_H */
