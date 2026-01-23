@@ -206,6 +206,7 @@ extern "C" {
 #define  B_FIFO_TX_EMPTY        (1<<4)  /* bit[4]: TX FIFO空标志 */
 #define  B_FIFO_RX_FULL         (1<<1)  /* bit[1]: RX FIFO满标志 */
 #define  B_FIFO_RX_EMPTY        (1<<0)  /* bit[0]: RX FIFO空标志 */
+
 #define  TRX_RX_RPL_WIDTH       XBYTE[0x44]  /* RX有效载荷宽度寄存器 */
 /* 位定义:
  * bit[5:0]: BK2423_rpl_width - 有效载荷宽度

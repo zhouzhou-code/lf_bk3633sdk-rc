@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <kfifo.h>
+#include "my_queue.h"
 
 
 // 协议参数
@@ -92,6 +92,25 @@ typedef struct {
 
 } BatteryDynamicInfo_t;
 #pragma pack()
+
+#pragma pack(1)
+typedef struct {
+    uint8_t header;        // 帧头 0xAA
+    uint8_t cmd;           // 命令码
+    uint8_t length;        // 数据长度
+
+    uint8_t soc;           // SOC(%)
+
+    uint16_t crc16;        // CRC16校验值
+
+} Bat_Soc_t;
+#pragma pack()
+
+
+
+
+
+
 
 
 // 操作指令枚举

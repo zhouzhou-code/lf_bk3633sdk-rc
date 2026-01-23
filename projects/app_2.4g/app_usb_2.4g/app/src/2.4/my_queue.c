@@ -124,7 +124,7 @@ uint8_t queue_push_overwrite(my_queue_t *queue, const void *p_src)
 uint8_t queue_pop(my_queue_t *queue, void *p_dest)
 {
     if (queue_is_empty(queue)) {
-        uart_printf("queue is empty\r\n");
+        //art_printf("queue_pop fail: empty\r\n");
         return 0;
     }
 

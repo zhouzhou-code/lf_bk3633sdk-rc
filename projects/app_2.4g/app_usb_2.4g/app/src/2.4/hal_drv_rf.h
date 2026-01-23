@@ -266,8 +266,12 @@ typedef struct __RF_HandleTypeDef
     RF_ConfgTypeDef           Params;         /*!< 通信参数配置 */
     RF_TimeManager_TypeDef    TimeManager;    /*!< 时间管理 */
     __IO uint8_t             *pTxBuff;        /*!< 发送缓存指针 */
-    __IO uint8_t              RxBuff[32];     /*!< 接收缓存数组 */
+
+    __IO uint8_t              RxBuff[32];     /*!< 接收缓存数组:长度 */
     __IO uint8_t              RxBuff_valid;   /*!< 接收缓存有效标志 */
+    __IO uint8_t              RxLen;          /*!< 净荷长度 */
+
+    
     HAL_RF_StateTypeDef       State;          /*!< 驱动运行状态 */
     __IO uint8_t              ErrorCode;      /*!< 错误代码 */
     

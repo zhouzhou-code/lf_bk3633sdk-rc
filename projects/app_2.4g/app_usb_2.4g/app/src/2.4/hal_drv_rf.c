@@ -336,7 +336,8 @@ HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint
     /* 查询当前模式 */
     if(hrf->Cur_Mode !=MODE_TX) {
         uart_printf("Current mode is not TX,return \r\n");
-        return HAL_BUSY;
+        HAL_RF_SetTxMode(hrf);
+        hrf->Cur_Mode = MODE_TX;
     }   
 
     /* 查询是否空闲 */
@@ -583,8 +584,8 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
         //uart_printf("in RX_DR\r\n");
         /* 读取数据到APP队列 */
-        RF_Read_fifo((uint8_t*)(hrf->RxBuff), 32);
-
+        hrf->RxLen = TRX_RX_RPL_WIDTH & 0x3F; //动态载荷长度
+        RF_Read_fifo((uint8_t*)(hrf->RxBuff), hrf->RxLen);
         hrf->RxBuff_valid = 1;
 
         if(hrf->Params.IRQ.RxDR.user_cb != NULL){

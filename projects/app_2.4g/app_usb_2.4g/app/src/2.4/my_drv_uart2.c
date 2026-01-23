@@ -153,7 +153,7 @@ void uart2_isr(void)
 
         }
         // 对于阈值中断，读取数据后会自动清除，无需软件操作
-        uart_printf("32B\r\n");
+        //uart_printf("32B\r\n");
     }
     
     //处理空闲中断
@@ -163,27 +163,29 @@ void uart2_isr(void)
         // uint8_t bytes_in_fifo = 0;
         
         // //读取所有剩余数据
-        // while (UART2_REG0X2 & (1 << POS_UART2_REG0X2_FIFO_RD_READY))
-        // {
-        //     rx_byte = (uint8_t)(UART2_REG0X3 >> 8);
-        //     queue_push_overwrite(&uart2_rxQueue, &rx_byte);
-        // }
-        uint8_t bytes_in_fifo = (UART2_REG0X2 >> 8) & 0xFF;
-        for (uint8_t i = 0; i < bytes_in_fifo; i++)
+        while (UART2_REG0X2 & (1 << POS_UART2_REG0X2_FIFO_RD_READY))
         {
-            // 检查FIFO是否还有数据可读
-            if (UART2_REG0X2 & (1 << POS_UART2_REG0X2_FIFO_RD_READY)){
-                rx_byte = (uint8_t)(UART2_REG0X3 >> 8);
-                // push到环形FIFO
-                queue_push_overwrite(&uart2_rxQueue, &rx_byte);
-            }else{
-                // FIFO提前空了，跳出循环
-                break;
-            }
+            rx_byte = (uint8_t)(UART2_REG0X3 >> 8);
+            queue_push_overwrite(&uart2_rxQueue, &rx_byte);
         }
+
+        //下面这种方式会丢包！！！！
+        // uint8_t bytes_in_fifo = (UART2_REG0X2 >> 8) & 0xFF;
+        // for (uint8_t i = 0; i < bytes_in_fifo; i++)
+        // {
+        //     // 检查FIFO是否还有数据可读
+        //     if (UART2_REG0X2 & (1 << POS_UART2_REG0X2_FIFO_RD_READY)){
+        //         rx_byte = (uint8_t)(UART2_REG0X3 >> 8);
+        //         // push到环形FIFO
+        //         queue_push_overwrite(&uart2_rxQueue, &rx_byte);
+        //     }else{
+        //         // FIFO提前空了，跳出循环
+        //         break;
+        //     }
+        // }
 
         // 清除空闲中断标志（需要写1清零）  1 << POS_UART2_REG0X5_UART_RX_STOP_END是1左移6位
         UART2_REG0X5 |= (1 << POS_UART2_REG0X5_UART_RX_STOP_END);
-        uart_printf("IDLE\r\n");
+        //uart_printf("IDLE\r\n");
     }
 }

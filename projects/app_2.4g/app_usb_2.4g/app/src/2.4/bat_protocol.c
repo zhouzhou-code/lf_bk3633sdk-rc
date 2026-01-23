@@ -1,5 +1,6 @@
-
 #include "bat_protocol.h"
+#include "rf_handler.h"
+#include "user_config.h"
 
 
 uint8_t checksum8(const uint8_t *data, uint8_t length)
@@ -27,24 +28,30 @@ uint16_t crc16_modbus(const uint8_t *data, uint16_t length)
 }
 
 
-uint8_t temp_Parsebuf[sizeof(BatteryDynamicInfo_t)];  // 临时线性缓冲区，用于存放解出来的一整包
+//目前只接收并处理电池动态信息包发给遥控
 void Protocol_ParseByte(my_queue_t* uart_rx_queue)
 {
-    my_queue_t *q = uart_rx_queue; // 你的队列实例
+    static uint8_t temp_Parsebuf[sizeof(BatteryDynamicInfo_t)];
+    static uint16_t counts=0;
+    static uint16_t count2=0;
+    my_queue_t *q = uart_rx_queue; 
     while (1)
     {
+        //uart_printf("---------------enter %d times----------------\r\n", counts++);
         // 队列里的数据够不够协议头的最小长度 (至少要能看到 length 字节)
         // Header(2) + Cmd(1) + Addr(1) + Len(1) = 5 字节
         if (queue_get_counts(q) < 5) {
+            //uart_printf("Parse: 1not enough data\r\n");
             break; // 数据不够，直接退出，等下次
         }
-
+        
         // 检查帧头 (AA 55)
         uint8_t h1,h2;
         queue_peek_at(q, 0, &h1);
         queue_peek_at(q, 1, &h2);
 
         if (h1 != FRAME_HEADER_1 || h2 != FRAME_HEADER_2) {
+            //uart_printf("Parse: 2,frame header error\r\n");
             queue_remove(q, 1);//头不对，移除1个字节，继续下次循环找头
             continue; 
         }
@@ -53,6 +60,7 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
         queue_peek_at(q, 2, &cmd_byte); // 读取命令码
         if(cmd_byte != UPCMD_DYNAMIC){
             //不是我们要的包，移除1个字节，继续下次循环找头
+            //uart_printf("Parse: 3,cmd error\r\n");
             queue_remove(q, 1);//不是我们要的包，移除1个字节，继续下次循环找头
             continue; 
         }
@@ -66,17 +74,19 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
 
         uint8_t calc_sum = h1 + h2 + cmd_byte + addr_byte + data_len;
         if(recv_chksum != calc_sum){
+            //uart_printf("Parse: 4,checksum error rec:%02X calc:%02X\r\n", recv_chksum, calc_sum);
             queue_remove(q, 1);//帧头校验和错误，移除1个字节，继续下次循环找头
             continue; 
         }
 
-        // 4. 计算这一包完整数据应该有多长
-        uint16_t total_frame_len = PROTOCOL_OVERHEAD + data_len;
+        // 4. 计算这一包完整数据应该有多长 8+46=54
+        uint16_t total_frame_len = PROTOCOL_OVERHEAD + data_len; 
 
         // 5. 检查队列里是否有足够的数据
-        if (queue_get_counts(q) < total_frame_len-1)
+        if (queue_get_counts(q) < total_frame_len) 
         {
             // 这是一个断包（还没收完），保留数据不动，退出函数
+            //uart_printf("Parse: 5,not full data now:%d\r\n", queue_get_counts(q));
             break; 
         }
 
@@ -87,12 +97,46 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
 
         // 校验CRC16
         //低字节在前，高字节在后
-        uint16_t recv_crc = (uint16_t) ((uint16_t)temp_Parsebuf[total_frame_len - 1] << 8) | (temp_Parsebuf[total_frame_len - 2]&0xFF);
+        uint16_t recv_crc = (uint16_t) (temp_Parsebuf[total_frame_len-1] << 8) | (temp_Parsebuf[total_frame_len - 2]&0xFF);
         uint16_t calc_crc = crc16_modbus(temp_Parsebuf, total_frame_len - 2);
         if(recv_crc != calc_crc){
+            //uart_printf("Parse: 6,CRC16 error rec:%x cal:%x\r\n",recv_crc,calc_crc);
+            
+            for(uint8_t i=0;i<sizeof(BatteryDynamicInfo_t);i++){
+                uart_printf("%02X ",temp_Parsebuf[i]);
+            }
+            uart_printf("\r\n");
+
+
             continue; // CRC校验失败，丢弃这包数据，继续下次循环找头
         }else{
-            // 成功接收并校验一包完整数据，进行处理
+            //成功接收并校验一包完整数据，进行处理，如果考虑解耦，可以在其他地方处理
+            BatteryDynamicInfo_t *p_dynamic_info = (BatteryDynamicInfo_t *)&temp_Parsebuf[0];
+            Bat_Soc_t bat_soc={
+                .header = 0xAA,
+                .cmd = UPCMD_DYNAMIC,
+                .length = 0x01,
+                .soc = p_dynamic_info->soc,
+            };
+            bat_soc.crc16 = crc16_modbus((uint8_t *)&bat_soc, sizeof(Bat_Soc_t)-2);
+
+            //push到RF发送队列
+            uart_printf("push_to_rf:%dtimes\r\n", count2++);
+            //RF_txQueue_Send(&bat_soc, sizeof(Bat_Soc_t));
+            //RF_txQueue_Send(&bat_soc, 32);
+
+            uint8_t tmp_buf[sizeof(Bat_Soc_t)] = {0};
+            memcpy(tmp_buf, &bat_soc, sizeof(Bat_Soc_t));
+            
+            RF_txQueue_Send(tmp_buf, sizeof(Bat_Soc_t));
+
+            //RF_txQueue_Send(tmp_buf, 32);
+
+            // uint8_t testdata[32]={0};
+            // testdata[0]=count2;
+            // RF_txQueue_Send(testdata, 32);
+                        
         }
     }
+
 }

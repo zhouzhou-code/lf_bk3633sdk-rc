@@ -48,6 +48,8 @@
 #include "driver_timer.h"
 #include "rf.h"
 #include "timer_handler.h"
+#include "bat_protocol.h"
+
 
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
@@ -89,6 +91,12 @@ static void stack_integrity_check(void)
 
 }
 
+void test_rf_app(void)
+{
+    uart_printf("test_rf_app\r\n");
+    uint8_t test_data[32];
+    RF_txQueue_Send(test_data, 32);
+}
 
 
 void platform_reset(uint32_t error)
@@ -457,52 +465,54 @@ int main(void)
     }
     #endif
     
-    // static uint8_t txcount=0;
-    //RF_Handler_Init();//初始化RF句柄及队列
+
+    /* --------------------------------------简单RF收发测试---------------------------- */
+     static uint8_t txcount=0;
+     RF_Handler_Init();//初始化RF句柄及队列
     // while(1) //发送
     // {
     //     txcount++;
-    //     SysTick_Value_ms++;
     //     test_sand_data[0] = txcount;
-    //     RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
-    //     Delay_ms(1);
-    //     RF_Send_Handler(&hrf);  //处理发送队列，卡死在这里
+    //     //RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
+    //     test_rf_app();
+    //     RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
+    //     Delay_ms(2);
     // }
+    
     // HAL_RF_SetRxMode(&hrf);//设置为接收模式
     // while(1)//接收
     // {
     //     txcount++;
-    //     SysTick_Value_ms++;
-    //     uint8_t rec_data[32];
-
-    //     if(RF_rxQueue_Recv(rec_data, 32)!=0){
+    //     uint8_t* rec_data;
+    //     uint8_t  out_len;
+    //     if(RF_rxQueue_Recv(&rec_data, &out_len)!=0){
     //         uart_printf("rec_data=");
-    //         for(int i=0;i<32;i++)
+    //         for(int i=0;i<out_len;i++)
     //             uart_printf("%x,",rec_data[i]);
     //         uart_printf("\r\n");
     //     }
     //     Delay_ms(1);
     // }
 
+    /*----------------------------电池透传逻辑----------------------------*/
+    RF_Handler_Init();//初始化RF句柄及队列
+    uint8_t rec_data[32];
     //简易调度器，根据时间戳调用task
     while(1){
         //任务调用周期分别为 5ms 10ms 20ms 50ms
         static uint32_t last_timestamp[10] = {0};
 
         //主逻辑状态机
-        if((Get_SysTick_ms() - last_timestamp[0]) >= 5){
+        if((Get_SysTick_ms() - last_timestamp[0]) >= 2){
             //5ms任务
             //串口收到电池数据解包
             Protocol_ParseByte(&uart2_rxQueue);
-            //RF接收数据处理
-
-
+            
             last_timestamp[0] = Get_SysTick_ms();
         }
-
-        if((Get_SysTick_ms() - last_timestamp[1]) >= 10){
-            //10ms任务
-            
+        if((Get_SysTick_ms() - last_timestamp[1]) >= 5){
+            //5ms
+            // RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms就不能正常发送？？？why???
             last_timestamp[1] = Get_SysTick_ms();
         }
 
@@ -523,23 +533,41 @@ int main(void)
 
         //200ms任务
         if((Get_SysTick_ms() - last_timestamp[5]) >= 200){
+            //RF_Service_Handler(&hrf);  //RF发送服务处理函数
             last_timestamp[5] = Get_SysTick_ms();
         }
-
         //500ms任务
         if((Get_SysTick_ms() - last_timestamp[6]) >= 500){
-            RF_Send_Service_Handler(&hrf);  //RF发送服务处理函数
+            RF_Service_Handler(&hrf);
             last_timestamp[6] = Get_SysTick_ms();
         }
         //1000ms任务
         if((Get_SysTick_ms() - last_timestamp[7]) >= 1000){
             last_timestamp[7] = Get_SysTick_ms();
-        }
+            // uart_printf("--------------1000ms-task---------------------- \r\n");
+            // if(RF_rxQueue_Recv(rec_data,32)){
+            //     uart_printf("rf_rec_data=");
+            //     for(int i=0;i<32;i++)
+            //         uart_printf("%x,",rec_data[i]);
+            //     uart_printf("\r\n");
+            // }
 
+            // uart_printf("--------------500ms-task---------------------- \r\n");
+            // uint16_t counts = queue_get_counts(&uart2_rxQueue);
+            // uart_printf("uart2_rxQueue counts=%d\r\n", counts);
+            // uart_printf("queue_datas=: ");
+            // for(int i=0;i<counts;i++)
+            // {
+            //     uint8_t data;
+            //     queue_peek_at(&uart2_rxQueue, i, &data);
+            //     uart_printf("%02X ", data);
+            // }
+            // uart_printf("\r\n");
+        }
     }
 
 
-
+/*-----------------------------------串口测试---------------------------*/
     while(1)
     {
         //uart_printf("in main loop\r\n");
@@ -555,21 +583,6 @@ int main(void)
 
     }
     
-
-    // uart_printf("in rf_simple_init,\r\n");
-    // rf_simple_init();
-    // uart_printf("complete rf_simple_init,\r\n");
-    // // }
-    // // rf_simple_init_old();
-
-    // //发送
-    // //bk24_send_data();
-    // bk24_send_data_intc();
-
-    //接收
-   // rf_simple_receive();
-    //rf_intc_receive();
-    //fn24main();
    
     while(1)
     {
