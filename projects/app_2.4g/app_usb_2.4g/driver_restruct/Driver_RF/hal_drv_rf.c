@@ -303,7 +303,7 @@ HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uin
     if (irq_status & IRQ_RX_DR_MASK) {
         __HAL_RF_CMD_FLUSH_RXFIFO();
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
-        ret = HAL_RF_STATE_READY;
+        // ret = HAL_RF_STATE_READY;
     }
 
     //如果达到最大重发次数仍未收到ACK，则视为发送超时，重新初始化RF(原厂写法，有待商榷)
@@ -412,14 +412,14 @@ HAL_StatusTypeDef HAL_RF_Transmit_NoACK(RF_HandleTypeDef *hrf, uint8_t *pData, u
   * @param  Size:  期望读取长度 (如果 FIFO 数据小于此长度，将只读取实际长度)
   * @return 
   */
-HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size)
+HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t* Size)
 {
     uint8_t irq_status;
     uint8_t fifo_status;
     uint8_t len;
     uint8_t rx_cnt = 0;
 
-    if (hrf == NULL || pData == NULL || Size == 0) return HAL_RF_STATE_ERROR;
+    if (hrf == NULL || pData == NULL ) return HAL_RF_STATE_ERROR;
 
     irq_status = __HAL_RF_GET_IRQ_Status();
 
@@ -433,17 +433,20 @@ HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t 
                 __HAL_RF_CMD_FLUSH_RXFIFO();
                 break;
             }
+            if(Size) {
+                *Size = len; //返回实际读取长度
+            }
             fifo_status = __HAL_RF_GET_IRQ_Status();
-        } while (__HAL_RF_GET_FIFO_STATUS_FLAGS(RF_RX_EMPTY)!=0); // FIFO非空则继续
+        } while (__HAL_RF_GET_FIFO_STATUS_FLAGS(RF_RX_EMPTY)!=0); //FIFO非空则继续
 
         // 清除中断标志
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
 
         hrf->State = HAL_RF_STATE_READY;
-        return HAL_RF_STATE_READY;
+        return HAL_OK;
     }
 
-    return HAL_RF_STATE_BUSY_RX; // 没有数据
+    return HAL_BUSY; // 没有数据
 }
 
 /**
@@ -583,8 +586,9 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
 {
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
         //uart_printf("in RX_DR\r\n");
-        /* 读取数据到APP队列 */
+        /* 读取数据到hrf队列 */
         hrf->RxLen = TRX_RX_RPL_WIDTH & 0x3F; //动态载荷长度
+        hrf->RxPipes = ((TRX_IRQ_STATUS >> 1) & 0x07); //接收管道号
         RF_Read_fifo((uint8_t*)(hrf->RxBuff), hrf->RxLen);
         hrf->RxBuff_valid = 1;
 

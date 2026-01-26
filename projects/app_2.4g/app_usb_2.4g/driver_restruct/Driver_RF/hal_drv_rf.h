@@ -270,6 +270,7 @@ typedef struct __RF_HandleTypeDef
     __IO uint8_t              RxBuff[32];     /*!< 接收缓存数组:长度 */
     __IO uint8_t              RxBuff_valid;   /*!< 接收缓存有效标志 */
     __IO uint8_t              RxLen;          /*!< 净荷长度 */
+    __IO uint8_t              RxPipes;        /*!< 当前数据接收管道号 */
 
     
     HAL_RF_StateTypeDef       State;          /*!< 驱动运行状态 */
@@ -295,7 +296,7 @@ HAL_StatusTypeDef HAL_RF_MspInit(RF_HandleTypeDef *hrf); //弱定义，用于GPI
 /* 数据收发函数 */
 HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
 HAL_StatusTypeDef HAL_RF_Transmit_NoACK(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
-HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
+HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t* Size);
 
 HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);
 HAL_StatusTypeDef HAL_RF_Receive_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t Size);//不需要函数，直接读缓冲区

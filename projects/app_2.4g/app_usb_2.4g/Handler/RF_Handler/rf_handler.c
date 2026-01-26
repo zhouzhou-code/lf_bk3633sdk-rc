@@ -6,12 +6,11 @@
 #include "timer_handler.h"
 
 
-/* rf_txQueue每一项是固定长度为32字节，第一字节存放净荷长度 */
-/* 协议开销 1字节长度 + 1字节命令 + 1字节序号 */
+/* rf_txQueue每一项是固定长度为32+1字节，第一字节存放净荷长度，发送时只发送净荷 */
 
-uint8_t rf_send_queue_buffer[queue_item_size*rf_send_queue_len]; //发送队列缓冲区
+uint8_t rf_send_queue_buffer[txqueue_item_size*rf_send_queue_len]; //发送队列缓冲区
 my_queue_t rf_txQueue;               // 发送队列
-uint8_t rf_recv_queue_buffer[queue_item_size*rf_recv_queue_len]; //接收队列缓冲区
+uint8_t rf_recv_queue_buffer[rxqueue_item_size*rf_recv_queue_len]; //接收队列缓冲区
 my_queue_t rf_rxQueue;               // 接收队列
 
 
@@ -24,10 +23,11 @@ void rxdr_callback(RF_HandleTypeDef *hrf)
 {
     if(hrf->RxBuff_valid == 1) {
         hrf->RxBuff_valid = 0;
-        uint8_t temp[1+hrf->RxLen];
-        temp[0] = hrf->RxLen;
-        memcpy(&temp[1], hrf->RxBuff, hrf->RxLen);
-
+        uint8_t temp[1+1+hrf->RxLen];
+        temp[0] = hrf->RxLen;               // 第一字节为有效长度
+        temp[1] = hrf->RxPipes;             // 第二字节为接收管道          
+        memcpy(&temp[2], hrf->RxBuff, hrf->RxLen);
+        
         queue_push_overwrite(&rf_rxQueue, temp);
     }
     isq_count_rxdr++;
@@ -139,9 +139,9 @@ void RF_Handler_Init(void)
     HAL_RF_SetTxMode(&hrf);
     /* 初始化发送和接收队列 */
     queue_init(&rf_txQueue, rf_send_queue_buffer, 
-                queue_item_size*rf_send_queue_len, rf_send_queue_len, queue_item_size);
+                txqueue_item_size*rf_send_queue_len, rf_send_queue_len, txqueue_item_size);
     queue_init(&rf_rxQueue, rf_recv_queue_buffer,
-                queue_item_size*rf_recv_queue_len, rf_recv_queue_len, queue_item_size);
+                rxqueue_item_size*rf_recv_queue_len, rf_recv_queue_len, rxqueue_item_size);
     
 }
 
@@ -156,35 +156,31 @@ void RF_txQueue_Send(uint8_t *data_pack, uint8_t len)
     }
 
     /* 封包，在净荷数据前加上长度 */
-    uint8_t temp_data[queue_item_size];
+    uint8_t temp_data[txqueue_item_size];
     temp_data[0] = len;
+
     memcpy(&temp_data[1], data_pack, len);
     //入队
     queue_push_overwrite(&rf_txQueue, temp_data);
 }
-// uint8_t* RF_rxQueue_Recv(uint8_t *data_pack, uint8_t len)
-// {
-//     if(len > max_rf_payload_len) {
-//         len = max_rf_payload_len; //限制最大长度
-//     }
-//     //出队
-//     return queue_pop(&rf_rxQueue, data_pack);
-// }
 
 /**
  * @brief  从接收队列取出一帧数据
  * @param   data_ptr:  输出参数，指向接收到的数据指针
  * @param   out_len:   输出参数， 指向接收到的数据长度
+ * @param   pipes:     输出参数， 指向接收到的数据管道号
  * @return  1:成功, 0:失败(空)
  */
-uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len)
+uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pipes)
 {
-    static uint8_t temp_buf[queue_item_size]; //静态缓冲区，防止指针失效
+    static uint8_t temp_buf[rxqueue_item_size]; //静态缓冲区，防止指针失效
     if(queue_pop(&rf_rxQueue, temp_buf) == 1) {
         if(out_len) 
             *out_len = temp_buf[0];              // 第一字节为有效长度
+        if(pipes)
+            *pipes = temp_buf[1];                // 第二字节为接收管道
         if(data_ptr) 
-            *data_ptr = &temp_buf[1];            // 指向有效数据
+            *data_ptr = &temp_buf[2];            // 指向有效数据
         return 1; // 读取成功
     } else {
         return 0; // 队列为空，读取失败
@@ -193,32 +189,12 @@ uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len)
 
 
 // RF 服务处理函数，放在循环/任务中定时运行
-// void RF_Service_Handler(RF_HandleTypeDef *hrf)
-// {
-//     // 处理发送队列
-//     uint8_t tx_data[queue_item_size];
-//     // 尝试从发送队列取出数据
-//     if(queue_pop(&rf_txQueue, tx_data) == 1) {
-//         if(hrf->Cur_Mode != MODE_TX) {
-//             HAL_RF_SetTxMode(hrf);
-//         }
-//         //判断净荷长度
-//         uint8_t len = tx_data[0]<=max_rf_payload_len ? tx_data[0] : max_rf_payload_len;
-//         uart_printf("rf_send_service\n");
-//         HAL_RF_Transmit_IT(hrf, &tx_data[1], len); //第二个长度开始才是净荷数据
-//     }else{//无数据可发送，马上进入接收模式
-//         if(hrf->Cur_Mode != MODE_RX) {
-//             HAL_RF_SetRxMode(hrf);
-//         }
-//     }
-// }
 void RF_Service_Handler(RF_HandleTypeDef *hrf)
 {
     // peek - try - pop 
-    
     // 处理发送队列
-    uint8_t tx_data[queue_item_size];
-    
+    uint8_t tx_data[txqueue_item_size];
+
     // 检查队列是否为空，不要直接pop
     if(!queue_is_empty(&rf_txQueue)) {
         

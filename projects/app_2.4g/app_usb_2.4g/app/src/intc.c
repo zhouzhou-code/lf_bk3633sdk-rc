@@ -1,5 +1,3 @@
-
-
 #include "intc.h"            // interrupt controller
 #include "uart.h"            // uart definitions
 #include "BK3633_Reglist.h"

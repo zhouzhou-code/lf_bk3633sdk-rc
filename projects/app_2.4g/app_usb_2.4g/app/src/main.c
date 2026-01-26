@@ -544,6 +544,10 @@ int main(void)
         //1000ms任务
         if((Get_SysTick_ms() - last_timestamp[7]) >= 1000){
             last_timestamp[7] = Get_SysTick_ms();
+
+            
+
+
             // uart_printf("--------------1000ms-task---------------------- \r\n");
             // if(RF_rxQueue_Recv(rec_data,32)){
             //     uart_printf("rf_rec_data=");
@@ -565,7 +569,6 @@ int main(void)
             // uart_printf("\r\n");
         }
     }
-
 
 /*-----------------------------------串口测试---------------------------*/
     while(1)
