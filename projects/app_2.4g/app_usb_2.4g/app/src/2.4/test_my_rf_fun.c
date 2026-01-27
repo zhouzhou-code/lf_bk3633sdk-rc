@@ -372,7 +372,7 @@
 //     uart_printf("--------------now end all registers in new_init-------------------\r\n");
 //     uart_printf("------------------------------------------------------------------\r\n");
 //     uart_printf("-------------------------------------------------------------------\r\n");
-
+   
 // }
 
 // static void RF_Write_fifo(uint8_t *pBuf, uint8_t bytes)

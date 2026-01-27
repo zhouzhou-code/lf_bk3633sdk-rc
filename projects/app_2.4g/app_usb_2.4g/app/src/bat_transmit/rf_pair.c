@@ -4,12 +4,89 @@
 #include "rf_pair.h" 
 #include "user_config.h" 
 
-RF_HandleTypeDef h_pair; //配对专用RF句柄
+#include "app.h"
+#include "bk3633_reglist.h"
+#include "icu.h"
+#include "driver_timer.h"
+#include <string.h>
 
+#include "intc.h"            // interrupt controller
+#include "uart.h"            // uart definitions
+#include "BK3633_Reglist.h"
+#include "gpio.h"
+#include "spi.h"
+#include "i2c.h"
+#include "icu.h"
+#include "dma.h"
+#include "reg_intc.h"
+#include "driver_timer.h"
+#include "app.h"
+
+uint8_t slave_pair_success_flag = 0;
+uint8_t host_pair_success_flag = 0;
+
+static const uint32_t PAIR_ADDR_DEFAULT[5] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
+
+static uint8_t slave_magic_number = 0x5A; 
+static uint8_t host_magic_number  = 0xA5;
+
+
+
+
+printf_all_registers(void)
+{
+    uart_printf("TRX_CONFIG     = 0x%02X\r\n", TRX_CONFIG);
+    uart_printf("TRX_EN_AA      = 0x%02X\r\n", TRX_EN_AA);
+    uart_printf("TRX_EN_RXADDR  = 0x%02X\r\n", TRX_EN_RXADDR);
+    uart_printf("TRX_SETUP_AW   = 0x%02X\r\n", TRX_SETUP_AW);
+    uart_printf("TRX_SETUP_RETR = 0x%02X\r\n", TRX_SETUP_RETR);
+    uart_printf("TRX_RF_CH      = 0x%02X\r\n", TRX_RF_CH);
+    uart_printf("TRX_RF_SETUP   = 0x%02X\r\n", TRX_RF_SETUP);
+
+    uart_printf("TRX_RX_ADDR_P0 = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P0_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_ADDR_P1 = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P1_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_ADDR_P2 = 0x%02X\r\n", TRX_RX_ADDR_P2);
+    uart_printf("TRX_RX_ADDR_P3 = 0x%02X\r\n", TRX_RX_ADDR_P3);
+    uart_printf("TRX_RX_ADDR_P4 = 0x%02X\r\n", TRX_RX_ADDR_P4);
+    uart_printf("TRX_RX_ADDR_P5 = 0x%02X\r\n", TRX_RX_ADDR_P5);
+
+    uart_printf("TRX_TX_ADDR    = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_TX_ADDR_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_PW_P0   = 0x%02X\r\n", TRX_RX_PW_P0);
+    uart_printf("TRX_RX_PW_P1   = 0x%02X\r\n", TRX_RX_PW_P1);
+    uart_printf("TRX_RX_PW_P2   = 0x%02X\r\n", TRX_RX_PW_P2);
+    uart_printf("TRX_RX_PW_P3   = 0x%02X\r\n", TRX_RX_PW_P3);
+    uart_printf("TRX_RX_PW_P4   = 0x%02X\r\n", TRX_RX_PW_P4);
+    uart_printf("TRX_RX_PW_P5   = 0x%02X\r\n", TRX_RX_PW_P5);
+
+    uart_printf("TRX_DYNPD      = 0x%02X\r\n", TRX_DYNPD);
+    uart_printf("TRX_FEATURE    = 0x%02X\r\n", TRX_FEATURE);
+
+    uart_printf("addXVR_Reg0x24 = 0x%08lX\r\n", addXVR_Reg0x24);
+    uart_printf("addXVR_Reg0x3b = 0x%08lX\r\n", addXVR_Reg0x3b);
+    uart_printf("addXVR_Reg0x2e = 0x%08lX\r\n", addXVR_Reg0x2e);
+    uart_printf("addXVR_Reg0x26 = 0x%08lX\r\n", addXVR_Reg0x26);
+    uart_printf("addXVR_Reg0x2  = 0x%08lX\r\n", addXVR_Reg0x2);
+    uart_printf("addXVR_Reg0x2c = 0x%08lX\r\n", addXVR_Reg0x2c);
+    uart_printf("addXVR_Reg0x2d = 0x%08lX\r\n", addXVR_Reg0x2d);
+    uart_printf("addXVR_Reg0x3a = 0x%08lX\r\n", addXVR_Reg0x3a);
+}
+
+
+
+RF_HandleTypeDef h_pair; //配对专用RF句柄
 RF_ConfgTypeDef Pairing_Config =
 {
     .Mode = MODE_TX,
-    .DataRate = BPS_250K,
+    .DataRate = BPS_2M,
     .TxPower = RF_TX_POWER_0dBm,
     .Channel = PAIR_CH_DEFAULT, 
     .Protocol ={
@@ -90,7 +167,6 @@ RF_ConfgTypeDef Pairing_Config =
 };
 
 
-
 void Do_Pairing_As_Slave(void) {
     pair_req_pkt pkt={CMD_PAIR_REQ,0x12345678}; //发送配对请求包
     pair_confirm_pkt slave_cfm={CMD_PAIR_CONFIRM,slave_magic_number};//发送配对确认包
@@ -99,21 +175,25 @@ void Do_Pairing_As_Slave(void) {
 
     static uint8_t got_resp = 0;
     HAL_RF_Init(&h_pair,&Pairing_Config);
+    printf_all_registers();
     HAL_RF_SetTxMode(&h_pair);
-
     uart_printf("Slave: Start Pairing...\n");
-
+    
     while(1) {
 
         //发请求:阻塞发送,直到收到Host的ACK
         if (HAL_RF_Transmit_ACK(&h_pair, (uint8_t*)&pkt, sizeof(pkt)) == HAL_RF_STATE_READY) {
             //立即切接收，等Host的回复包
             HAL_RF_SetRxMode(&h_pair);
+            uart_printf("Slave:set to rx for resp...\n");
             uint32_t start_wait = Get_SysTick_ms();
-            while (Get_SysTick_ms() - start_wait < 500) { //轮询500ms是否有数据
-                uint8_t len;
-                uint8_t rx_buf[sizeof(pair_resp_pkt)];
+            uint8_t len;
+            uint8_t rx_buf[sizeof(pair_resp_pkt)];
+            while (Get_SysTick_ms() - start_wait < 500) { //最大轮询500ms是否有数据
+                uart_printf("while1:%d\r\n",Get_SysTick_ms() - start_wait);
                 if (HAL_RF_Receive(&h_pair, rx_buf, &len) == HAL_OK) {
+                    uart_printf("rec_resp_ok\r\n");
+
                     if(len == sizeof(pair_resp_pkt))
                         resp = (pair_resp_pkt*)rx_buf;
 
@@ -124,7 +204,7 @@ void Do_Pairing_As_Slave(void) {
                             resp->new_addr[0], resp->new_addr[1], resp->new_addr[2],
                             resp->new_addr[3], resp->new_addr[4]);
                         got_resp = 1;
-                        return;
+                        break;
                     }
                 }
             }
@@ -153,6 +233,7 @@ void Do_Pairing_As_Slave(void) {
                             if (rec_host->cmd == CMD_PAIR_CONFIRM && rec_host->magic_number == host_magic_number) {
                                 uart_printf("Slave: Pairing Confirmed!\n");
                                 got_resp = 2;
+                                slave_pair_success_flag = 1;
                                 return;
                             }
                         }
@@ -176,6 +257,7 @@ void Do_Pairing_As_Host(void) {
 
     // 初始化为默认配对配置并进入接收模式
     HAL_RF_Init(&h_pair, &Pairing_Config);
+    printf_all_registers();
     HAL_RF_SetRxMode(&h_pair);
 
     uart_printf("Host: Start Pairing (Waiting for Req...)\n");
@@ -187,7 +269,7 @@ void Do_Pairing_As_Host(void) {
                 if (len == sizeof(pair_req_pkt)) {
                     req = (pair_req_pkt*)rx_buf;
                     if (req->cmd == CMD_PAIR_REQ) {
-                        uart_printf("Host: Received Pair Req from %08X\n", req->uid);
+                        uart_printf("Host: Received Pair Req from %08X\n", req->slave_id);
 
                         // 构造响应包参数
                         resp.cmd = CMD_PAIR_RESP;
@@ -242,9 +324,11 @@ void Do_Pairing_As_Host(void) {
                 if (HAL_RF_Transmit_ACK(&h_pair, (uint8_t*)&host_cfm, sizeof(host_cfm)) == HAL_RF_STATE_READY) {
                     uart_printf("Host: Final Confirm Sent. Pairing Success!\n");
                     // 保存配置到 Flash
+                    host_pair_success_flag = 1;
                     return;
                 } else {
                     uart_printf("Host: Final ACK failed, but Slave is on site. Done.\n");
+                    host_pair_success_flag = 1;
                     return; 
                 }
             } else {
@@ -259,3 +343,269 @@ void Do_Pairing_As_Host(void) {
 }
 
     
+
+
+
+void Do_Pairing_As_Host_it(void) {
+    pair_resp_pkt resp; 
+    pair_confirm_pkt host_cfm = {CMD_PAIR_CONFIRM, host_magic_number}; //回复给Slave的确认包
+    pair_req_pkt *req; // 接收请求包指针
+    pair_confirm_pkt *rec_slave; // 接收Slave confirm包指针
+    
+    uint8_t len;
+    uint8_t rx_buf[32]; // 通用接收缓冲
+    static uint8_t pair_step = 0; // 0:等REQ, 1:等CONFIRM
+
+    // 初始化为默认配对配置并进入接收模式
+    
+    HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
+    HAL_RF_SetRxMode(&hrf);
+    printf_all_registers();
+    uart_printf("Host: Start Pairing (Waiting for Req...)\n");
+
+    while(1) {
+        
+    }
+}
+
+
+
+// void Do_Pairing_As_slave_it(void) {
+
+//     pair_req_pkt req_pkt={CMD_PAIR_REQ,0x12345678}; //发送配对请求包
+//     pair_confirm_pkt slave_cfm_pkg={CMD_PAIR_CONFIRM,slave_magic_number};//发送配对确认包
+    
+//     pair_resp_pkt *recv_resp_pkg; //接收配对响应包
+//     pair_confirm_pkt *recv_cfm_pkg;//接收confirm确认包
+
+//     static uint8_t got_resp = 0;
+//     HAL_RF_Init(&h_pair,&Pairing_Config);
+//     printf_all_registers();
+//     HAL_RF_SetTxMode(&h_pair);
+//     uart_printf("Slave: Start Pairing...\n");
+
+//     // 初始化为默认配对配置并进入接收模式
+    
+//     HAL_RF_SetTxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
+//     HAL_RF_SetTxMode(&hrf);
+//     printf_all_registers();
+//     uart_printf("Slave: Start Pairing (Waiting for Req...)\n");
+   
+//     while(1) {
+        
+//         //发送req
+//         RF_txQueue_Send(&hrf, (uint8_t*)&req_pkt, sizeof(req_pkt));
+//         RF_Service_Handler(&hrf);
+
+//         //阻塞等待resp,从接收队列取数据，直到取到或者超时
+//         uint32_t start_wait = Get_SysTick_ms();
+//         uint8_t len;
+//         while (Get_SysTick_ms() - start_wait < 500)  {
+//             if (RF_rxQueue_Recv(&recv_resp_pkg, &len, NULL) == 1) { 
+//                 if (len == sizeof(pair_resp_pkt) && recv_resp_pkg->cmd == CMD_PAIR_RESP) {
+//                     break;
+//                 }
+//             }
+//         }
+
+
+
+
+//     }
+// }
+
+void Do_Pairing_As_slave_SM(void) {
+    slave_pair_state_t state = SLAVE_PAIR_IDLE;
+    pair_req_pkt req_pkt = {CMD_PAIR_REQ, 0x12345678};
+    pair_resp_pkt *recv_resp_pkg = NULL;
+    pair_confirm_pkt slave_cfm_pkg = {CMD_PAIR_CONFIRM, slave_magic_number};
+    pair_confirm_pkt *recv_cfm_pkg = NULL;
+    uint8_t len;
+    uint32_t start_wait;
+
+    HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
+    HAL_RF_SetTxMode(&hrf);
+    printf_all_registers();
+    uart_printf("Slave: Start Pairing (send Req...)\n");
+
+    while (state != SLAVE_PAIR_DONE) {
+        
+        switch (state) {
+        case SLAVE_PAIR_IDLE:
+            uart_printf("idle\n");
+            state = SLAVE_PAIR_SEND_REQ;
+            break;
+
+        case SLAVE_PAIR_SEND_REQ:
+            uart_printf("state:send req\n");
+            RF_txQueue_Send((uint8_t*)&req_pkt, sizeof(req_pkt));
+            RF_Service_Handler(&hrf);
+            start_wait = Get_SysTick_ms();
+            state = SLAVE_PAIR_WAIT_RESP;
+            break;
+
+        case SLAVE_PAIR_WAIT_RESP:
+            uart_printf("state:wait resp\n");
+            while (Get_SysTick_ms() - start_wait < 500) {
+                if (RF_rxQueue_Recv(&recv_resp_pkg, &len, NULL) == 1) {
+                    if (len == sizeof(pair_resp_pkt) && recv_resp_pkg->cmd == CMD_PAIR_RESP) {
+                        uart_printf("Slave: Received Pair Resp!\n");
+                        uart_printf("Slave: New Addr: %02X %02X %02X %02X %02X\n",
+                            recv_resp_pkg->new_addr[0], recv_resp_pkg->new_addr[1], recv_resp_pkg->new_addr[2],
+                            recv_resp_pkg->new_addr[3], recv_resp_pkg->new_addr[4]);
+                        // 切换到新地址
+                        HAL_RF_SetTxAddress(&hrf, recv_resp_pkg->new_addr, 5);
+                        HAL_RF_SetRxAddress(&hrf, 0, recv_resp_pkg->new_addr, 5);
+                        state = SLAVE_PAIR_SEND_CONFIRM;
+                        break;
+                    }
+                }
+            }
+            if (state != SLAVE_PAIR_SEND_CONFIRM) {
+                uart_printf("Slave: Wait Resp Timeout, Retry...\n");
+                state = SLAVE_PAIR_SEND_REQ;
+            }
+            break;
+
+        case SLAVE_PAIR_SEND_CONFIRM:
+            uart_printf("state:send confirm\n");
+            RF_txQueue_Send((uint8_t*)&slave_cfm_pkg, sizeof(slave_cfm_pkg));
+            RF_Service_Handler(&hrf);
+            start_wait = Get_SysTick_ms();
+            state = SLAVE_PAIR_WAIT_CONFIRM_ACK;
+            break;
+
+        case SLAVE_PAIR_WAIT_CONFIRM_ACK:
+            uart_printf("state:wait confirm ack\n");
+            while (Get_SysTick_ms() - start_wait < 500) {
+                if (RF_rxQueue_Recv(&recv_cfm_pkg, &len, NULL) == 1) {
+                    if (len == sizeof(pair_confirm_pkt) &&
+                        recv_cfm_pkg->cmd == CMD_PAIR_CONFIRM &&
+                        recv_cfm_pkg->magic_number == host_magic_number) {
+                        uart_printf("Slave: Pairing Confirmed!\n");
+                        slave_pair_success_flag = 1;
+                        state = SLAVE_PAIR_DONE;
+                        break;
+                    }
+                }
+            }
+            if (state != SLAVE_PAIR_DONE) {
+                uart_printf("Slave: Confirm No Resp, Retry...\n");
+                state = SLAVE_PAIR_SEND_REQ;
+            }
+            break;
+
+        default:
+            uart_printf("Slave: Unknown State, resetting...\n");
+            state = SLAVE_PAIR_IDLE;
+            break;
+        }
+    }
+    uart_printf("slave: pairing process completed\n");
+}
+
+
+
+void Do_Pairing_As_Host_SM(void) {
+    host_pair_state_t state = HOST_PAIR_IDLE;
+    pair_resp_pkt resp;
+    pair_confirm_pkt host_cfm = {CMD_PAIR_CONFIRM, host_magic_number};
+    pair_req_pkt *recv_req = NULL;
+    pair_confirm_pkt *recv_cfm = NULL;
+    uint8_t len;
+    uint32_t start_wait;
+    uint8_t resp_retries = 0;
+    const uint8_t MAX_RESP_RETRIES = 3;
+    const uint16_t CONFIRM_WAIT_TIMEOUT = 1000; // ms
+
+    //初始化并监听默认地址
+    HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
+    HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
+    printf_all_registers();
+    HAL_RF_SetRxMode(&hrf);
+    uart_printf("Host: Start Pairing (Waiting for Req...)\n");
+    state = HOST_PAIR_WAIT_REQ;
+
+    while (state != HOST_PAIR_DONE) {
+        switch (state) {
+
+        case HOST_PAIR_WAIT_REQ:
+            uart_printf("Host: Waiting for Pair Req...\n");
+            if (RF_rxQueue_Recv(&recv_req, &len, NULL) == 1) {
+                if (len == sizeof(pair_req_pkt) && recv_req->cmd == CMD_PAIR_REQ) {
+                    uart_printf("Host: Received Pair Req from %08X\n", recv_req->slave_id);
+                  
+                    resp.cmd = CMD_PAIR_RESP;
+                    resp.new_chn = 20;
+                    resp.new_addr[0] = 0x11; resp.new_addr[1] = 0x22;
+                    resp.new_addr[2] = 0x33; resp.new_addr[3] = 0x44; resp.new_addr[4] = 0x55;
+                    
+                    state = HOST_PAIR_SEND_RESP;
+                }
+            }
+            break;
+
+        case HOST_PAIR_SEND_RESP:
+            uart_printf("Host: Sending RESP (try %d)\n", resp_retries+1);
+            HAL_RF_SetTxMode(&hrf);
+            HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
+            HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
+            
+            RF_txQueue_Send((uint8_t*)&resp, sizeof(resp));
+            RF_Service_Handler(&hrf);
+            resp_retries++;
+
+            //切到新地址并进入接收CONFIRM
+            HAL_RF_SetRxMode(&hrf);
+            HAL_RF_SetTxAddress(&hrf, resp.new_addr, 5);
+            HAL_RF_SetRxAddress(&hrf, 0, resp.new_addr, 5);
+            start_wait = Get_SysTick_ms();
+            state = HOST_PAIR_WAIT_CONFIRM;
+            break;
+
+        case HOST_PAIR_WAIT_CONFIRM:
+            uart_printf("Host: Waiting for Slave Confirm...\n");
+            while (Get_SysTick_ms() - start_wait < CONFIRM_WAIT_TIMEOUT) {
+                if (RF_rxQueue_Recv(&recv_cfm, &len, NULL) == 1) {
+                    if (len == sizeof(pair_confirm_pkt) &&
+                        recv_cfm->cmd == CMD_PAIR_CONFIRM &&
+                        recv_cfm->magic_number == slave_magic_number) {
+                        uart_printf("Host: Received Slave Confirm!\n");
+                        state = HOST_PAIR_SEND_FINAL_CONFIRM;
+                        break;
+                    }
+                }
+            }
+            if (state != HOST_PAIR_SEND_FINAL_CONFIRM) { //如果没收到slave的confirm，
+                if (resp_retries < MAX_RESP_RETRIES) { //如果没达到最大重发次数，回到发送RESP状态重试
+                    uart_printf("Host: Confirm Timeout, resend RESP\n");
+                    state = HOST_PAIR_SEND_RESP;
+                } else { //超次数了，放弃配对，恢复默认配置
+                    uart_printf("Host: Confirm Timeout after %d tries, revert to default\n", resp_retries);
+                    resp_retries = 0;
+                    HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
+                    HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
+                    HAL_RF_SetRxMode(&hrf);
+                    state = HOST_PAIR_WAIT_REQ;
+                }
+            }
+            break;
+
+        case HOST_PAIR_SEND_FINAL_CONFIRM:
+            uart_printf("Host: Sending final confirm to Slave\n");
+            RF_txQueue_Send((uint8_t*)&host_cfm, sizeof(host_cfm));
+            RF_Service_Handler(&hrf);
+            host_pair_success_flag = 1;
+            uart_printf("Host: Pairing Success!\n");
+            state = HOST_PAIR_DONE;
+            break;
+
+        default:
+            uart_printf("Host: Unknown State, resetting...\n");
+            state = HOST_PAIR_IDLE;
+            break;
+        }
+    }
+
+    uart_printf("Host: pairing process completed\n");
+}

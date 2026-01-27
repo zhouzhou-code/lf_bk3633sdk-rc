@@ -127,8 +127,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
         return HAL_ERROR; // 地址宽度无效
     __HAL_RF_SET_ADDR_WIDTH(tmp_addr_width);
 
-   
-    RF_MemCpy(&TRX_TX_ADDR_0, (uint32_t*)Init->Protocol.TxAddress, tmp_addr_width);   // TX 发送地址
+    RF_MemCpy(&TRX_TX_ADDR_0, Init->Protocol.TxAddress, tmp_addr_width);   // TX 发送地址
     Init->Protocol.Support_NoAck ? __HAL_RF_EN_NOACK() : __HAL_RF_DIS_NOACK();    // 是否支持无ACK发送命令
     __HAL_RF_TX_RETRY(Init->Protocol.AutoRetransmitDelay, Init->Protocol.AutoRetransmitCount); //自动重传设置
 
@@ -186,7 +185,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
     /* 数据速率 */
     switch ( Init->DataRate )
     {
-        case 0 :  // 250kbps
+        case BPS_250K :  // 250kbps
             addXVR_Reg0x2e &= 0xfffffe00 ;
             addXVR_Reg0x2e |= 0x100 ;
             addXVR_Reg0x26 &= 0xe000ffff;
@@ -195,14 +194,14 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
             addXVR_Reg0x30 |= 0x28<<8;
             TRX_RF_SETUP = 0x27;
             break;
-        case 1 : // 1Mbps
+        case BPS_1M : // 1Mbps
             addXVR_Reg0x2e &= 0xfffffe00 ;
             addXVR_Reg0x2e |= 0x100 ;
             addXVR_Reg0x26 &= 0xe000ffff;
             addXVR_Reg0x26 |= 0x10200000;
             TRX_RF_SETUP = 0x07;
             break;
-        case 2 : // 2Mbps
+        case BPS_2M : // 2Mbps
             addXVR_Reg0x2e &= 0xfffffe00 ;
             addXVR_Reg0x2e |= 0x100 ;
             addXVR_Reg0x26 &= 0xe000ffff;
@@ -265,8 +264,8 @@ HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uin
     uint8_t irq_status;         //中断挂起状态
     uint8_t isTimeout = 0;      // 是否超时标志
     uint32_t txWaitCounter = 0; // 发送等待计数器（用于超时判断）
-    const uint16_t MAX_TX_TIMEOUT = 1000; // 最大等待时间，单位10us (1000*10us=10ms)
-
+    const uint16_t MAX_TX_TIMEOUT = 100; // 最大等待时间，单位10us (10000*10us=100ms)
+    static uint16_t send_cnt=0;
     if (hrf == NULL || pData == NULL || Size == 0) return HAL_RF_STATE_ERROR;
 
     //进入发送模式
@@ -284,9 +283,9 @@ HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uin
         irq_status = __HAL_RF_GET_IRQ_Status();
         RF_DelayUs(10);
         txWaitCounter++;
-        uart_printf("txWaitCounter: %d\r\n", txWaitCounter);
         if (txWaitCounter > MAX_TX_TIMEOUT) {
             isTimeout = 1;
+            uart_printf("TX timeout!irq=0x%x\r\n", irq_status);
             break; 
         }
     }
@@ -296,6 +295,7 @@ HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uin
     if (irq_status & IRQ_TX_DS_MASK) {
         __HAL_RF_CMD_FLUSH_TXFIFO();
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
+        uart_printf("TX DS!send_cnt=%d\r\n", send_cnt++);
         ret = HAL_RF_STATE_READY;
     }
 
@@ -422,6 +422,7 @@ HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t*
     if (hrf == NULL || pData == NULL ) return HAL_RF_STATE_ERROR;
 
     irq_status = __HAL_RF_GET_IRQ_Status();
+    uart_printf("irq_status: 0x%02X\r\n", irq_status);
 
     if (irq_status & IRQ_RX_DR_MASK){  //接收标志位置1，接收FIFO中的数据就绪
         do {
@@ -496,8 +497,9 @@ HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr,
 {   
     if(length!=hrf->Params.Protocol.AddressWidth) 
         return HAL_RF_STATE_ERROR;
+
+    memcpy(hrf->Params.Protocol.TxAddress, dev_addr, sizeof(uint32_t)*length);
     
-    memcpy(hrf->Params.Protocol.TxAddress, dev_addr, hrf->Params.Protocol.AddressWidth);
     RF_MemCpy(&TRX_TX_ADDR_0, hrf->Params.Protocol.TxAddress, hrf->Params.Protocol.AddressWidth);
     return HAL_RF_STATE_READY;
 }
@@ -533,7 +535,7 @@ HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint3
     if(pipe >5 || dev_addr == NULL) return HAL_RF_STATE_ERROR;
     if(length!=hrf->Params.Protocol.AddressWidth) return HAL_RF_STATE_ERROR;
 
-    memcpy(hrf->Params.Protocol.RxPipes[pipe].Address, dev_addr, hrf->Params.Protocol.AddressWidth);
+    memcpy(hrf->Params.Protocol.RxPipes[pipe].Address, dev_addr, sizeof(uint32_t)*length);
     switch(pipe){
         case 0:
             RF_MemCpy(&TRX_RX_ADDR_P0_0, hrf->Params.Protocol.RxPipes[0].Address, hrf->Params.Protocol.AddressWidth);

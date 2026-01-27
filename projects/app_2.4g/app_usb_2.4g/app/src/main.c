@@ -49,11 +49,10 @@
 #include "rf.h"
 #include "timer_handler.h"
 #include "bat_protocol.h"
-
+#include "rf_pair.h"
 
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
-
 
 static void stack_integrity_check(void)
 {
@@ -97,8 +96,9 @@ void test_rf_app(void)
     uint8_t test_data[32];
     RF_txQueue_Send(test_data, 32);
 }
-
-
+extern RF_HandleTypeDef h_pair; //配对专用RF句柄
+extern RF_ConfgTypeDef Pairing_Config;
+extern void printf_all_registers(void);
 void platform_reset(uint32_t error)
 {
 
@@ -464,6 +464,45 @@ int main(void)
         }
     }
     #endif
+    /* ------------------------------------配对测试-------------------------------------- */
+    
+    // HAL_RF_Init(&h_pair,&Pairing_Config);
+    // printf_all_registers();
+    // HAL_RF_SetTxMode(&h_pair);
+    // uart_printf("Slave: Start Pairing...\n");
+    // uint16_t cnt=0;
+    // uint16_t rec_cnt=0;
+    // while(1){
+    //     cnt++;
+    //     HAL_RF_Transmit_ACK(&h_pair, (uint8_t*)&cnt, sizeof(uint16_t));
+    //     uart_printf("Slave: Pair Req Sent test:%d\n", cnt);
+    //     Delay_us(100);
+    // }
+
+    // HAL_RF_SetRxMode(&h_pair);
+    // while(1){
+    //     uint8_t rx_buf[32];
+    //     uint8_t len=0;
+    //     if(HAL_RF_Receive(&h_pair, rx_buf, &len)==HAL_OK){
+    //         uart_printf("Host: Received Data during wait REQ\n");
+    //         rec_cnt++;
+    //         uart_printf("Host: Data Len=%d, rec_cnt=%d\n",len, rec_cnt);
+
+    //     }
+
+    // }
+
+    RF_Handler_Init();//初始化RF句柄及队列
+    printf_all_registers();
+    while(1)
+    {
+        Do_Pairing_As_Host_SM();
+       //Do_Pairing_As_slave_SM();
+    }
+    
+    
+    // Do_Pairing_As_Host();
+
     
 
     /* --------------------------------------简单RF收发测试---------------------------- */

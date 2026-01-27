@@ -209,6 +209,8 @@ void memcpy_2461(volatile uint32 *p, uint32 *val, uint8 len)
         p[i] = val[i];
     }
 }
+
+
 /*
 *设置数据传输速率，同时配置rf寄存器和xvr无线收发寄存器的相关参数
 * data_rate: 0--250kbps; 1--1Mbps; 2--2Mbps

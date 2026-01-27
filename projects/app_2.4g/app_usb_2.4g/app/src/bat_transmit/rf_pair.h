@@ -3,10 +3,28 @@
 #include <stdint.h>
 
 #define PAIR_CH_DEFAULT           78
-static const uint8_t PAIR_ADDR_DEFAULT[5] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
 
-static uint8_t slave_magic_number = 0x5A; 
-static uint8_t host_magic_number  = 0xA5;
+
+
+
+typedef enum {
+    SLAVE_PAIR_IDLE = 0,
+    SLAVE_PAIR_SEND_REQ,
+    SLAVE_PAIR_WAIT_RESP,
+    SLAVE_PAIR_SEND_CONFIRM,
+    SLAVE_PAIR_WAIT_CONFIRM_ACK,
+    SLAVE_PAIR_DONE
+} slave_pair_state_t;
+
+
+typedef enum {
+    HOST_PAIR_IDLE = 0,
+    HOST_PAIR_WAIT_REQ,
+    HOST_PAIR_SEND_RESP,
+    HOST_PAIR_WAIT_CONFIRM,
+    HOST_PAIR_SEND_FINAL_CONFIRM,
+    HOST_PAIR_DONE
+} host_pair_state_t;
 
 
 typedef enum {
@@ -35,4 +53,12 @@ typedef struct {
 
 #pragma pack()
 
+extern uint8_t slave_pair_success_flag ;
+extern uint8_t host_pair_success_flag ;
+
+void Do_Pairing_As_Slave(void);
+void Do_Pairing_As_Host(void);
+
+void Do_Pairing_As_Host_SM(void);
+void Do_Pairing_As_slave_SM(void);
 #endif

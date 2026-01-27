@@ -134,7 +134,7 @@ void RF_Handler_Init(void)
     /* 初始化RF模块 */
     HAL_RF_Init(&hrf, &Init_S);
     HAL_RF_TimeManager_register(&hrf, Get_SysTick_ms);
-
+    
     /* 默认初始化为发送模式 */
     HAL_RF_SetTxMode(&hrf);
     /* 初始化发送和接收队列 */
