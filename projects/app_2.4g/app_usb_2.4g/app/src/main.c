@@ -495,8 +495,8 @@ int main(void)
     RF_Handler_Init();//初始化RF句柄及队列
     while(1)
     {
-       Do_Pairing_As_Host_SM();
-       //Do_Pairing_As_slave_SM();
+       //Do_Pairing_As_Host_SM();
+       Do_Pairing_As_slave_SM();
     }
     
     

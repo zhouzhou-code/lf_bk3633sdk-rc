@@ -174,7 +174,7 @@ void RF_txQueue_Send(uint8_t *data_pack, uint8_t len)
 uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pipes)
 {
     HAL_RF_SetRxMode(&hrf); //确保在接收模式
-    
+
     static uint8_t temp_buf[rxqueue_item_size]; //静态缓冲区，防止指针失效
     if(queue_pop(&rf_rxQueue, temp_buf) == 1) {
         if(out_len) 
@@ -216,12 +216,11 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
             uart_printf("rf_send_service len:%d\n", len);
             //只有发送成功受理了，才真正把数据从队列里弹出来
             queue_pop(&rf_txQueue, tx_data);
+            
         }
-    } 
-    // else{
-    //     //无数据可发送，进入接收模式
-    //     if(__HAL_RF_Get_TRxMode_Bit() != 1) {
-    //         HAL_RF_SetRxMode(hrf);
-    //     }
-    // }
+    }
+
+    //退出之前确保在接收模式，让中断能正常接收
+    HAL_RF_SetRxMode(hrf);
+
 }

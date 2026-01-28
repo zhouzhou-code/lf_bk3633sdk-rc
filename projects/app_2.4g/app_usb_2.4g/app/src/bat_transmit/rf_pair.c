@@ -455,7 +455,6 @@ void Do_Pairing_As_slave_SM(void) {
 
         case SLAVE_PAIR_SEND_REQ:
             uart_printf("state:send req\n");
-            HAL_RF_SetTxMode(&hrf);
 
             RF_txQueue_Send((uint8_t*)&req_pkt, sizeof(req_pkt));
             RF_Service_Handler(&hrf);
@@ -465,11 +464,6 @@ void Do_Pairing_As_slave_SM(void) {
 
         case SLAVE_PAIR_WAIT_RESP:
             uart_printf("state:wait resp\n");
-            while((TRX_FIFO_STATUS&B_FIFO_TX_EMPTY)==0){
-                uart_printf("w tx e,f_s=%02x,isq=%02x\n", TRX_FIFO_STATUS, TRX_IRQ_STATUS);
-            }
-            HAL_RF_SetRxMode(&hrf);
-
             while (Get_SysTick_ms() - start_wait < RESP_WAIT_TIMEOUT) {
                 if (RF_rxQueue_Recv(&recv_resp_pkg, &len, NULL) == 1) {
                     uart_printf("check resp len:%d\r\n",len);
@@ -495,7 +489,6 @@ void Do_Pairing_As_slave_SM(void) {
             uart_printf("state:send confirm (%d)\n", confirm_retries + 1);
             RF_txQueue_Send((uint8_t*)&slave_cfm_pkg, sizeof(slave_cfm_pkg));
             HAL_RF_SetTxMode(&hrf);
-            // RF_txQueue_Send((uint8_t*)"hello", sizeof("hello"));
             RF_Service_Handler(&hrf);
 
             confirm_retries++; //递增重发计数
@@ -560,7 +553,7 @@ void Do_Pairing_As_Host_SM(void) {
     uint32_t start_wait;
     uint8_t resp_retries = 0;
     const uint8_t MAX_RESP_RETRIES = 3;
-    const uint16_t CONFIRM_WAIT_TIMEOUT = 1000; // ms
+    const uint16_t CONFIRM_WAIT_TIMEOUT = 500; // ms
 
     //初始化并监听默认地址
     HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
@@ -577,7 +570,7 @@ void Do_Pairing_As_Host_SM(void) {
             if (RF_rxQueue_Recv(&recv_req, &len, NULL) == 1) {
                 if (len == sizeof(pair_req_pkt) && recv_req->cmd == CMD_PAIR_REQ) {
                     uart_printf("Host: Received Pair Req from %08X\n", recv_req->slave_id);
-                   
+                    
                     resp.cmd = CMD_PAIR_RESP;
                     resp.new_chn = 20;
                     resp.new_addr[0] = 0x11; resp.new_addr[1] = 0x22;
@@ -590,7 +583,6 @@ void Do_Pairing_As_Host_SM(void) {
 
         case HOST_PAIR_SEND_RESP:
             uart_printf("Host: Sending RESP (try %d)\n", resp_retries+1);
-            //HAL_RF_SetTxMode(&hrf);
             HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
             HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
             
@@ -599,7 +591,7 @@ void Do_Pairing_As_Host_SM(void) {
             resp_retries++;
 
             //切到新地址并进入接收CONFIRM
-            //HAL_RF_SetRxMode(&hrf);
+            HAL_RF_SetRxMode(&hrf);
             HAL_RF_SetTxAddress(&hrf, resp.new_addr, 5);
             HAL_RF_SetRxAddress(&hrf, 0, resp.new_addr, 5);
             start_wait = Get_SysTick_ms();
@@ -608,7 +600,6 @@ void Do_Pairing_As_Host_SM(void) {
 
         case HOST_PAIR_WAIT_CONFIRM:
             uart_printf("Host: Waiting for Slave Confirm...\n");
-            printf_txrx_addr();
             while (Get_SysTick_ms() - start_wait < CONFIRM_WAIT_TIMEOUT) {
                 if (RF_rxQueue_Recv(&recv_cfm, &len, NULL) == 1) {
                     uart_printf("Host: Checking received packet...\n");
