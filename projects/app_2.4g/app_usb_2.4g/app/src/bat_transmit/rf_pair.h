@@ -44,7 +44,7 @@ typedef struct {
 #pragma pack(1)
 typedef struct {
     uint8_t cmd;
-    uint32_t new_addr[5];
+    uint8_t new_addr[5]; // 新地址，接收方要每字节扩展成uint32_t，发送为了节约按uint8_t发
     uint8_t new_chn;
 } pair_resp_pkt;
 #pragma pack()

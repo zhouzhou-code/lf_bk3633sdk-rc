@@ -344,16 +344,17 @@ HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint
      /* 如果正在发送，检查是否超时 */
     if (hrf->TxState != TX_IDLE) {
         uart_printf("Tx-busy\r\n");
-        uart_printf("cur_time:%d, start_time:%d, timeout:%d\r\n",
-                    hrf->TimeManager.GetSysTimeMs(),
-                    hrf->TimeManager.Tx_start_time,
-                    hrf->TimeManager.Tx_TimeOut);
+        // uart_printf("cur_time:%d, start_time:%d, timeout:%d\r\n",
+        //             hrf->TimeManager.GetSysTimeMs(),
+        //             hrf->TimeManager.Tx_start_time,
+        //             hrf->TimeManager.Tx_TimeOut);
 
         uint32_t cur_time = hrf->TimeManager.GetSysTimeMs();
         uint32_t elapsed_time = cur_time - hrf->TimeManager.Tx_start_time;
         if (elapsed_time >= hrf->TimeManager.Tx_TimeOut) {
             /* 发送超时处理 */
-            uart_printf("TX timeout detected:%d\r\n", elapsed_time);
+            /* 按照经验，这个超时不会触发，一直触发就是没切换到tx*/
+            uart_printf("TX timeout detected,\r\n");
             hrf->TxState = TX_TIMEOUT;
             hrf->TimeManager.Tx_Timeout_cnt++;
             /* 清除缓冲区 */
@@ -571,8 +572,6 @@ HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
     __HAL_RF_Set_TxMode_Bit();
     __HAL_RF_CHIP_EN();
 
-    //delay_ms(30); // 切换到发送模式需要一定时间
-
     hrf->State = HAL_RF_STATE_READY;
     return HAL_RF_STATE_READY;
 }
@@ -600,8 +599,6 @@ HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
     __HAL_RF_Set_RxMode_Bit() ;
     __HAL_RF_CHIP_EN();
 
-    //delay_ms(30); //切换到接收模式需要一定时间
-
     hrf->State = HAL_RF_STATE_READY;
     return HAL_RF_STATE_READY;
 }
@@ -614,8 +611,9 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
         uart_printf("in RX_DR\r\n");
         /* 读取数据到hrf队列 */
-        hrf->RxLen = TRX_RX_RPL_WIDTH & 0x3F; //动态载荷长度
+        hrf->RxLen = __HAL_RF_GET_RX_RPL_WIDTH(); //动态载荷长度
         hrf->RxPipes = ((TRX_IRQ_STATUS >> 1) & 0x07); //接收管道号
+        
         RF_Read_fifo((uint8_t*)(hrf->RxBuff), hrf->RxLen);
         hrf->RxBuff_valid = 1;
 

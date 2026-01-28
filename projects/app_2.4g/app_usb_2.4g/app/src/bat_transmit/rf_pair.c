@@ -468,9 +468,15 @@ void Do_Pairing_As_slave_SM(void) {
                 if (RF_rxQueue_Recv(&recv_resp_pkg, &len, NULL) == 1) {
                     uart_printf("check resp len:%d\r\n",len);
                     if (len == sizeof(pair_resp_pkt) && recv_resp_pkg->cmd == CMD_PAIR_RESP) {
-                        // 切换到新地址
-                        HAL_RF_SetTxAddress(&hrf, recv_resp_pkg->new_addr, 5);
-                        HAL_RF_SetRxAddress(&hrf, 0, recv_resp_pkg->new_addr, 5);
+                        
+                        //将uint8_t拓展成uint32_t数组
+                        uint32_t new_addr[5];
+                        for(int i=0;i<5;i++)
+                            new_addr[i] = recv_resp_pkg->new_addr[i];
+
+                        //切换到新地址
+                        HAL_RF_SetTxAddress(&hrf, new_addr, 5);
+                        HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
                         
                         uart_printf("Slave: new_addr!\n");
                         printf_txrx_addr();
@@ -553,7 +559,7 @@ void Do_Pairing_As_Host_SM(void) {
     uint32_t start_wait;
     uint8_t resp_retries = 0;
     const uint8_t MAX_RESP_RETRIES = 3;
-    const uint16_t CONFIRM_WAIT_TIMEOUT = 500; // ms
+    const uint16_t CONFIRM_WAIT_TIMEOUT = 500; //ms
 
     //初始化并监听默认地址
     HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
@@ -591,9 +597,14 @@ void Do_Pairing_As_Host_SM(void) {
             resp_retries++;
 
             //切到新地址并进入接收CONFIRM
+            uint32_t new_addr[5];
+            for(int i=0;i<5;i++)
+                new_addr[i] = resp.new_addr[i];
+            HAL_RF_SetTxAddress(&hrf, new_addr, 5);
+            HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
+            
             HAL_RF_SetRxMode(&hrf);
-            HAL_RF_SetTxAddress(&hrf, resp.new_addr, 5);
-            HAL_RF_SetRxAddress(&hrf, 0, resp.new_addr, 5);
+            printf_txrx_addr();
             start_wait = Get_SysTick_ms();
             state = HOST_PAIR_WAIT_CONFIRM;
             break;
