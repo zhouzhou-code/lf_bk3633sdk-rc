@@ -15,9 +15,12 @@ my_queue_t rf_rxQueue;               // 接收队列
 
 
 RF_HandleTypeDef hrf; //全局RF句柄
-uint16_t isq_count_rxdr = 0;
-uint16_t isq_count_txds = 0;
-uint16_t isq_count_maxrt = 0;
+//中断计数
+uint32_t rf_int_count_rxdr = 0;
+uint32_t rf_int_count_txds = 0;
+uint32_t rf_int_count_maxrt = 0;
+
+
 //接收中断回调函数,数据push到接收队列
 void rxdr_callback(RF_HandleTypeDef *hrf)
 {
@@ -30,17 +33,17 @@ void rxdr_callback(RF_HandleTypeDef *hrf)
         
         queue_push_overwrite(&rf_rxQueue, temp);
     }
-    isq_count_rxdr++;
+    rf_int_count_rxdr++;
 }
 void txds_callback(RF_HandleTypeDef *hrf)
 {
-    isq_count_txds++;
-    uart_printf("tx=%d\n", isq_count_txds);   
+    rf_int_count_txds++;
+    uart_printf("tx=%d\n", rf_int_count_txds);   
 }
 void maxrt_callback(RF_HandleTypeDef *hrf)
 {
-    isq_count_maxrt++;
-    uart_printf("rt=%d\n", isq_count_maxrt);
+    rf_int_count_maxrt++;
+    uart_printf("rt=%d\n", rf_int_count_maxrt);
 }
 
 //初始化参数配置结构体

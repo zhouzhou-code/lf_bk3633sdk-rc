@@ -50,6 +50,7 @@
 #include "timer_handler.h"
 #include "bat_protocol.h"
 #include "rf_pair.h"
+#include "addr_pool.h"
 
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
@@ -491,6 +492,12 @@ int main(void)
     //     }
 
     // }
+
+    // uint8_t *p_mac = (uint8_t *)0x0007e000;
+    // uart_printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\r\n",
+    // p_mac[0], p_mac[1], p_mac[2], p_mac[3], p_mac[4], p_mac[5]);
+
+    addrpool_register_get_systick_ms(Get_SysTick_ms);
 
     RF_Handler_Init();//初始化RF句柄及队列
     while(1)

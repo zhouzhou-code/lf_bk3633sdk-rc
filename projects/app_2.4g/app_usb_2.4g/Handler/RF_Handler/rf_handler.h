@@ -19,6 +19,10 @@ extern my_queue_t rf_rxQueue;
 extern my_queue_t rf_txQueue;
 extern RF_HandleTypeDef hrf; //全局RF句柄
 
+extern uint32_t rf_int_count_rxdr;
+extern uint32_t rf_int_count_txds;
+extern uint32_t rf_int_count_maxrt;
+
 void RF_Handler_Init(void);
 void RF_txQueue_Send(uint8_t *data_pack, uint8_t len);
 uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pipes);
