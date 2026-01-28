@@ -4,6 +4,7 @@
 #include "bk3633_reglist.h"
 #include "user_config.h"
 #include <string.h> 
+#include "hal_drv_rf.h"
 
 
 #define UART_PRINTF    uart_printf
@@ -232,7 +233,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
     hrf->Params = *Init;
     hrf->TimeManager.Tx_TimeOut = ((Init->Protocol.AutoRetransmitDelay*250+250)*   //每次重发间隔
                                     Init->Protocol.AutoRetransmitCount +           //重发次数
-                                    200 )/1000  ;                                  //200是冗余时间
+                                    500 )/1000  ;                                  //500是冗余时间
     hrf->State = HAL_RF_STATE_READY;
 
     return HAL_OK;
@@ -334,20 +335,25 @@ HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint
     /* 入参检查 */
     if (hrf == NULL || pData == NULL || Size == 0) return HAL_ERROR;
     /* 查询当前模式 */
-    if(hrf->Cur_Mode !=MODE_TX) {
+    if(__HAL_RF_Get_TRxMode_Bit() !=0) {
         uart_printf("Current mode is not TX,return \r\n");
         HAL_RF_SetTxMode(hrf);
-        hrf->Cur_Mode = MODE_TX;
     }   
 
     /* 查询是否空闲 */
      /* 如果正在发送，检查是否超时 */
     if (hrf->TxState != TX_IDLE) {
+        uart_printf("Tx-busy\r\n");
+        uart_printf("cur_time:%d, start_time:%d, timeout:%d\r\n",
+                    hrf->TimeManager.GetSysTimeMs(),
+                    hrf->TimeManager.Tx_start_time,
+                    hrf->TimeManager.Tx_TimeOut);
+
         uint32_t cur_time = hrf->TimeManager.GetSysTimeMs();
         uint32_t elapsed_time = cur_time - hrf->TimeManager.Tx_start_time;
         if (elapsed_time >= hrf->TimeManager.Tx_TimeOut) {
             /* 发送超时处理 */
-            uart_printf("TX timeout detected\r\n");
+            uart_printf("TX timeout detected:%d\r\n", elapsed_time);
             hrf->TxState = TX_TIMEOUT;
             hrf->TimeManager.Tx_Timeout_cnt++;
             /* 清除缓冲区 */
@@ -498,31 +504,14 @@ HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr,
     if(length!=hrf->Params.Protocol.AddressWidth) 
         return HAL_RF_STATE_ERROR;
 
+
     memcpy(hrf->Params.Protocol.TxAddress, dev_addr, sizeof(uint32_t)*length);
     
     RF_MemCpy(&TRX_TX_ADDR_0, hrf->Params.Protocol.TxAddress, hrf->Params.Protocol.AddressWidth);
     return HAL_RF_STATE_READY;
 }
 
-/**
-  * @brief  设置为接收模式
-  * @param  hrf: RF 句柄
-  * @param  dev_addr: 发送地址指针
-  * @param  length: 地址宽度 必须传入和AddressWidth相同的值
-  */
-HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
-{
-    hrf->Params.Mode = MODE_RX;
-    __HAL_RF_PowerUp();
-    __HAL_RF_CMD_FLUSH_RXFIFO();
 
-    __HAL_RF_CHIP_DIS();
-    __HAL_RF_Set_RxMode_Bit() ;
-    __HAL_RF_CHIP_EN();
-
-    hrf->State = HAL_RF_STATE_READY;
-    return HAL_RF_STATE_READY;
-}
 
 /**
   * @brief  设置接收通道地址
@@ -568,6 +557,12 @@ HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint3
   */
 HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
 {
+    if(__HAL_RF_Get_TRxMode_Bit() == 0){ //已经是发送模式
+        __HAL_RF_PowerUp();
+        __HAL_RF_CHIP_EN(); //使能返回
+        return HAL_RF_STATE_READY; 
+    }
+    
     hrf->Params.Mode = MODE_TX;
 
     __HAL_RF_PowerUp();
@@ -576,10 +571,40 @@ HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
     __HAL_RF_Set_TxMode_Bit();
     __HAL_RF_CHIP_EN();
 
+    //delay_ms(30); // 切换到发送模式需要一定时间
+
     hrf->State = HAL_RF_STATE_READY;
     return HAL_RF_STATE_READY;
 }
 
+
+/**
+  * @brief  设置为接收模式
+  * @param  hrf: RF 句柄
+  * @param  dev_addr: 发送地址指针
+  * @param  length: 地址宽度 必须传入和AddressWidth相同的值
+  */
+HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
+{
+    if((TRX_CONFIG&(1<<0)) != 0){ //已经是接收模式
+        __HAL_RF_PowerUp();
+        __HAL_RF_CHIP_EN(); //使能返回
+        return HAL_RF_STATE_READY; 
+    }
+
+    hrf->Params.Mode = MODE_RX;
+    __HAL_RF_PowerUp();
+    __HAL_RF_CMD_FLUSH_RXFIFO();
+
+    __HAL_RF_CHIP_DIS();
+    __HAL_RF_Set_RxMode_Bit() ;
+    __HAL_RF_CHIP_EN();
+
+    //delay_ms(30); //切换到接收模式需要一定时间
+
+    hrf->State = HAL_RF_STATE_READY;
+    return HAL_RF_STATE_READY;
+}
 /**
   * @brief  RF 中断处理函数，在intc.c的intc_irq/intc_fiq中调用
   * @param  hrf: RF 句柄
@@ -587,7 +612,7 @@ HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
 void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
 {
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
-        //uart_printf("in RX_DR\r\n");
+        uart_printf("in RX_DR\r\n");
         /* 读取数据到hrf队列 */
         hrf->RxLen = TRX_RX_RPL_WIDTH & 0x3F; //动态载荷长度
         hrf->RxPipes = ((TRX_IRQ_STATUS >> 1) & 0x07); //接收管道号
@@ -602,7 +627,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
 
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS_MASK)){
-        //uart_printf("in TX_DS\r\n");
+        uart_printf("in TX_DS\r\n");
         hrf->TxState = TX_Tramsmit_SUCCESS;
 
         if(hrf->Params.IRQ.TxDS.user_cb != NULL){
@@ -614,7 +639,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
         
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
-        //uart_printf("in MAX_RT\r\n");
+        uart_printf("in MAX_RT\r\n");
         hrf->TxState = TX_Tramsmit_FAIL;
         if(hrf->Params.IRQ.MaxRT.user_cb != NULL){
             hrf->Params.IRQ.MaxRT.user_cb(hrf);

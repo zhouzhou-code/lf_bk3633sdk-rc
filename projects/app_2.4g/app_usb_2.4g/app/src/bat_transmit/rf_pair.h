@@ -39,18 +39,21 @@ typedef struct {
     uint8_t cmd;
     uint32_t slave_id;
 } pair_req_pkt;
+#pragma pack()
 
+#pragma pack(1)
 typedef struct {
     uint8_t cmd;
-    uint8_t new_addr[5];
+    uint32_t new_addr[5];
     uint8_t new_chn;
 } pair_resp_pkt;
+#pragma pack()
 
+#pragma pack(1)
 typedef struct {
     uint8_t cmd;
     uint8_t magic_number;
 } pair_confirm_pkt;
-
 #pragma pack()
 
 extern uint8_t slave_pair_success_flag ;

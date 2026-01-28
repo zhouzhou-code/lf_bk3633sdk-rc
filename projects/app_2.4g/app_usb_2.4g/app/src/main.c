@@ -493,10 +493,9 @@ int main(void)
     // }
 
     RF_Handler_Init();//初始化RF句柄及队列
-    printf_all_registers();
     while(1)
     {
-        Do_Pairing_As_Host_SM();
+       Do_Pairing_As_Host_SM();
        //Do_Pairing_As_slave_SM();
     }
     
@@ -506,17 +505,46 @@ int main(void)
     
 
     /* --------------------------------------简单RF收发测试---------------------------- */
-     static uint8_t txcount=0;
+     static uint32_t txcount=0;
      RF_Handler_Init();//初始化RF句柄及队列
-    // while(1) //发送
-    // {
-    //     txcount++;
-    //     test_sand_data[0] = txcount;
-    //     //RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
-    //     test_rf_app();
-    //     RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
-    //     Delay_ms(2);
-    // }
+     printf_all_registers();
+     HAL_RF_SetTxMode(&hrf);//设置为发送模式
+     while(1) //发送
+     {
+        txcount++;
+        test_sand_data[0] = txcount;
+        if(txcount<=10){
+            RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
+            RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
+            uart_printf("send data count=%d\r\n", txcount);
+        }
+        else{ //换地址发！
+            uint32_t new_addr[5] = {0xD2, 0xD2, 0xD2, 0xD2, 0xD2};
+            HAL_RF_SetTxAddress(&hrf, new_addr, 5);
+            HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
+            uart_printf("change addr\r\n");
+            uart_printf("TRX_RX_ADDR_P0 = ");
+            for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P0_0)[i]);
+            uart_printf("\r\n");
+
+            uart_printf("TRX_TX_ADDR    = ");
+            for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_TX_ADDR_0)[i]);
+            uart_printf("\r\n");
+
+            RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
+            RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
+            
+        }
+
+        
+        
+        //HAL_RF_Transmit_IT(&hrf, test_sand_data, 32);
+
+        // while((TRX_FIFO_STATUS&B_FIFO_TX_EMPTY)==0){
+        //     uart_printf("w tx e,f_s=%02x,isq=%02x\n", TRX_FIFO_STATUS, TRX_IRQ_STATUS);
+        // }
+        delay_ms(1000);
+    }
     
     // HAL_RF_SetRxMode(&hrf);//设置为接收模式
     // while(1)//接收

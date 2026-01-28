@@ -134,7 +134,7 @@ void RF_Handler_Init(void)
     /* 初始化RF模块 */
     HAL_RF_Init(&hrf, &Init_S);
     HAL_RF_TimeManager_register(&hrf, Get_SysTick_ms);
-    
+
     /* 默认初始化为发送模式 */
     HAL_RF_SetTxMode(&hrf);
     /* 初始化发送和接收队列 */
@@ -173,6 +173,8 @@ void RF_txQueue_Send(uint8_t *data_pack, uint8_t len)
  */
 uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pipes)
 {
+    HAL_RF_SetRxMode(&hrf); //确保在接收模式
+    
     static uint8_t temp_buf[rxqueue_item_size]; //静态缓冲区，防止指针失效
     if(queue_pop(&rf_rxQueue, temp_buf) == 1) {
         if(out_len) 
@@ -200,10 +202,10 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
         
         // 使用Peek看队头数据，但不移除,这样即使硬件忙发送失败，数据也不会丢失
         queue_peek(&rf_txQueue, tx_data);
-        if(hrf->Cur_Mode != MODE_TX) {
+        if(__HAL_RF_Get_TRxMode_Bit() == 1) {
             HAL_RF_SetTxMode(hrf);
         }
-        
+        // uart_printf("TRX_CONFIG_mode:%d\n",TRX_CONFIG);
         // 判断净荷长度
         uint8_t len = tx_data[0]<=max_rf_payload_len ? tx_data[0] : max_rf_payload_len;
         
@@ -218,7 +220,7 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
     } 
     // else{
     //     //无数据可发送，进入接收模式
-    //     if(hrf->Cur_Mode != MODE_RX) {
+    //     if(__HAL_RF_Get_TRxMode_Bit() != 1) {
     //         HAL_RF_SetRxMode(hrf);
     //     }
     // }

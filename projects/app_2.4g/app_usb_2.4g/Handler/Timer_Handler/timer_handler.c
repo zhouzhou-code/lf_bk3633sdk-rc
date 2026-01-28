@@ -26,6 +26,11 @@ uint32_t Get_SysTick_ms(void)
     return Systick_ms;
 }
 
+void delay_ms(uint32_t ms)
+{
+    uint32_t start = Get_SysTick_ms();
+    while((Get_SysTick_ms() - start) < ms);
+}
 
 void Timer_Handler_Init(void)
 {

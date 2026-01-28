@@ -15,8 +15,10 @@
 /* 寄存器位操作宏 */
 //工作时,切换模式请使用函数，包含上电使能等操作确保切换成功
 #define __HAL_RF_Set_RxMode_Bit()      (TRX_CONFIG |= (1<<0) ) 
-#define __HAL_RF_Set_TxMode_Bit()      (TRX_CONFIG &= ~(1<<0) )
-#define __HAL_RF_PowerUp()             (TRX_CONFIG |= (1<<1) )
+#define __HAL_RF_Set_TxMode_Bit()      (TRX_CONFIG &= ~(1<<0) ) //写0为发送模式
+#define __HAL_RF_Get_TRxMode_Bit()     ((TRX_CONFIG & (1<<0)))  //0:Tx 1:Rx
+
+#define __HAL_RF_PowerUp()             (TRX_CONFIG |= (1<<1) )   
 #define __HAL_RF_PowerDown()           (TRX_CONFIG &= ~(1<<1) )  
 #define __HAL_RF_Set_CRCO_1Byte()       (TRX_CONFIG &= ~(1<<2) )  
 #define __HAL_RF_Set_CRCO_2Byte()       (TRX_CONFIG |= (1<<2) )  
@@ -73,7 +75,7 @@
 #define __HAL_RF_DIS_ACK_PAY()               (TRX_FEATURE &= ~(1U << 1))
 
 /* 读接收FIFO的有效载荷长度 */
-#define __HAL_RF_GET_RX_RPL_WIDTH()                 (TRX_RX_RPL_WIDTH) 
+#define __HAL_RF_GET_RX_RPL_WIDTH()          (TRX_RX_RPL_WIDTH & 0x3F)
 
 
 /* 标志位相关 */
@@ -278,7 +280,7 @@ typedef struct __RF_HandleTypeDef
     
     /*运行时参数 */
     __IO HAL_RF_TxFSMTypeDef  TxState;       /*!< 发送状态 */
-    RF_ModeTypeDef            Cur_Mode;    /*!< 当前工作模式 */
+    //RF_ModeTypeDef            Cur_Mode;    /*!< 当前工作模式 */
 
     uint8_t                 CurrentChannel; 
     uint8_t                 LastRxLen;      
@@ -320,7 +322,7 @@ HAL_StatusTypeDef HAL_RF_GetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint3
 //注意，切换模式不可只改变寄存器位，还需PowerUp以及拉低CE
 HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf);
 HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf);
-
+HAL_StatusTypeDef HAL_RF_Get_CurTRXMode(RF_HandleTypeDef *hrf);
 
 void HAL_RF_ClearIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef _Flags);
 uint8_t HAL_RF_GetIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef IRQ_Flags);
