@@ -506,12 +506,41 @@ int main(void)
     my_key_init();
     RF_Handler_Init();//初始化RF句柄及队列
     while(1)
-    {   static uint16_t cnt_last=0;
+    {   
+        static uint16_t cnt_last=0;
         if(cnt!=cnt_last){
             cnt_last=cnt;
             uart_printf("Key Pressed! Count: %d\r\n",cnt_last);
         }
-            
+
+        //按下5s进入配对模式，非阻塞判断
+        static uint32_t press_start_time = 0;
+        static uint8_t key_stable = 0;
+
+        if(gpio_get_input(Port_Pin(1,0))==0){
+            if(key_stable == 0){
+                //第一次检测到低电平，开始消抖
+                delay_ms(20);
+                if(gpio_get_input(Port_Pin(1,0))==1){
+                    //抖动，放弃
+                    continue;
+                }
+                // 消抖成功，记录时间
+                key_stable = 1;
+                press_start_time = Get_SysTick_ms();
+            }else{
+                // 已经稳定为低，累计时间
+                if((Get_SysTick_ms()-press_start_time)>=5000){
+                    uart_printf("Enter Pairing Mode!\r\n");
+                    //Do_Pairing_As_Host_SM();
+                    Do_Pairing_As_slave_SM(); //传入0表示开始配对
+                    key_stable = 0; //防止重复进入
+                }
+            }
+        }else{
+            key_stable = 0; //松开或抖动时重置
+        }
+    
        //Do_Pairing_As_Host_SM();
        //Do_Pairing_As_slave_SM();
     }

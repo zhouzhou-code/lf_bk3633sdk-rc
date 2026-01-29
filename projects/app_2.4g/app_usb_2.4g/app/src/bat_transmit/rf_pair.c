@@ -96,7 +96,8 @@ static printf_txrx_addr()
 }
 
 
-void Do_Pairing_As_slave_SM(void) {
+//传入1表示停止配对
+void Do_Pairing_As_slave_SM() {
     slave_pair_state_t state = SLAVE_PAIR_IDLE;//状态机
     pair_req_pkt req_pkt = {CMD_PAIR_REQ, 0x12345678};//slave请求配对包
     pair_resp_pkt *recv_resp_pkg = NULL;//接收host响应包
@@ -117,8 +118,7 @@ void Do_Pairing_As_slave_SM(void) {
     printf_all_registers();
     uart_printf("Slave: Start Pairing (send Req...)\n");
 
-    while (state != SLAVE_PAIR_DONE) {
-        
+    while (state != SLAVE_PAIR_DONE ) {
         switch (state) {
         case SLAVE_PAIR_IDLE:
             uart_printf("idle\n");
@@ -216,6 +216,15 @@ void Do_Pairing_As_slave_SM(void) {
         uart_printf("slave: pairing process completed\n");
         printf_txrx_addr();
     }
+    // if(state == SLAVE_PAIR_DONE){
+    //     uart_printf("slave: pairing process completed\n");
+    //     printf_txrx_addr();
+    //     return ;
+    // }
+    // if(stop_signal){
+    //     uart_printf("slave: pairing process stopped by signal\n");
+    //     return ;
+    // }
     
 }
 

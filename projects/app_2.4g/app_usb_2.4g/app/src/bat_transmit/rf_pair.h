@@ -64,4 +64,5 @@ void Do_Pairing_As_Host(void);
 
 void Do_Pairing_As_Host_SM(void);
 void Do_Pairing_As_slave_SM(void);
-#endif
+
+#endif // __RF_PAIR_H__

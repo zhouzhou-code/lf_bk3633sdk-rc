@@ -6,7 +6,7 @@ static volatile uint32_t last_tick = 0;
 uint16_t cnt=0;
 void key_isr(void) {
     uint32_t now = Get_SysTick_ms();
-    if(Get_SysTick_ms() - last_tick < 50) //20ms消抖
+    if(Get_SysTick_ms() - last_tick < 20) //20ms消抖
     {
         return;
     }
@@ -25,5 +25,7 @@ void my_key_init(void) {
     // 初始化GPIO和中断
     gpio_config(Port_Pin(1,0), GPIO_INPUT, GPIO_PULL_HIGH); // 输入，上拉
     gpio_int_enable(Port_Pin(1,0), GPIO_INT_EDGE_FALLING,key_isr); // 设置为下降沿中断
+    gpio_int_disable(Port_Pin(1,0)); // 禁用中断
+    
     uart_printf("Key Initialized on GPIO 0x10\r\n"); 
 }
