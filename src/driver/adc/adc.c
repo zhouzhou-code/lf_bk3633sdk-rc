@@ -3,7 +3,7 @@
 #include <stddef.h>     // standard definition
 #include "user_config.h"
 #include "uart2.h"
-#include "gpio.h"
+#include "drv_gpio.h"
 #include "adc.h"
 #include "icu.h"
 #include "BK3633_RegList.h"
@@ -31,7 +31,10 @@ void adc_init(uint8_t channel,uint8_t mode)
     //enable adc clk
     SET_SADC_POWER_UP;
     //set special as peripheral func,set float is  peripheral function,the 2th function id clockout
-    gpio_config(0x30 + channel,FLOAT,PULL_NONE); 
+    // gpio_config(0x30 + channel,FLOAT,PULL_NONE); 
+    //适配新驱动
+    gpio_config(Port_Pin(3,channel),GPIO_FLOAT,GPIO_PULL_NONE); 
+
 
     //set adc mode/channel/wait clk
     cfg  = ( (mode << POS_SADC_REG0X0_CFG0_MODE ) 
@@ -59,7 +62,9 @@ void adc_init(uint8_t channel,uint8_t mode)
 
 void adc_deinit(uint8_t channel)
 {
-    gpio_config(0x30 + channel,INPUT,PULL_HIGH);
+    // gpio_config(0x30 + channel,INPUT,PULL_HIGH);
+    //适配新驱动
+    gpio_config(Port_Pin(3,channel),GPIO_INPUT,GPIO_PULL_HIGH);
 
     SADC_REG0X0_CFG0 &= ~(SET_ADC_EN+(0x03 << POS_SADC_REG0X0_CFG0_MODE ));
     SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_ADC);

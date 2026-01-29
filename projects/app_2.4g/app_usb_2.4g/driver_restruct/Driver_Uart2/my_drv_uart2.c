@@ -3,10 +3,11 @@
 #include <string.h>
 #include "my_drv_uart2.h"
 #include "user_config.h"
-#include "gpio.h"
 #include "icu.h"
 #include "BK3633_RegList.h"
 #include "my_queue.h"
+#include "drv_gpio.h"
+
 
 uint8_t uart_rxQueue_buffer[UART2_FIFO_MAX_COUNT]; //UART2接收队列缓冲区
 uint8_t uart_txQueue_buffer[UART2_FIFO_MAX_COUNT]; //UART2发送队列缓冲区
@@ -28,8 +29,10 @@ void uart2_init(uint32_t baudrate)
     SET_UART2_POWER_UP ;   
     uart_clk_div = 16000000/baudrate -1 ;
     
-    gpio_config(0x16,SC_FUN,PULL_HIGH);
-    gpio_config(0x17,SC_FUN,PULL_HIGH);
+    // gpio_config(0x16,SC_FUN,PULL_HIGH);
+    // gpio_config(0x17,SC_FUN,PULL_HIGH);
+    gpio_config(Port_Pin(1,6),GPIO_SC_FUN,GPIO_PULL_HIGH);
+    gpio_config(Port_Pin(1,7),GPIO_SC_FUN,GPIO_PULL_HIGH);
     
     UART2_REG0X0 =  (uart_clk_div << POS_UART2_REG0X0_CLK_DIVID) |
                     (0x0          << POS_UART2_REG0X0_STOP_LEN ) |

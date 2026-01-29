@@ -27,10 +27,10 @@
 #define REG_GPIO_13                     *((volatile unsigned long*)(BASEADDR_GPIO+11*4))
 #define REG_GPIO_14                     *((volatile unsigned long*)(BASEADDR_GPIO+12*4))
 #define REG_GPIO_15                     *((volatile unsigned long*)(BASEADDR_GPIO+13*4))
-#define REG_GPIO_WUATOD_TYPE            *((volatile unsigned long*)(BASEADDR_GPIO+0x30*4))
-#define REG_GPIO_WUATOD_TYPE1           *((volatile unsigned long*)(BASEADDR_GPIO+0x31*4))
-#define REG_GPIO_WUATOD_ENABLE          *((volatile unsigned long*)(BASEADDR_GPIO+0x33*4))
-#define REG_GPIO_WUATOD_STATUS          *((volatile unsigned long*)(BASEADDR_GPIO+0x35*4))
+#define REG_GPIO_WUATOD_TYPE            *((volatile unsigned long*)(BASEADDR_GPIO+0x30*4)) //设置中断触发方式gpio0~15
+#define REG_GPIO_WUATOD_TYPE1           *((volatile unsigned long*)(BASEADDR_GPIO+0x31*4)) //设置中断触发方式gpio16~31
+#define REG_GPIO_WUATOD_ENABLE          *((volatile unsigned long*)(BASEADDR_GPIO+0x33*4)) //中断使能寄存器
+#define REG_GPIO_WUATOD_STATUS          *((volatile unsigned long*)(BASEADDR_GPIO+0x35*4)) //中断状态寄存器gpio0~31，写1清除
 
 #define GPIO_INPUT_VA   0
 #define GPIO_OUTPUT_VA  1

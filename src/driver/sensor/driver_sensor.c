@@ -1,5 +1,7 @@
 #include "driver_sensor.h"
-#include "gpio.h"
+// #include "gpio.h"
+#include "drv_gpio.h"
+
 #define UART_PRINTF    uart_printf
 
 
@@ -47,21 +49,41 @@ const uint8_t register_3205[SENTABLE_LEN][2] =
     0x09, 0x00  // 0x0a-0x7f write protect
 };
 
+//Áî®‰∫ÜÂéüÂéÇÁöÑGPIOÈÖçÁΩÆ
+// void driver_sensor_paw3204_spi_init(void)
+// {
+// #if(SENSOR_TEST)
+//     gpio_set(PAW3205_SCLK_PIN,0);
+//     gpio_config(PAW3205_SCLK_PIN,OUTPUT,PULL_NONE);
+//     gpio_set(PAW3205_SDIO_PIN,0);
+//     gpio_set(PAW3205_MOTSWK_PIN,0);
+//     gpio_config(PAW3205_SDIO_PIN,OUTPUT,PULL_NONE);
+//     gpio_config(PAW3205_MOTSWK_PIN,INPUT,PULL_HIGH);
+// #else
+
+//     gpio_set(PAW3205_SCLK_PIN,1);
+//     gpio_config(PAW3205_SCLK_PIN,OUTPUT,PULL_NONE);
+//     gpio_config(PAW3205_SDIO_PIN,INPUT,PULL_HIGH);
+//     gpio_config(PAW3205_MOTSWK_PIN,INPUT,PULL_HIGH);
+
+// #endif
+// }
+
 void driver_sensor_paw3204_spi_init(void)
 {
 #if(SENSOR_TEST)
-    gpio_set(PAW3205_SCLK_PIN,0);
-    gpio_config(PAW3205_SCLK_PIN,OUTPUT,PULL_NONE);
-    gpio_set(PAW3205_SDIO_PIN,0);
-    gpio_set(PAW3205_MOTSWK_PIN,0);
-    gpio_config(PAW3205_SDIO_PIN,OUTPUT,PULL_NONE);
-    gpio_config(PAW3205_MOTSWK_PIN,INPUT,PULL_HIGH);
+    gpio_set(Port_Pin(0,4),0);
+    gpio_config(Port_Pin(0,4),GPIO_OUTPUT,GPIO_PULL_NONE);
+    gpio_set(Port_Pin(0,3),0);
+    gpio_set(Port_Pin(0,5),0);
+    gpio_config(Port_Pin(0,3),GPIO_OUTPUT,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,5),GPIO_INPUT,GPIO_PULL_HIGH);
 #else
 
-    gpio_set(PAW3205_SCLK_PIN,1);
-    gpio_config(PAW3205_SCLK_PIN,OUTPUT,PULL_NONE);
-    gpio_config(PAW3205_SDIO_PIN,INPUT,PULL_HIGH);
-    gpio_config(PAW3205_MOTSWK_PIN,INPUT,PULL_HIGH);
+    gpio_set(Port_Pin(0,4),1);
+    gpio_config(Port_Pin(0,4),GPIO_OUTPUT,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,3),GPIO_INPUT,GPIO_PULL_HIGH);
+    gpio_config(Port_Pin(0,5),GPIO_INPUT,GPIO_PULL_HIGH);
 
 #endif
 }
@@ -519,8 +541,8 @@ void sensor_powerdown(void)
 
 
 uint8_t driver_sensor_check_up(void)
-//sensor ?¶Ã???????®Æ?®π?®Æ°‰£§??°Í??®®®Æ?<2®§°‰°¿®™®∫?®¨°Ï®§?¶Ã???
-//return:1:®¨°Ï?e°Í? 0 : no
+//sensor ?ÔøΩÔøΩ???????ÔøΩÔøΩ?ÔøΩÔøΩ?ÔøΩÔøΩÔøΩ‰£§??ÔøΩÔøΩ??ÔøΩÔøΩÔøΩÔøΩ?<2ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ?ÔøΩÔøΩÔøΩÏ®§?ÔøΩÔøΩ???
+//return:1:ÔøΩÔøΩÔøΩÔøΩ?eÔøΩÔøΩ? 0 : no
 {
     uint8_t tmp_data=0;
 

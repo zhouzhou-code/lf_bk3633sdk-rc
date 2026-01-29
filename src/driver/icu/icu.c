@@ -22,12 +22,12 @@
 #include "flash.h"
 #include "BK3633_RegList.h"
 #include "rf.h"
-#include "gpio.h"
+#include "drv_gpio.h"
 
 
 #if 1
 static volatile uint8_t reduce_voltage_set=0;
-static uint8_t default_sleep_mode = 0;  //0:½µÑ¹ÐÝÃß   1:ÆÕÍ¨idle
+static uint8_t default_sleep_mode = 0;  //0:ï¿½ï¿½Ñ¹ï¿½ï¿½ï¿½ï¿½   1:ï¿½ï¿½Í¨idle
 static uint8_t system_clk=0;
 //uint8_t system_sleep_flag;
 #endif
@@ -53,7 +53,9 @@ void icu_init(void)
         sys_mode_init(NORMAL_MODE);
     }
     
-    gpio_config(0x00,INPUT,PULL_HIGH);
+    // gpio_config(0x00,INPUT,PULL_HIGH);
+    gpio_config(Port_Pin(0,0),GPIO_INPUT,GPIO_PULL_HIGH);
+    
     Delay_ms(1);
     if(0==gpio_get_input(0x00))
     {
@@ -251,7 +253,7 @@ void mcu_clk_switch(uint8_t clk)
         }break;
         case MCU_CLK_40M:
         {
-            ///cpu 40M,spi 80MÊ±ÖÓÔ´      
+            ///cpu 40M,spi 80MÊ±ï¿½ï¿½Ô´      
             XVR_ANALOG_REG_BAK[9]&= ~(0x01 << 20);
             XVR_ANALOG_REG_BAK[9]&= ~(0x01 << 17);
             XVR_ANALOG_REG_BAK[9]&= ~(0x01 << 16);
@@ -265,7 +267,7 @@ void mcu_clk_switch(uint8_t clk)
         }break;
         case MCU_CLK_80M:
         {
-            ///cpu 80M,spi 80MÊ±ÖÓÔ´
+            ///cpu 80M,spi 80MÊ±ï¿½ï¿½Ô´
             XVR_ANALOG_REG_BAK[9]&= ~(0x01 << 20);
             XVR_ANALOG_REG_BAK[9]&= ~(0x01 << 17);
             XVR_ANALOG_REG_BAK[9]&= ~(0x01 << 16);
@@ -279,7 +281,7 @@ void mcu_clk_switch(uint8_t clk)
         }break;        
         case MCU_CLK_32M:
         {            
-            ///cpu 64M,spi 64MÊ±ÖÓÔ´
+            ///cpu 64M,spi 64MÊ±ï¿½ï¿½Ô´
             XVR_ANALOG_REG_BAK[9]|= (0x01 << 20);
             XVR_ANALOG_REG_BAK[9]&= ~(0x01 << 17);
             XVR_ANALOG_REG_BAK[9]|= (0x01 << 16);
@@ -292,7 +294,7 @@ void mcu_clk_switch(uint8_t clk)
         }break; 
         case MCU_CLK_64M:
         {            
-            ///cpu 64M,spi 64MÊ±ÖÓÔ´
+            ///cpu 64M,spi 64MÊ±ï¿½ï¿½Ô´
             XVR_ANALOG_REG_BAK[9]|= (0x01 << 20);
             XVR_ANALOG_REG_BAK[9]&= ~(0x01 << 17);
             XVR_ANALOG_REG_BAK[9]|= (0x01 << 16);
@@ -307,10 +309,18 @@ void mcu_clk_switch(uint8_t clk)
     }
     
 }
-void deep_sleep_wakeup_set(uint8_t gpio)
-{
-    gpio_config(gpio,INPUT,PULL_HIGH);
-    gpio_wakeup_config(gpio);///set wakeup gpio,set your need gpio
+//åŽŸåŽ‚é’ˆå¯¹è‡ªå·±çš„gpioçš„å‡½æ•°
+// void deep_sleep_wakeup_set(uint8_t gpio)
+// {
+//     gpio_config(gpio,INPUT,PULL_HIGH);
+//     gpio_wakeup_config(gpio);///set wakeup gpio,set your need gpio
+
+// }
+//æ”¹æˆè‡ªå·±çš„gpioå‡½æ•°
+void deep_sleep_wakeup_set(gpio_num_t gpio_num)
+{ 
+    gpio_config(gpio_num, GPIO_INPUT, GPIO_PULL_HIGH);
+    gpio_int_enable(gpio_num, GPIO_INT_EDGE_FALLING, NULL);//set wakeup gpio,set your need gpio
 
 }
 
@@ -370,8 +380,8 @@ void cpu_reset(void)
 
 uint8_t system_reset_reson(void)
 {
-// ÔÚreset
-// Ö®Ç°ÐèÒªµ÷ÓÃsystem_set_reset_resonº¯Êý£¬Ð´Ã÷reset Ô­Òò¡£
+// ï¿½ï¿½reset
+// Ö®Ç°ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½system_set_reset_resonï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½reset Ô­ï¿½ï¿½
     uint32_t datatmp,datatmp1;
 
     uart_printf("reset reason=%x,%x\r\n",addPMU_Reg0x0,addPMU_Reg0x2);
@@ -432,7 +442,9 @@ void test_reset_reason(void)
 {
     //system_set_reset_reson(C_DEEPSLEEP_RESET);
 
-    gpio_config(0x31,INPUT,PULL_HIGH);
+    //gpio_config(0x31,INPUT,PULL_HIGH);
+    //é€‚é…æ–°é©±åŠ¨
+    gpio_config(Port_Pin(3,1),GPIO_INPUT,GPIO_PULL_HIGH);
     deep_sleep_wakeup_set(0x31);
     deep_sleep();
 

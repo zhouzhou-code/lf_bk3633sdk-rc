@@ -27,7 +27,8 @@
 #include "dbg.h"
 #include "icu.h"
 #include "user_config.h"
-#include "gpio.h"
+// #include "gpio.h"
+#include "drv_gpio.h"
 #include "icu.h"
 #include "wdt.h"
 #include "spi.h"
@@ -51,6 +52,8 @@
 #include "bat_protocol.h"
 #include "rf_pair.h"
 #include "addr_pool.h"
+#include "gpio_init.h"
+
 
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
@@ -289,7 +292,9 @@ int main(void)
     AplUsb_SetRxCbk(USB_ENDPID_Hid_MSE_OUT, (void*)Hid_RxCbk);
     #endif
 
-    gpio_cb_register(app_gpio_sleep);
+    
+    //gpio_cb_register(app_gpio_sleep);
+    
     GLOBAL_INT_START();
  
     uart_printf("main start~~~~~\r\n");
@@ -498,11 +503,16 @@ int main(void)
     // p_mac[0], p_mac[1], p_mac[2], p_mac[3], p_mac[4], p_mac[5]);
 
 
-
+    my_key_init();
     RF_Handler_Init();//初始化RF句柄及队列
     while(1)
-    {
-       Do_Pairing_As_Host_SM();
+    {   static uint16_t cnt_last=0;
+        if(cnt!=cnt_last){
+            cnt_last=cnt;
+            uart_printf("Key Pressed! Count: %d\r\n",cnt_last);
+        }
+            
+       //Do_Pairing_As_Host_SM();
        //Do_Pairing_As_slave_SM();
     }
     

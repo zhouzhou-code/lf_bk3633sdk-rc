@@ -16,6 +16,8 @@
 #include "driver_usb.h"
 #include "usbdef.h"
 #include "app.h"
+#include "drv_gpio.h"
+
 
 /*
 extern int bim1_uart_printf(const char * fmt,...);
@@ -344,7 +346,8 @@ void _endp_tx(int endpn){
     if(cbk)cbk(txbuf,0);
 }
 extern int uart2_printf(const char * fmt,...);
-extern void gpio_set_neg(uint8_t gpio);
+// extern void gpio_set_neg(uint8_t gpio);
+extern void gpio_toggle(uint8_t gpio);
 
 #define EPx_DATAERROR   BIT(3)
 #define TEST_PIN2               0x03
@@ -356,7 +359,10 @@ void _endp_rx(int endpn){
     HwUsb_Switch2Endp(endpn);
     csr1=(REG_USB_RXCSR2<<8)|REG_USB_RXCSR1;
     if(csr1&EPx_DATAERROR)
-         gpio_set_neg(TEST_PIN2);
+        //gpio_set_neg(TEST_PIN2);
+        //适配新驱动
+        gpio_toggle(Port_Pin(0,3));
+
     rxBuf=(char*)AplUsb_GetRxBuf(endpn);
     sz=HwUsb_EndpRead(endpn, rxBuf);
     CBK_USBAPP cbk=(CBK_USBAPP)AplUsb_GetRxCbk(endpn);

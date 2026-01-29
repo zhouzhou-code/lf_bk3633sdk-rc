@@ -18,7 +18,8 @@
 #include "icu.h"
 #include "uart.h"       // uart definition
 #include "rwip.h" 
-#include "gpio.h"
+// #include "gpio.h"
+#include "drv_gpio.h"
 #include "user_config.h"
 #include "icu.h"
 #include "BK3633_RegList.h"
@@ -43,8 +44,12 @@ void uart_init(uint32_t baudrate)
     SET_UART_POWER_UP ;   //open periph
     uart_clk_div = 16000000/baudrate -1;
     
-    gpio_config(0x00,SC_FUN,PULL_HIGH);
-    gpio_config(0x01,SC_FUN,PULL_HIGH);
+    // gpio_config(0x00,SC_FUN,PULL_HIGH);
+    // gpio_config(0x01,SC_FUN,PULL_HIGH);
+
+    //适配新驱动
+    gpio_config(Port_Pin(0,0),GPIO_SC_FUN,GPIO_PULL_HIGH);
+    gpio_config(Port_Pin(0,1),GPIO_SC_FUN,GPIO_PULL_HIGH);
     
     UART_REG0X0 = (uart_clk_div << POS_UART_REG0X0_CLK_DIVID) |
                     (0x0          << POS_UART_REG0X0_STOP_LEN ) |

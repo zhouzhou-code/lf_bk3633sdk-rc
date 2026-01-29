@@ -1,6 +1,6 @@
 #include "app.h"
 #include "icu.h"
-#include "gpio.h"
+#include "drv_gpio.h"
 #include "wdt.h"
 #include "driver_timer.h"
 extern SYSTEM_STRUCT_DATA system_data;
@@ -121,31 +121,36 @@ void app_mouse_key_check(void)
 void app_gpio_sleep(void)
 {
 
-    gpio_set_int_mode(KEY_LEFT,3);
-    gpio_set_int_mode(KEY_RIGHT,3);
-    gpio_set_int_mode(KEY_MIDDLE,3);
-    gpio_set_int_mode(KEY_PAIR,3);
-    gpio_set_int_mode(PAW3205_MOTSWK_PIN,3);
+    // 适配新驱动,先注释掉
+    
+    // gpio_set_int_mode(KEY_LEFT,3);
+    // gpio_set_int_mode(KEY_RIGHT,3);
+    // gpio_set_int_mode(KEY_MIDDLE,3);
+    // gpio_set_int_mode(KEY_PAIR,3);
+    // gpio_set_int_mode(PAW3205_MOTSWK_PIN,3);
 
-    if(gpio_get_input(WHEEL_B))
-        gpio_set_int_mode(WHEEL_B,3);
-    else
-        gpio_set_int_mode(WHEEL_B,2);
-    if(gpio_get_input(WHEEL_A))
-        gpio_set_int_mode(WHEEL_A,3);
-    else
-        gpio_set_int_mode(WHEEL_A,2);
-    #if    0
-    REG_APB5_GPIO_WUATOD_TYPE = ((1<<( (KEY_LEFT>>4)*8)+(KEY_LEFT&0x0f)))
-                                |((1<<((KEY_RIGHT>>4)*8)+(KEY_RIGHT&0x0f)))
-                                |((1<<( (KEY_MIDDLE>>4)*8)+(KEY_MIDDLE&0x0f)))
-                                |((1<<( (KEY_PAIR>>4)*8)+(KEY_PAIR&0x0f)))
-                                |((1<<( (WHEEL_B>>4)*8)+(WHEEL_B&0x0f)))
-                                |((1<<( (WHEEL_A>>4)*8)+(WHEEL_A&0x0f)))
-                                |((1<<( (PAW3205_MOTSWK_PIN>>4)*8)+(PAW3205_MOTSWK_PIN&0x0f)));
-    #endif
-    REG_GPIO_WUATOD_STATUS = 0xffffffff ;
-    SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_GPIO);
+    // if(gpio_get_input(WHEEL_B))
+    //     gpio_set_int_mode(WHEEL_B,3);
+    // else
+    //     gpio_set_int_mode(WHEEL_B,2);
+    // if(gpio_get_input(WHEEL_A))
+    //     gpio_set_int_mode(WHEEL_A,3);
+    // else
+    //     gpio_set_int_mode(WHEEL_A,2);
+    // #if    0
+    // REG_APB5_GPIO_WUATOD_TYPE = ((1<<( (KEY_LEFT>>4)*8)+(KEY_LEFT&0x0f)))
+    //                             |((1<<((KEY_RIGHT>>4)*8)+(KEY_RIGHT&0x0f)))
+    //                             |((1<<( (KEY_MIDDLE>>4)*8)+(KEY_MIDDLE&0x0f)))
+    //                             |((1<<( (KEY_PAIR>>4)*8)+(KEY_PAIR&0x0f)))
+    //                             |((1<<( (WHEEL_B>>4)*8)+(WHEEL_B&0x0f)))
+    //                             |((1<<( (WHEEL_A>>4)*8)+(WHEEL_A&0x0f)))
+    //                             |((1<<( (PAW3205_MOTSWK_PIN>>4)*8)+(PAW3205_MOTSWK_PIN&0x0f)));
+    // #endif
+    // //REG_GPIO_WUATOD_STATUS = 0xffffffff ;
+    // //适配新驱动
+    // REG_GPIO_INT_STAT = 0xffffffff ;
+
+    // SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_GPIO);
 
 }
 /*! \fn void driver_timer0_reset(void)

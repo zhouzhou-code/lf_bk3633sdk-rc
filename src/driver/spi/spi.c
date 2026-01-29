@@ -24,7 +24,7 @@
 #include "user_config.h"
 #include "icu.h" 
 #include "uart.h"
-#include "gpio.h"
+#include "drv_gpio.h"
 #include "dma.h"       
 #include "BK3633_RegList.h"
 #include "rf.h"
@@ -192,7 +192,7 @@ void spi_read( uint8_t *rbuf, uint32_t r_size)
 
     while(1)
     {
-        if(SPI_REG0X2_STAT&0x4)  //fifo ÓÐÊý¾Ý
+        if(SPI_REG0X2_STAT&0x4)  //fifo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         {
             *rbuf = (SPI_REG0X3_DAT & 0xff);
             r_size--;
@@ -335,8 +335,8 @@ void spi_dma_read_result_callback(void)
 
 
 /*************************************************************************
-**º¯ÊýÃû³Æ:void spi_master_test(void)
-**¹¦ÄÜÃèÊö:Ö±½Óµ÷ÓÃ£¬¿É½øÐÐ×öÖ÷²âÊÔ,¿ÉÒÔ°Ñmosi Óëmiso½Óµ½Ò»Æð½øÐÐ²âÊÔ
+**ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½:void spi_master_test(void)
+**ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½:Ö±ï¿½Óµï¿½ï¿½Ã£ï¿½ï¿½É½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½Ô°ï¿½mosi ï¿½ï¿½misoï¿½Óµï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ð²ï¿½ï¿½ï¿½
 *************************************************************************/
 void spi_master_test(void)
 {
@@ -456,7 +456,7 @@ void spi_slave_stop()
 unsigned char terminal_value;
 
 
-//after cs high£¬init REG_APB2_SPI_DAT(10byte)
+//after cs highï¿½ï¿½init REG_APB2_SPI_DAT(10byte)
 void spi_slave_done_data(void)
 {
     int i;
@@ -517,8 +517,8 @@ void spi_slave_isr(void)
 }
 
 /*************************************************************************
-**º¯ÊýÃû³Æ:void spi_slave_test(void)
-**¹¦ÄÜÃèÊö:Ö±½Óµ÷ÓÃ£¬¿É½øÐÐ×ö´Ó²âÊÔ
+**ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½:void spi_slave_test(void)
+**ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½:Ö±ï¿½Óµï¿½ï¿½Ã£ï¿½ï¿½É½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó²ï¿½ï¿½ï¿½
 *************************************************************************/
 void spi_slave_test(void)
 {

@@ -1,7 +1,8 @@
 #include "intc.h"            // interrupt controller
 #include "uart.h"            // uart definitions
 #include "BK3633_Reglist.h"
-#include "gpio.h"
+// #include "gpio.h"
+#include "drv_gpio.h"
 #include "spi.h"
 #include "i2c.h"
 #include "icu.h"
@@ -77,6 +78,10 @@ void intc_init(void)
   setf_SYS_Reg0x10_int_bk24_en; //使能bk24系统级中断
   //setf_SYS_Reg0x11_int_bk24_pri; //bk24系统级中断设为fiq
   clrf_SYS_Reg0x11_int_bk24_pri;
+
+  setf_SYS_Reg0x10_int_aon_gpio_en; //使能
+  clrf_SYS_Reg0x11_int_aon_gpio_pri; //aon_gpio系统级中断设为irq
+
   uart_printf("intc_init  bk24\r\n");
 }
 
@@ -182,8 +187,9 @@ void intc_init(void)
     }
 #endif
 
-    
     intc_status_clear(irq_status);
+
+    //uart_printf("0x%08X\r\n", intc_status_get());
 }
 
 /*__FIQ */void intc_fiq(void)

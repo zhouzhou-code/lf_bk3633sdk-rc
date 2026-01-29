@@ -13,7 +13,6 @@
 #include "intc.h"            // interrupt controller
 #include "uart.h"            // uart definitions
 #include "BK3633_Reglist.h"
-#include "gpio.h"
 #include "spi.h"
 #include "i2c.h"
 #include "icu.h"

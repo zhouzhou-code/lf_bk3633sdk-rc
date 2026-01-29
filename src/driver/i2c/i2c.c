@@ -5,9 +5,10 @@
 #include "i2c.h"
 #include "BK_HCI_Protocol.h"
 #include "uart.h"
-#include "gpio.h"
 #include "BK3633_RegList.h"
 #include "icu.h"
+#include "drv_gpio.h"
+
 
 #define NUMBER_ROUND_UP(a,b)        ((a) / (b) + (((a) % (b)) ? 1 : 0))
 #define NUMBER_ROUND_DOWN(a,b)      ((a) / (b))
@@ -298,8 +299,13 @@ void i2c_init(uint32_t slaveAddr, uint32_t baudRate)
     //ICU_I2C_CLK_PWD_CLEAR();
 
     // Enable GPIO P0.2, P0.3 peripheral function for I2C
-    gpio_config(0x02,SC_FUN,PULL_HIGH);
-    gpio_config(0x03,SC_FUN,PULL_HIGH);
+    // gpio_config(0x02,SC_FUN,PULL_HIGH);
+    // gpio_config(0x03,SC_FUN,PULL_HIGH);
+
+    gpio_config(Port_Pin(0,2),GPIO_SC_FUN,GPIO_PULL_HIGH);
+    gpio_config(Port_Pin(0,3),GPIO_SC_FUN,GPIO_PULL_HIGH);
+    
+    
     //Close JTAG to release GPIO to normal function
     //CLOSE_JTAG_MODE();
     if(I2C_MODE)

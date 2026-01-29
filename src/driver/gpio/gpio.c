@@ -177,14 +177,36 @@ void gpio_cb_register(GPIO_INT_CALLBACK_T cb)
     }
 }
 
+//原厂这个用不了，没清标志位
+// void gpio_isr(void)
+// {
+
+//     // SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_GPIO);
+//     if(gpio_int_cb)
+//     {
+//         (*gpio_int_cb)();
+//     }
+
+// }
+
+
 void gpio_isr(void)
 {
+    uart_printf("gpio_isr enter\r\n");
 
-    //SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_GPIO);
-    if(gpio_int_cb)
-    {
+    uint32_t int_sta1= REG_GPIO_WUATOD_STATUS;
+    if(int_sta1 & (1<<0x10)){
+        uart_printf("gpio 16 irq\r\n"); 
+    }
+    if(int_sta1 & (1<<10)){
+        uart_printf("gpio 10 irq\r\n"); 
+    }
+     if(gpio_int_cb){
         (*gpio_int_cb)();
     }
+    uart_printf("int_sta1: 0x%08X\r\n", int_sta1); 
+    //直接清除所有中断状态
+    REG_GPIO_WUATOD_STATUS =0xffffffff;
 
 }
 
