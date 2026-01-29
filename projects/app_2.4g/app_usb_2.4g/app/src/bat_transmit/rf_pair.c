@@ -371,3 +371,145 @@ void Do_Pairing_As_Host_SM(void) {
     }
         
 }
+
+
+
+// 定义状态机管理的结构体，方便重置和管理
+typedef struct {
+    slave_pair_state_t state;
+    uint32_t start_wait;
+    uint8_t confirm_retries;
+    uint8_t is_running; // 标记是否正在运行配对逻辑
+} SlavePairCtrl_t;
+
+static SlavePairCtrl_t g_slave_ctrl = {SLAVE_PAIR_IDLE, 0, 0, 0};
+
+// 用于外部启动配对
+void Slave_Pairing_Start(void) {
+    g_slave_ctrl.state = SLAVE_PAIR_IDLE;
+    g_slave_ctrl.confirm_retries = 0;
+    g_slave_ctrl.is_running = 1;
+    
+    //初始化RF设置
+    HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
+    HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
+    HAL_RF_SetTxMode(&hrf);
+    uart_printf("Slave: Start Pairing Task...\n");
+}
+
+//用于外部强制停止配对
+void Slave_Pairing_Stop(void) {
+    if (g_slave_ctrl.is_running) {
+        g_slave_ctrl.is_running = 0;
+        g_slave_ctrl.state = SLAVE_PAIR_IDLE;
+        uart_printf("Slave: Pairing Process Stopped by External Signal!\n");
+    }
+}
+
+//非阻塞，需在main while(1)中调用
+void Slave_Pairing_Task(void) {
+    //如果没启动，直接返回
+    if (g_slave_ctrl.is_running == 0) {
+        return;
+    }
+
+    //局部变量定义
+    pair_req_pkt req_pkt = {CMD_PAIR_REQ, 0x12345678};
+    pair_resp_pkt *recv_resp_pkg = NULL;
+    pair_confirm_pkt slave_cfm_pkg = {CMD_PAIR_CONFIRM, slave_magic_number};
+    pair_confirm_pkt *recv_cfm_pkg = NULL;
+    uint8_t len;
+    
+    const uint16_t RESP_WAIT_TIMEOUT = 2000; 
+    const uint16_t CONFIRM_WAIT_TIMEOUT = 2000;
+    const uint8_t MAX_CONFIRM_RETRIES = 3; 
+
+    //必须保证RF底层处理函数被频繁调用
+    RF_Service_Handler(&hrf);
+
+    switch (g_slave_ctrl.state) {
+    case SLAVE_PAIR_IDLE:
+        g_slave_ctrl.state = SLAVE_PAIR_SEND_REQ;
+        break;
+
+    case SLAVE_PAIR_SEND_REQ:
+        uart_printf("state:send req\n");
+        RF_txQueue_Send((uint8_t*)&req_pkt, sizeof(req_pkt));
+
+        g_slave_ctrl.start_wait = Get_SysTick_ms();
+        g_slave_ctrl.state = SLAVE_PAIR_WAIT_RESP;
+        break;
+
+    case SLAVE_PAIR_WAIT_RESP:
+        //检查是否有数据 (非阻塞检查)
+        if (RF_rxQueue_Recv(&recv_resp_pkg, &len, NULL) == 1) {
+            if (len == sizeof(pair_resp_pkt) && recv_resp_pkg->cmd == CMD_PAIR_RESP) {
+                 uint32_t new_addr[5];
+                 for(int i=0;i<5;i++) new_addr[i] = recv_resp_pkg->new_addr[i];
+
+                 HAL_RF_SetTxAddress(&hrf, new_addr, 5);
+                 HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
+                 
+                 uart_printf("Slave: Got Resp! Switch Addr.\n");
+                 g_slave_ctrl.state = SLAVE_PAIR_SEND_CONFIRM;
+                 return; // 状态跃迁后立即退出，下一次循环处理新状态
+            }
+        }
+
+        //检查超时
+        if (Get_SysTick_ms() - g_slave_ctrl.start_wait > RESP_WAIT_TIMEOUT) {
+            uart_printf("Wait Resp Timeout, Retry...\n");
+            g_slave_ctrl.state = SLAVE_PAIR_SEND_REQ;
+        }
+        break;
+
+    case SLAVE_PAIR_SEND_CONFIRM:
+        uart_printf("state:send confirm (%d)\n", g_slave_ctrl.confirm_retries + 1);
+        RF_txQueue_Send((uint8_t*)&slave_cfm_pkg, sizeof(slave_cfm_pkg));
+        HAL_RF_SetTxMode(&hrf);
+        
+        g_slave_ctrl.confirm_retries++;
+        g_slave_ctrl.start_wait = Get_SysTick_ms();
+        g_slave_ctrl.state = SLAVE_PAIR_WAIT_CONFIRM_ACK;
+        break;
+
+    case SLAVE_PAIR_WAIT_CONFIRM_ACK:
+        //必须切换到接收模式监听
+        HAL_RF_SetRxMode(&hrf); 
+        uart_printf("state:wait confirm ack\n");
+        //检查数据
+        if (RF_rxQueue_Recv(&recv_cfm_pkg, &len, NULL) == 1) {
+            if (len == sizeof(pair_confirm_pkt) &&
+                recv_cfm_pkg->cmd == CMD_PAIR_CONFIRM &&
+                recv_cfm_pkg->magic_number == host_magic_number) {
+                
+                uart_printf("Slave: Pairing Success!\n");
+                slave_pair_success_flag = 1;
+                g_slave_ctrl.is_running = 0; // 任务结束
+                g_slave_ctrl.state = SLAVE_PAIR_DONE;
+                return;
+            }
+        }
+
+        //检查超时
+        if (Get_SysTick_ms() - g_slave_ctrl.start_wait > CONFIRM_WAIT_TIMEOUT) {
+            if (g_slave_ctrl.confirm_retries < MAX_CONFIRM_RETRIES) {
+                uart_printf("Confirm Timeout, Resend...\n");
+                g_slave_ctrl.state = SLAVE_PAIR_SEND_CONFIRM;
+            } else {
+                uart_printf("Pairing Failed (Max Retries), Restarting...\n");
+                g_slave_ctrl.confirm_retries = 0;
+                g_slave_ctrl.state = SLAVE_PAIR_SEND_REQ;
+                
+                // 重置地址
+                HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
+                HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
+            }
+        }
+        break;
+
+    case SLAVE_PAIR_DONE:
+        //这里的代码可能永远不会执行到，因为 is_running 被置0了
+        break;
+    }
+}

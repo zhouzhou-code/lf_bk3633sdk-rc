@@ -65,4 +65,10 @@ void Do_Pairing_As_Host(void);
 void Do_Pairing_As_Host_SM(void);
 void Do_Pairing_As_slave_SM(void);
 
+
+//非阻塞的配对模式
+void Slave_Pairing_Start(void);
+void Slave_Pairing_Stop(void);
+void Slave_Pairing_Task(void);
+
 #endif // __RF_PAIR_H__
