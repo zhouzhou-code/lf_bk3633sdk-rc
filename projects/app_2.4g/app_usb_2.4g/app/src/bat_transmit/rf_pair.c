@@ -23,6 +23,7 @@
 #include "app.h"
 
 #include "addr_pool.h"
+#include "timer_handler.h"
 
 
 uint8_t slave_pair_success_flag = 0;
@@ -32,6 +33,9 @@ static const uint32_t PAIR_ADDR_DEFAULT[5] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
 
 static uint8_t slave_magic_number = 0x5A; 
 static uint8_t host_magic_number  = 0xA5;
+
+SingleByteAddrPool_t g_addr3;
+SingleByteAddrPool_t g_addr4;
 
 
 printf_all_registers(void)
@@ -230,6 +234,11 @@ void Do_Pairing_As_Host_SM(void) {
     const uint8_t MAX_RESP_RETRIES = 3;//响应req包最大重发次数
     const uint16_t CONFIRM_WAIT_TIMEOUT = 1000; //ms
 
+    /* 初始化ID池 */
+    addrpool_register_get_systick_ms(Get_SysTick_ms);
+    ADDR_POOL_INIT_NORESERVED(&g_addr3);
+    ADDR_POOL_INIT_NORESERVED(&g_addr4);
+
     //初始化并监听默认地址
     HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
     HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
@@ -250,8 +259,12 @@ void Do_Pairing_As_Host_SM(void) {
                     resp.new_addr[0] = ADDR_BASE_BYTE0;
                     resp.new_addr[1] = ADDR_BASE_BYTE1;
                     resp.new_addr[2] = ADDR_BASE_BYTE2; 
-                    resp.new_addr[3] = ADDR_BASE_BYTE3; 
-                    if(addrpool_alloc_addr_random(&resp.new_addr[4]) != 0) {
+                    // resp.new_addr[3] = ADDR_BASE_BYTE3; 
+                    if(addrpool_alloc_addr_random(&g_addr3, &resp.new_addr[3]) != 0) {
+                        uart_printf("Failed to allocate random address\n");
+                        // Handle error, maybe set state to an error state or retry
+                    }
+                    if(addrpool_alloc_addr_random(&g_addr4, &resp.new_addr[4]) != 0) {
                         uart_printf("Failed to allocate random address\n");
                         // Handle error, maybe set state to an error state or retry
                     }
@@ -323,7 +336,7 @@ void Do_Pairing_As_Host_SM(void) {
                 //检查发送成功中断计数是否增加，增加则说明发送成功
                 if(rf_int_count_txds >= txds_record){
                     state = HOST_PAIR_DONE;
-                    uart_printf("Host: Pairing Success!\n");
+                    uart_printf("Host: Pairing Success:cur_tx%d,tx_record%d\n", rf_int_count_txds, txds_record);
                     break;
                 }
             }

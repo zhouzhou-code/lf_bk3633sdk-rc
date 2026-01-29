@@ -1,12 +1,10 @@
 
 #include <stdio.h>
 #include <stdint.h>
-
 #include "addr_pool.h"
 
-// 地址池状态位图：0表示空闲，1表示已占用
-// 256个比特需要32字节(256/8 = 32)
-static uint8_t g_addr_usage_bitmap[ADDR_POOL_SIZE / 8] = {0};
+
+
 //系统时间,用于随机数
 static uint32_t (*get_systick_ms)(void) = NULL;
 
@@ -25,7 +23,6 @@ void __addrpool_init_internal(SingleByteAddrPool_t *pool, uint8_t *list, uint16_
         }
     }
 }
-
 
 /**
  * @brief 标记ID为已使用，将ID在位图上的对应位:第(id/8)字节的第(id%8)位置1
@@ -82,14 +79,23 @@ void addrpool_register_get_systick_ms(uint32_t (*get_systick_ms_func)(void)){
  * @param out_id 输出参数，返回分配到的ID
  * @return 0: 成功, -1: 失败(池满了)
  */
-int8_t addrpool_alloc_addr_random(SingleByteAddrPool_t* pool,uint8_t *out_id) {
-    //获取一个随机起始点
-    uint8_t start_index = (uint8_t)(get_systick_ms() & 0xFF); 
+int8_t addrpool_alloc_addr_random(SingleByteAddrPool_t* pool, uint8_t *out_id) {
+    // 静态计数器，增加熵
+    static uint8_t entropy_counter = 0;
+    entropy_counter++;
 
-    //从随机点开始，尝试 256 次 (保证遍历整个池)
+    // 计算高熵起点 混合：系统时间 + 累加器 + 对象地址(不同pool地址不同)
+    uint32_t seed = get_systick_ms() + entropy_counter + (uint32_t)pool;
+    uint8_t start_index = (uint8_t)((seed * 131) & 0xFF); 
+
+    // 定义查找步长 (必须是奇数，推荐质数)；步长越大，相邻分配的 ID 离得越远
+    const uint8_t STEP = 31; 
+
+    // 3. 遍历查找
     for (int i = 0; i < 256; i++) {
-        // 计算当前要检查的 ID
-        uint8_t curr_id = (start_index + i) % 256;
+        // 使用步长跳跃查找
+        uint8_t curr_id = (start_index + (i * STEP)) % 256;
+        
         uint8_t byte_idx = curr_id / 8;
         uint8_t bit_idx  = curr_id % 8;
 
@@ -98,17 +104,17 @@ int8_t addrpool_alloc_addr_random(SingleByteAddrPool_t* pool,uint8_t *out_id) {
         // 检查保留位图
         uint8_t reserved = pool->reserved_id[byte_idx] & (1 << bit_idx);
 
-        //只有当未被占用且非保留时，才分配
         if (!occupied && !reserved) {
-            pool->bitmap[byte_idx] |= (1 << bit_idx); // 标记占用
+            pool->bitmap[byte_idx] |= (1 << bit_idx);
             *out_id = curr_id;
-            
             return 0; // 成功
         }
     }
 
     return -1;
 }
+
+
 
 
 

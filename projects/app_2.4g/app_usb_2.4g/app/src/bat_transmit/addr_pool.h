@@ -17,8 +17,8 @@
     __addrpool_init_internal(pool_ptr, (uint8_t[]){__VA_ARGS__}, sizeof((uint8_t[]){__VA_ARGS__}))
 
 //用户使用的初始化宏：无保留ID
-//eg: ADDR_POOL_INIT_EMPTY(&my_pool);
-#define ADDR_POOL_INIT_EMPTY(pool_ptr) \
+//eg: ADDR_POOL_INIT_NORESERVED(&my_pool);
+#define ADDR_POOL_INIT_NORESERVED(pool_ptr) \
     __addrpool_init_internal(pool_ptr, NULL, 0)
 
 

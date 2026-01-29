@@ -497,13 +497,13 @@ int main(void)
     // uart_printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\r\n",
     // p_mac[0], p_mac[1], p_mac[2], p_mac[3], p_mac[4], p_mac[5]);
 
-    addrpool_register_get_systick_ms(Get_SysTick_ms);
+
 
     RF_Handler_Init();//初始化RF句柄及队列
     while(1)
     {
-       //Do_Pairing_As_Host_SM();
-       Do_Pairing_As_slave_SM();
+       Do_Pairing_As_Host_SM();
+       //Do_Pairing_As_slave_SM();
     }
     
     
