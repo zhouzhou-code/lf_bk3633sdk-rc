@@ -30,7 +30,6 @@ typedef struct {
 //内部函数，用户不直接调用以下函数，使用宏 ADDR_POOL_INIT 初始化地址池
 void __addrpool_init_internal(SingleByteAddrPool_t *pool, uint8_t *list, uint16_t count);
 
-void addrpool_register_get_systick_ms(uint32_t (*get_systick_ms_func)(void));
 void addrpool_occupy(SingleByteAddrPool_t* pool, uint8_t id);
 void addrpool_free(SingleByteAddrPool_t* pool, uint8_t id);
 int8_t addrpool_alloc_addr_first(SingleByteAddrPool_t* pool,uint8_t *out_id) ;

@@ -1,12 +1,7 @@
-
 #include <stdio.h>
 #include <stdint.h>
 #include "addr_pool.h"
 
-
-
-//系统时间,用于随机数
-static uint32_t (*get_systick_ms)(void) = NULL;
 
 //初始化地址池，传入保留ID列表
 void __addrpool_init_internal(SingleByteAddrPool_t *pool, uint8_t *list, uint16_t count)
@@ -70,9 +65,6 @@ int8_t addrpool_alloc_addr_first(SingleByteAddrPool_t* pool, uint8_t *out_id) {
     return -1; // 找遍了所有字节，满
 }
 
-void addrpool_register_get_systick_ms(uint32_t (*get_systick_ms_func)(void)){
-    get_systick_ms = get_systick_ms_func;
-}
 
 /**
  * @brief 随机分配一个可用的 ID 并标记占用
@@ -80,13 +72,13 @@ void addrpool_register_get_systick_ms(uint32_t (*get_systick_ms_func)(void)){
  * @return 0: 成功, -1: 失败(池满了)
  */
 int8_t addrpool_alloc_addr_random(SingleByteAddrPool_t* pool, uint8_t *out_id) {
-    // 静态计数器，增加熵
+    // 静态计数器，增加不确定熵
     static uint8_t entropy_counter = 0;
     entropy_counter++;
 
     // 计算高熵起点 混合：系统时间 + 累加器 + 对象地址(不同pool地址不同)
-    uint32_t seed = get_systick_ms() + entropy_counter + (uint32_t)pool;
-    uint8_t start_index = (uint8_t)((seed * 131) & 0xFF); 
+    uint32_t seed = entropy_counter + (uint32_t)pool;
+    uint8_t start_index = (uint8_t)((seed * 131)^(seed>>8)); 
 
     // 定义查找步长 (必须是奇数，推荐质数)；步长越大，相邻分配的 ID 离得越远
     const uint8_t STEP = 31; 
