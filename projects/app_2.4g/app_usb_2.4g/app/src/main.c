@@ -503,13 +503,24 @@ int main(void)
     // p_mac[0], p_mac[1], p_mac[2], p_mac[3], p_mac[4], p_mac[5]);
 
 
+    /* slave */
     //my_key_init();
+    // RF_Handler_Init();//初始化RF句柄及队列
+    // Slave_Pairing_Start(); //启动从机配对模式
+    // while(1)
+    // {
+    //      Slave_Pairing_Task(); //非阻塞配对任务调用
+    //      RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms
+
+    //     //Do_Pairing_As_Host_SM();
+    // }
+    /* host */
     RF_Handler_Init();//初始化RF句柄及队列
-    Slave_Pairing_Start(); //启动从机配对模式
+    Host_Pairing_Start(); //启动机配对模式
     while(1)
     {
-         Slave_Pairing_Task(); //非阻塞配对任务调用
-         RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms
+         Host_Pairing_Task(); //非阻塞配对任务调用
+         RF_Service_Handler(&hrf);  //RF发送服务处理函数，
 
         //Do_Pairing_As_Host_SM();
     }

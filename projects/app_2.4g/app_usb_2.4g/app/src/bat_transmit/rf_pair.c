@@ -534,20 +534,18 @@ typedef struct {
 static HostPairCtrl_t g_host_ctrl;
 
 void Host_Pairing_Start(void) {
-    // 1. 初始化控制块
+    // 初始化控制块
     memset(&g_host_ctrl, 0, sizeof(g_host_ctrl));
     g_host_ctrl.state = HOST_PAIR_IDLE;
     g_host_ctrl.is_running = 1;
     g_host_ctrl.host_cfm_pkt.cmd = CMD_PAIR_CONFIRM;
     g_host_ctrl.host_cfm_pkt.magic_number = host_magic_number;
 
-    // 2. 初始化地址池 (只需做一次，建议系统启动时做，或者在这里做)
-    // 注意：如果这是重复调用，需要考虑是否重置地址池。
-    // 这里假设每次开始配对都重置池子：
+    // 初始化地址池 (只需做一次，建议系统启动时做，或者在这里做)
     ADDR_POOL_INIT_NORESERVED(&g_addr3);
     ADDR_POOL_INIT_NORESERVED(&g_addr4);
 
-    // 3. 初始化 RF
+    // 初始化 RF
     HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
     HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
     HAL_RF_SetRxMode(&hrf);
@@ -566,7 +564,6 @@ void Host_Pairing_Stop(void) {
 void Host_Pairing_Task(void) {
     if (!g_host_ctrl.is_running) return;
 
-    // 局部临时变量
     pair_req_pkt *recv_req = NULL;
     pair_confirm_pkt *recv_cfm = NULL;
     uint8_t len;
@@ -575,7 +572,7 @@ void Host_Pairing_Task(void) {
     const uint16_t CONFIRM_WAIT_TIMEOUT = 1000;
     const uint16_t FINAL_SEND_DURATION = 1000;
 
-    // 维持 RF 底层状态机
+    // 维持RF底层状态机
     RF_Service_Handler(&hrf);
 
     switch (g_host_ctrl.state) {
@@ -598,11 +595,11 @@ void Host_Pairing_Task(void) {
                 g_host_ctrl.resp_pkt.new_addr[1] = ADDR_BASE_BYTE1;
                 g_host_ctrl.resp_pkt.new_addr[2] = ADDR_BASE_BYTE2;
 
-                // 分配地址
+                // 分配最后两位地址
                 if(addrpool_alloc_addr_random(&g_addr3, &g_host_ctrl.resp_pkt.new_addr[3]) != 0 ||
                    addrpool_alloc_addr_random(&g_addr4, &g_host_ctrl.resp_pkt.new_addr[4]) != 0) {
                     uart_printf("Host: Addr Alloc Failed! Ignore Req.\n");
-                    break; // 分配失败，继续等待下一个请求
+                    break; //分配失败，继续等待下一个请求
                 }
 
                 // 准备进入发送阶段
@@ -615,27 +612,27 @@ void Host_Pairing_Task(void) {
     case HOST_PAIR_SEND_RESP:
         uart_printf("Host: Sending RESP (try %d)\n", g_host_ctrl.resp_retries + 1);
         
-        // 1. 切回默认地址发送
+        // 切回默认地址发送
         HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
-        HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5); // 确保ACK也能收到
-        
+        HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5); 
+
         // 2. 发送缓存好的包
         RF_txQueue_Send((uint8_t*)&g_host_ctrl.resp_pkt, sizeof(g_host_ctrl.resp_pkt));
-        // 注意：这里不需要手动调 Service_Handler，函数入口处会统一调
-        
-        // 3. 准备切换到新地址监听 Confirm
+
+        RF_Service_Handler(&hrf);
+        // 准备切换到新地址监听 Confirm
         g_host_ctrl.resp_retries++;
         
         // 提取新地址
         uint32_t new_addr[5];
         for(int i=0; i<5; i++) new_addr[i] = g_host_ctrl.resp_pkt.new_addr[i];
         
-        // 切换 RF 地址
+        // 切换地址
         HAL_RF_SetTxAddress(&hrf, new_addr, 5);
         HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
         HAL_RF_SetRxMode(&hrf);
 
-        // 4. 设置超时，进入等待 Confirm
+        //设置超时，进入等待 Confirm
         g_host_ctrl.start_wait = Get_SysTick_ms();
         g_host_ctrl.state = HOST_PAIR_WAIT_CONFIRM;
         break;
@@ -650,7 +647,6 @@ void Host_Pairing_Task(void) {
                 uart_printf("Host: Recv Confirm! Sending Final Ack...\n");
                 
                 // 记录当前发送完成计数，用于判断是否发送成功
-                // 注意：这里假设 rf_int_count_txds 是全局变量
                 g_host_ctrl.txds_snapshot = rf_int_count_txds; 
                 g_host_ctrl.start_wait = Get_SysTick_ms();
                 g_host_ctrl.state = HOST_PAIR_SEND_FINAL_CONFIRM;
@@ -670,22 +666,18 @@ void Host_Pairing_Task(void) {
                 HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
                 HAL_RF_SetRxMode(&hrf);
                 
-                // 这里可能需要释放之前申请的地址? (根据你的业务逻辑决定)
-                // AddrPool_Free(&g_addr3, g_host_ctrl.resp_pkt.new_addr[3]); ...
-                
                 g_host_ctrl.state = HOST_PAIR_WAIT_REQ;
             }
         }
         break;
 
     case HOST_PAIR_SEND_FINAL_CONFIRM:
-        // 持续发送 Final Confirm 直到成功或超时
         
-        // 1. 尝试发送
+        // 尝试发送
         RF_txQueue_Send((uint8_t*)&g_host_ctrl.host_cfm_pkt, sizeof(g_host_ctrl.host_cfm_pkt));
-        HAL_RF_SetTxMode(&hrf); // 确保切到发送模式
+        HAL_RF_SetTxMode(&hrf);
 
-        // 2. 检查是否有新的发送完成中断 (Current > Snapshot)
+        // 检查是否有新的发送完成中断 (Current > Snapshot)
         if (rf_int_count_txds > g_host_ctrl.txds_snapshot) {
             uart_printf("Host: Final Confirm Sent Successfully!\n");
             g_host_ctrl.is_running = 0; // 任务完成
@@ -693,7 +685,7 @@ void Host_Pairing_Task(void) {
             return;
         }
 
-        // 3. 检查超时 (1秒发不出去就算失败)
+        // 检查超时 (1秒发不出去就算失败)
         if (Get_SysTick_ms() - g_host_ctrl.start_wait > FINAL_SEND_DURATION) {
             uart_printf("Host: Final Confirm Send Failed/Timeout. Reset.\n");
             
@@ -706,8 +698,7 @@ void Host_Pairing_Task(void) {
         break;
 
     case HOST_PAIR_DONE:
-        // 任务已结束，不做任何事
-        // 外部可以通过 Host_Pairing_Start() 重新启动
+        uart_printf("Host: Pairing Process Completed.\n");
         break;
     }
 }

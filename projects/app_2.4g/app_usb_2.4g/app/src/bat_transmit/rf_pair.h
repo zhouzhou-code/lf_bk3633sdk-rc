@@ -71,4 +71,8 @@ void Slave_Pairing_Start(void);
 void Slave_Pairing_Stop(void);
 void Slave_Pairing_Task(void);
 
+void Host_Pairing_Start(void);
+void Host_Pairing_Stop(void);
+void Host_Pairing_Task(void);
+
 #endif // __RF_PAIR_H__
