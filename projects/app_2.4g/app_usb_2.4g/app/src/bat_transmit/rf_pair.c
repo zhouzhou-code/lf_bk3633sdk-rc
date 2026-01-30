@@ -378,6 +378,8 @@ typedef struct {
     uint8_t confirm_retries;
     uint8_t is_running;
     uint32_t txds_snapshot;
+
+    uint8_t verify_cnt;
 } SlavePairCtrl_t;
 
 static SlavePairCtrl_t g_slave_ctrl = {SLAVE_PAIR_IDLE, 0, 0, 0, 0};
@@ -415,6 +417,8 @@ void Slave_Pairing_Task(void) {
     pair_resp_pkt *recv_resp_pkg = NULL;
     pair_confirm_pkt slave_cfm_pkg = {CMD_PAIR_CONFIRM, slave_magic_number};
     pair_confirm_pkt *recv_cfm_pkg = NULL;
+    pair_confirm_pkt pong_pkt = {CMD_PAIR_VERIFY_PONG, slave_magic_number};
+    pair_confirm_pkt *recv_ping_pkt = NULL;
     uint8_t len;
     
     const uint16_t RESP_WAIT_TIMEOUT = 2000; 
@@ -468,9 +472,7 @@ void Slave_Pairing_Task(void) {
         //启动发送，发三包以提高成功率
         for(uint8_t i=0;i<3;i++)
             RF_txQueue_Send((uint8_t*)&slave_cfm_pkg, sizeof(slave_cfm_pkg));
-        
-        //RF_Service_Handler(&hrf);
-        
+                
         //记录快照，进入等待状态
         g_slave_ctrl.txds_snapshot = rf_int_count_txds; 
         g_slave_ctrl.start_wait = Get_SysTick_ms(); //复用 start_wait 做 TX 超时
@@ -501,10 +503,10 @@ void Slave_Pairing_Task(void) {
                 recv_cfm_pkg->cmd == CMD_PAIR_CONFIRM &&
                 recv_cfm_pkg->magic_number == host_magic_number) {
                 
-                uart_printf("Slave: Pairing Success!\n");
-                slave_pair_success_flag = 1;
+                uart_printf("Slave: connect,now ping-pong\n");
                 
-                g_slave_ctrl.state = SLAVE_PAIR_DONE;
+                g_slave_ctrl.start_wait = Get_SysTick_ms();
+                g_slave_ctrl.state = SLAVE_PAIR_VERIFY_PHASE;
                 return;
             }
         }
@@ -513,15 +515,36 @@ void Slave_Pairing_Task(void) {
                 uart_printf("Pairing Failed, Restarting...\n");
                 g_slave_ctrl.confirm_retries = 0;
                 g_slave_ctrl.state = SLAVE_PAIR_SEND_REQ;
-                // 重置地址
-                HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
-                HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
         }
         break;
 
+    /* 监听host的ping */
+    case SLAVE_PAIR_VERIFY_PHASE:
+        if (RF_rxQueue_Recv(&recv_ping_pkt, &len, NULL) == 1 &&
+            len == sizeof(pair_confirm_pkt) &&
+            recv_ping_pkt->cmd == CMD_PAIR_VERIFY_PING &&
+            recv_ping_pkt->magic_number == host_magic_number ) {
+                                                            
+                RF_txQueue_Send((uint8_t*)&pong_pkt, sizeof(pong_pkt));
+                
+                g_slave_ctrl.verify_cnt++;
+                uart_printf("Slave: Verified %d/3\n", g_slave_ctrl.verify_cnt);
+
+                if (g_slave_ctrl.verify_cnt >= 3) {
+                    uart_printf("Slave: Pairing  SUCCESS!\n");
+                    g_slave_ctrl.state = SLAVE_PAIR_DONE;
+                }
+        }
+        
+        if (Get_SysTick_ms() - g_slave_ctrl.start_wait > 2000) {
+            uart_printf("Slave: Verify Timeout! Link Unstable.\n");
+            g_slave_ctrl.state = SLAVE_PAIR_SEND_REQ;
+        }
+            break;
+
     case SLAVE_PAIR_DONE:
         g_slave_ctrl.is_running = 0; //任务结束
-        uart_printf("Slave: Pairing Process Completed.\n");
+        uart_printf("Slave: Pairing Process Success Completed.\n");
         printf_txrx_addr();
         break;
 
@@ -543,7 +566,10 @@ typedef struct {
     pair_confirm_pkt host_cfm_pkt;
     
     // 发送成功计数快照 (用于send_resp和Final Confirm 判断)
-    uint32_t txds_snapshot;    
+    uint32_t txds_snapshot;  
+    
+    uint8_t verify_cnt;       //配对验证计数，用于处理ping/pong阶段
+    uint32_t last_ping_tick;  //上次收到ping的时间戳
 } HostPairCtrl_t;
 
 static HostPairCtrl_t g_host_ctrl;
@@ -581,6 +607,10 @@ void Host_Pairing_Task(void) {
 
     pair_req_pkt *recv_req = NULL;
     pair_confirm_pkt *recv_cfm = NULL;
+
+    pair_confirm_pkt *recv_pong_pkt = NULL;
+    pair_confirm_pkt  ping_pkt = {CMD_PAIR_VERIFY_PING, host_magic_number};
+
     uint8_t len;
     
     const uint8_t MAX_RESP_RETRIES = 3;
@@ -712,15 +742,21 @@ void Host_Pairing_Task(void) {
 
             // 检查是否有新的发送完成中断
         if (rf_int_count_txds > g_host_ctrl.txds_snapshot) {
-            uart_printf("Host: Final Confirm Sent Successfully!\n");
+            uart_printf("Host: Confirm_Ack Sent Successfully!\n");
             //g_host_ctrl.is_running = 0;
-            g_host_ctrl.state = HOST_PAIR_DONE;
+
+            //进入ping-pong验证阶段
+            g_host_ctrl.start_wait = Get_SysTick_ms();
+            g_host_ctrl.state = HOST_PAIR_VERIFY_PHASE;
+            for(uint8_t i=0; i<10; i++)
+                RF_txQueue_Send((uint8_t*)&ping_pkt, sizeof(ping_pkt));
+            
             return;
         }
 
         // 检查超时
         if (Get_SysTick_ms() - g_host_ctrl.start_wait > FINAL_SEND_DURATION) {
-            uart_printf("Host: Final Confirm Send Failed/Timeout. Reset.\n");
+            uart_printf("Host: Confirm_ACK Send Failed/Timeout. Reset.\n");
             
             // 失败回退
             HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
@@ -730,9 +766,30 @@ void Host_Pairing_Task(void) {
         }
         break;
 
+    /* 主动ping slave，解析slave的pong包 */
+    case HOST_PAIR_VERIFY_PHASE:
+        
+        if (RF_rxQueue_Recv(&recv_pong_pkt, &len, NULL) == 1 &&
+            recv_pong_pkt->cmd == CMD_PAIR_VERIFY_PONG &&
+            recv_pong_pkt->magic_number == slave_magic_number) {
+                
+                g_host_ctrl.verify_cnt++;
+                uart_printf("Host: Verified %d/3\n", g_host_ctrl.verify_cnt);
+
+                if (g_host_ctrl.verify_cnt >= 3) {
+                    uart_printf("Host: ping-pong  SUCCESS!\n");
+                    g_host_ctrl.state = HOST_PAIR_DONE;
+                }
+        }
+        if (Get_SysTick_ms() - g_host_ctrl.start_wait > 2000) {
+            uart_printf("Host: Verify Timeout! Link Unstable.\n");
+            g_host_ctrl.state = HOST_PAIR_WAIT_REQ;
+        }
+        break;
+        
     case HOST_PAIR_DONE:
         g_host_ctrl.is_running = 0; //任务结束
-        uart_printf("Host: Pairing Process Completed.\n");
+        uart_printf("Host: Pairing Process Success Completed.\n");
         printf_txrx_addr();
         break;
     }

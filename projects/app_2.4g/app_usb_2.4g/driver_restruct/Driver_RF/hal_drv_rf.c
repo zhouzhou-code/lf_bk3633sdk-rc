@@ -634,6 +634,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
         //__HAL_RF_CMD_FLUSH_TXFIFO();
         hrf->TxState = TX_IDLE;
+        HAL_RF_SetRxMode(hrf); //发送完成后切换到接收模式
     }
         
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
@@ -644,8 +645,9 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
         }
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_MAX_RT_MASK);
         __HAL_RF_CMD_FLUSH_TXFIFO();//发送失败必须要清空TX FIFO，下次才能继续写FIFO发送
-       
+        
         hrf->TxState = TX_IDLE;
+        HAL_RF_SetRxMode(hrf); //发送失败后切换到接收模式
     }
 
    // return;

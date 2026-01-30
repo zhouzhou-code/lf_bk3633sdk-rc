@@ -14,6 +14,8 @@ typedef enum {
     SLAVE_PAIR_SEND_CONFIRM,
     SLAVE_PAIR_WAIT_CONFIRM_TX_DONE,
     SLAVE_PAIR_WAIT_CONFIRM_ACK,
+
+    SLAVE_PAIR_VERIFY_PHASE,//互发PING/PONG验证阶段
     SLAVE_PAIR_DONE
 } slave_pair_state_t;
 
@@ -25,7 +27,9 @@ typedef enum {
     HOST_PAIR_WAIT_RESP_TX_DONE,
     HOST_PAIR_WAIT_CONFIRM,
     HOST_PAIR_SEND_FINAL_CONFIRM,
-    HOST_PAIR_WAIT_FINAL_TX_DONE,  //等待发送完成并循环
+    HOST_PAIR_WAIT_FINAL_TX_DONE,  //等待FINAL_CONFIRM发送完成
+    
+    HOST_PAIR_VERIFY_PHASE,  //互发PING/PONG验证阶段
     HOST_PAIR_DONE
 } host_pair_state_t;
 
@@ -34,8 +38,13 @@ typedef enum {
     CMD_PAIR_REQ = 0x10,  // Slave -> Host
     CMD_PAIR_RESP = 0x20, // Host -> Slave 
 
-    CMD_PAIR_CONFIRM= 0x30  // Slave <-> Host
+    CMD_PAIR_CONFIRM= 0x30, // Slave <-> Host
+
+    //握手验证
+    CMD_PAIR_VERIFY_PING = 0x40,  // Host 发送给 Slave
+    CMD_PAIR_VERIFY_PONG = 0x50   // Slave 回复 Host
 } rf_pair_cmd_t;
+
 
 #pragma pack(1)
 typedef struct {
@@ -58,6 +67,7 @@ typedef struct {
     uint8_t magic_number;
 } pair_confirm_pkt;
 #pragma pack()
+
 
 extern uint8_t slave_pair_success_flag ;
 extern uint8_t host_pair_success_flag ;

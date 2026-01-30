@@ -225,8 +225,8 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
         uint8_t len = tx_data[0]<=max_rf_payload_len ? tx_data[0] : max_rf_payload_len;
         
         // 尝试调用发送函数
-        // 如果它返回 BUSY，说明它内部运行了超时检测逻辑但还没发完
-        // 如果它返回 OK，说明硬件空闲并接受了新数据。
+        // 如果返回 BUSY，说明它内部运行了超时检测逻辑但还没发完
+        // 如果返回 OK，说明硬件空闲并接受了新数据。
         if(HAL_RF_Transmit_IT(hrf, &tx_data[1], len) == HAL_OK){
             uart_printf("rf_send_service len:%d\n", len);
             //只有把queue数据放入硬件FIFO了，才pop出来
@@ -234,8 +234,11 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
             
         }
     }
+    else{
+        HAL_RF_SetRxMode(hrf); //队列空，切换到接收模式
+    }
 
-    //退出之前确保在接收模式，让中断能正常接收
-    HAL_RF_SetRxMode(hrf);
+    // //退出之前确保在接收模式，让中断能正常接收
+    // HAL_RF_SetRxMode(hrf);
 
 }
