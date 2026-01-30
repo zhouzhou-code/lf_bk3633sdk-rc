@@ -25,6 +25,7 @@ typedef enum {
     HOST_PAIR_WAIT_RESP_TX_DONE,
     HOST_PAIR_WAIT_CONFIRM,
     HOST_PAIR_SEND_FINAL_CONFIRM,
+    HOST_PAIR_WAIT_FINAL_TX_DONE,  //等待发送完成并循环
     HOST_PAIR_DONE
 } host_pair_state_t;
 

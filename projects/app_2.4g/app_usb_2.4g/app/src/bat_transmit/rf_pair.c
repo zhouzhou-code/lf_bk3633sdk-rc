@@ -227,8 +227,6 @@ void Do_Pairing_As_slave_SM() {
     // }
     
 }
-
-
 void Do_Pairing_As_Host_SM(void) {
     host_pair_state_t state = HOST_PAIR_IDLE; //host状态机
     pair_resp_pkt resp; //host响应req包
@@ -383,7 +381,6 @@ typedef struct {
 } SlavePairCtrl_t;
 
 static SlavePairCtrl_t g_slave_ctrl = {SLAVE_PAIR_IDLE, 0, 0, 0, 0};
-
 // 用于外部启动配对
 void Slave_Pairing_Start(void) {
     g_slave_ctrl.state = SLAVE_PAIR_IDLE;
@@ -434,6 +431,8 @@ void Slave_Pairing_Task(void) {
 
     case SLAVE_PAIR_SEND_REQ:
         uart_printf("state:send req\n");
+        HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
+        HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
         RF_txQueue_Send((uint8_t*)&req_pkt, sizeof(req_pkt));
 
         g_slave_ctrl.start_wait = Get_SysTick_ms();
@@ -470,7 +469,7 @@ void Slave_Pairing_Task(void) {
         for(uint8_t i=0;i<3;i++)
             RF_txQueue_Send((uint8_t*)&slave_cfm_pkg, sizeof(slave_cfm_pkg));
         
-        RF_Service_Handler(&hrf);
+        //RF_Service_Handler(&hrf);
         
         //记录快照，进入等待状态
         g_slave_ctrl.txds_snapshot = rf_int_count_txds; 
@@ -504,7 +503,7 @@ void Slave_Pairing_Task(void) {
                 
                 uart_printf("Slave: Pairing Success!\n");
                 slave_pair_success_flag = 1;
-                g_slave_ctrl.is_running = 0; //任务结束
+                
                 g_slave_ctrl.state = SLAVE_PAIR_DONE;
                 return;
             }
@@ -521,14 +520,14 @@ void Slave_Pairing_Task(void) {
         break;
 
     case SLAVE_PAIR_DONE:
-        //这里的代码可能永远不会执行到，因为 is_running 被置0了
+        g_slave_ctrl.is_running = 0; //任务结束
+        uart_printf("Slave: Pairing Process Completed.\n");
+        printf_txrx_addr();
         break;
 
     }
 }
     
-    
-
 
 
 // Host配对控制块
@@ -600,6 +599,8 @@ void Host_Pairing_Task(void) {
 
     /* 等待slave请求 */
     case HOST_PAIR_WAIT_REQ:  
+        HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
+        HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
         // 非阻塞检查接收队列
         if (RF_rxQueue_Recv(&recv_req, &len, NULL) == 1) {
             if (len == sizeof(pair_req_pkt) && recv_req->cmd == CMD_PAIR_REQ) {
@@ -638,7 +639,6 @@ void Host_Pairing_Task(void) {
         //记录发送前的快照，并开始超时计时
         g_host_ctrl.txds_snapshot = rf_int_count_txds; 
         g_host_ctrl.start_wait = Get_SysTick_ms();
-        RF_Service_Handler(&hrf);
         
         //等待发送完成
         g_host_ctrl.state = HOST_PAIR_WAIT_RESP_TX_DONE;
@@ -648,6 +648,8 @@ void Host_Pairing_Task(void) {
         //检查tx完成计数器是否增加
         if (rf_int_count_txds > g_host_ctrl.txds_snapshot) {
             uart_printf("Host: RESP Sent! Switch Addr.\n");
+            //剩下的几包响应帧清空，防止残留数据干扰下次发送
+            RF_txQueue_Clear();
             g_host_ctrl.resp_retries++;
 
             //提取新地址
@@ -703,16 +705,15 @@ void Host_Pairing_Task(void) {
         }
         break;
 
-    case HOST_PAIR_SEND_FINAL_CONFIRM:
-        
-        //尝试发送
-        RF_txQueue_Send((uint8_t*)&g_host_ctrl.host_cfm_pkt, sizeof(g_host_ctrl.host_cfm_pkt));
-        RF_Service_Handler(&hrf);
+    case HOST_PAIR_SEND_FINAL_CONFIRM:  
+        //写三包，尝试发送
+        for(uint8_t i=0; i<3; i++)
+            RF_txQueue_Send((uint8_t*)&g_host_ctrl.host_cfm_pkt, sizeof(g_host_ctrl.host_cfm_pkt));
 
-        // 检查是否有新的发送完成中断
+            // 检查是否有新的发送完成中断
         if (rf_int_count_txds > g_host_ctrl.txds_snapshot) {
             uart_printf("Host: Final Confirm Sent Successfully!\n");
-            g_host_ctrl.is_running = 0;
+            //g_host_ctrl.is_running = 0;
             g_host_ctrl.state = HOST_PAIR_DONE;
             return;
         }
@@ -730,7 +731,9 @@ void Host_Pairing_Task(void) {
         break;
 
     case HOST_PAIR_DONE:
+        g_host_ctrl.is_running = 0; //任务结束
         uart_printf("Host: Pairing Process Completed.\n");
+        printf_txrx_addr();
         break;
     }
 }

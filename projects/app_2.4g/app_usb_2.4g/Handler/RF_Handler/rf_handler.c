@@ -167,6 +167,16 @@ void RF_txQueue_Send(uint8_t *data_pack, uint8_t len)
     queue_push_overwrite(&rf_txQueue, temp_data);
 }
 
+/* txQueue清空函数
+ */
+void RF_txQueue_Clear(void)
+{
+    my_queue_t* queue = &rf_txQueue;
+    queue->in = queue->out; //直接将写索引等于读索引，清空队列
+}
+
+
+
 /**
  * @brief  从接收队列取出一帧数据
  * @param   data_ptr:  输出参数，指向接收到的数据指针
