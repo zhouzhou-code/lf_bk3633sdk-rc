@@ -262,7 +262,7 @@ int main(void)
     //定时器初始化
     Timer_Handler_Init();
 
-    gpio_init();
+   //gpio_init();
     flash_init();
   //  xvr_reg_initial_24();
   //  gpio_set_neg(0x04);
@@ -503,7 +503,7 @@ int main(void)
     // p_mac[0], p_mac[1], p_mac[2], p_mac[3], p_mac[4], p_mac[5]);
 
 
-    /* slave */
+    /* 非阻塞slave */
     //my_key_init();
     // RF_Handler_Init();//初始化RF句柄及队列
     // Slave_Pairing_Start(); //启动从机配对模式
@@ -514,62 +514,59 @@ int main(void)
 
     //     //Do_Pairing_As_Host_SM();
     // }
-    /* host */
-    RF_Handler_Init();//初始化RF句柄及队列
-    Host_Pairing_Start(); //启动机配对模式
-    while(1)
-    {
-         Host_Pairing_Task(); //非阻塞配对任务调用
-         RF_Service_Handler(&hrf);  //RF发送服务处理函数，
+    /* 非阻塞host */
+    // RF_Handler_Init();//初始化RF句柄及队列
+    // Host_Pairing_Start(); //启动机配对模式
+    // while(1)
+    // {
+    //      Host_Pairing_Task(); //非阻塞配对任务调用
+    //      RF_Service_Handler(&hrf);  //RF发送服务处理函数，
 
-        //Do_Pairing_As_Host_SM();
-    }
+    //     //Do_Pairing_As_Host_SM();
+    // }
     
 
 
+   //按键+阻塞式配对测试
+    // while(1)
+    // {   
+    //     static uint16_t cnt_last=0;
+    //     if(cnt!=cnt_last){
+    //         cnt_last=cnt;
+    //         uart_printf("Key Pressed! Count: %d\r\n",cnt_last);
+    //     }
 
+    //     //按下5s进入配对模式，非阻塞判断
+    //     static uint32_t press_start_time = 0;
+    //     static uint8_t key_stable = 0;
 
-   
-   
-    while(1)
-    {   
-        static uint16_t cnt_last=0;
-        if(cnt!=cnt_last){
-            cnt_last=cnt;
-            uart_printf("Key Pressed! Count: %d\r\n",cnt_last);
-        }
-
-        //按下5s进入配对模式，非阻塞判断
-        static uint32_t press_start_time = 0;
-        static uint8_t key_stable = 0;
-
-        if(gpio_get_input(Port_Pin(1,0))==0){
-            if(key_stable == 0){
-                //第一次检测到低电平，开始消抖
-                delay_ms(20);
-                if(gpio_get_input(Port_Pin(1,0))==1){
-                    //抖动，放弃
-                    continue;
-                }
-                // 消抖成功，记录时间
-                key_stable = 1;
-                press_start_time = Get_SysTick_ms();
-            }else{
-                // 已经稳定为低，累计时间
-                if((Get_SysTick_ms()-press_start_time)>=5000){
-                    uart_printf("Enter Pairing Mode!\r\n");
-                    //Do_Pairing_As_Host_SM();
-                    Do_Pairing_As_slave_SM(); //传入0表示开始配对
-                    key_stable = 0; //防止重复进入
-                }
-            }
-        }else{
-            key_stable = 0; //松开或抖动时重置
-        }
+    //     if(gpio_get_input(Port_Pin(1,0))==0){
+    //         if(key_stable == 0){
+    //             //第一次检测到低电平，开始消抖
+    //             delay_ms(20);
+    //             if(gpio_get_input(Port_Pin(1,0))==1){
+    //                 //抖动，放弃
+    //                 continue;
+    //             }
+    //             // 消抖成功，记录时间
+    //             key_stable = 1;
+    //             press_start_time = Get_SysTick_ms();
+    //         }else{
+    //             // 已经稳定为低，累计时间
+    //             if((Get_SysTick_ms()-press_start_time)>=5000){
+    //                 uart_printf("Enter Pairing Mode!\r\n");
+    //                 //Do_Pairing_As_Host_SM();
+    //                 Do_Pairing_As_slave_SM(); //传入0表示开始配对
+    //                 key_stable = 0; //防止重复进入
+    //             }
+    //         }
+    //     }else{
+    //         key_stable = 0; //松开或抖动时重置
+    //     }
     
-       //Do_Pairing_As_Host_SM();
-       //Do_Pairing_As_slave_SM();
-    }
+    //    //Do_Pairing_As_Host_SM();
+    //    //Do_Pairing_As_slave_SM();
+    // }
     
     
     // Do_Pairing_As_Host();
@@ -577,46 +574,46 @@ int main(void)
     
 
     /* --------------------------------------简单RF收发测试---------------------------- */
-     static uint32_t txcount=0;
-     RF_Handler_Init();//初始化RF句柄及队列
-     printf_all_registers();
-     HAL_RF_SetTxMode(&hrf);//设置为发送模式
-     while(1) //发送
-     {
-        txcount++;
-        test_sand_data[0] = txcount;
-        if(txcount<=10){
-            RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
-            RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
-            uart_printf("send data count=%d\r\n", txcount);
-        }
-        else{ //换地址发！
-            uint32_t new_addr[5] = {0xD2, 0xD2, 0xD2, 0xD2, 0xD2};
-            HAL_RF_SetTxAddress(&hrf, new_addr, 5);
-            HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
-            uart_printf("change addr\r\n");
-            uart_printf("TRX_RX_ADDR_P0 = ");
-            for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P0_0)[i]);
-            uart_printf("\r\n");
+    //  static uint32_t txcount=0;
+    //  RF_Handler_Init();//初始化RF句柄及队列
+    //  printf_all_registers();
+    //  HAL_RF_SetTxMode(&hrf);//设置为发送模式
+    //  while(1) //发送
+    //  {
+    //     txcount++;
+    //     test_sand_data[0] = txcount;
+    //     if(txcount<=10){
+    //         RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
+    //         RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
+    //         uart_printf("send data count=%d\r\n", txcount);
+    //     }
+    //     else{ //换地址发！
+    //         uint32_t new_addr[5] = {0xD2, 0xD2, 0xD2, 0xD2, 0xD2};
+    //         HAL_RF_SetTxAddress(&hrf, new_addr, 5);
+    //         HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
+    //         uart_printf("change addr\r\n");
+    //         uart_printf("TRX_RX_ADDR_P0 = ");
+    //         for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P0_0)[i]);
+    //         uart_printf("\r\n");
 
-            uart_printf("TRX_TX_ADDR    = ");
-            for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_TX_ADDR_0)[i]);
-            uart_printf("\r\n");
+    //         uart_printf("TRX_TX_ADDR    = ");
+    //         for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_TX_ADDR_0)[i]);
+    //         uart_printf("\r\n");
 
-            RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
-            RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
+    //         RF_txQueue_Send(test_sand_data, 32);//测试发送数据入队
+    //         RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
             
-        }
+    //     }
 
         
         
-        //HAL_RF_Transmit_IT(&hrf, test_sand_data, 32);
+    //     //HAL_RF_Transmit_IT(&hrf, test_sand_data, 32);
 
-        // while((TRX_FIFO_STATUS&B_FIFO_TX_EMPTY)==0){
-        //     uart_printf("w tx e,f_s=%02x,isq=%02x\n", TRX_FIFO_STATUS, TRX_IRQ_STATUS);
-        // }
-        delay_ms(1000);
-    }
+    //     // while((TRX_FIFO_STATUS&B_FIFO_TX_EMPTY)==0){
+    //     //     uart_printf("w tx e,f_s=%02x,isq=%02x\n", TRX_FIFO_STATUS, TRX_IRQ_STATUS);
+    //     // }
+    //     delay_ms(1000);
+    // }
     
     // HAL_RF_SetRxMode(&hrf);//设置为接收模式
     // while(1)//接收
@@ -637,6 +634,7 @@ int main(void)
     RF_Handler_Init();//初始化RF句柄及队列
     uint8_t rec_data[32];
     //简易调度器，根据时间戳调用task
+    uart_printf("enter main loop\r\n");
     while(1){
         //任务调用周期分别为 5ms 10ms 20ms 50ms
         static uint32_t last_timestamp[10] = {0};
@@ -667,25 +665,40 @@ int main(void)
 
         //100ms任务
         if((Get_SysTick_ms() - last_timestamp[4]) >= 100){
+            RF_Service_Handler(&hrf);
             last_timestamp[4] = Get_SysTick_ms();
         }
 
         //200ms任务
         if((Get_SysTick_ms() - last_timestamp[5]) >= 200){
-            //RF_Service_Handler(&hrf);  //RF发送服务处理函数
+            uint8_t *rec_data_p;
+            uint8_t len;
+
+            if(RF_rxQueue_Recv(&rec_data_p, &len, NULL) == 1 &&
+                len == sizeof(Bat_Soc_t) ){
+
+                uint16_t crc = crc16_modbus(rec_data_p, len - 2);
+                Bat_Soc_t bat_soc_tmp;
+                memcpy(&bat_soc_tmp, rec_data_p, sizeof(Bat_Soc_t));
+                uart_printf("calc crc=%x,recv crc=%x\r\n", crc, bat_soc_tmp.crc16);
+
+                if(crc==bat_soc_tmp.crc16){
+                    uart_printf("soc=%d%%", bat_soc_tmp.soc);
+                    uart_printf("\r\n");
+                }
+                
+            }
             last_timestamp[5] = Get_SysTick_ms();
         }
         //500ms任务
         if((Get_SysTick_ms() - last_timestamp[6]) >= 500){
-            RF_Service_Handler(&hrf);
+            
             last_timestamp[6] = Get_SysTick_ms();
         }
         //1000ms任务
         if((Get_SysTick_ms() - last_timestamp[7]) >= 1000){
             last_timestamp[7] = Get_SysTick_ms();
-
-            
-
+            /* 接收解析透传信息 */
 
             // uart_printf("--------------1000ms-task---------------------- \r\n");
             // if(RF_rxQueue_Recv(rec_data,32)){

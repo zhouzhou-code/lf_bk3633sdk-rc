@@ -102,10 +102,10 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
         if(recv_crc != calc_crc){
             //uart_printf("Parse: 6,CRC16 error rec:%x cal:%x\r\n",recv_crc,calc_crc);
             
-            for(uint8_t i=0;i<sizeof(BatteryDynamicInfo_t);i++){
-                uart_printf("%02X ",temp_Parsebuf[i]);
-            }
-            uart_printf("\r\n");
+            // for(uint8_t i=0;i<sizeof(BatteryDynamicInfo_t);i++){
+            //     uart_printf("%02X ",temp_Parsebuf[i]);
+            // }
+            // uart_printf("\r\n");
 
 
             continue; // CRC校验失败，丢弃这包数据，继续下次循环找头
@@ -127,14 +127,14 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
 
             uint8_t tmp_buf[sizeof(Bat_Soc_t)] = {0};
             memcpy(tmp_buf, &bat_soc, sizeof(Bat_Soc_t));
-            
+            // uart_printf("rf_send_data=");
+            // for(int i=0;i<sizeof(Bat_Soc_t);i++)
+            //     uart_printf("%x,",tmp_buf[i]);
+            // uart_printf("\r\n");
+            uart_printf("soc=%d%%\r\n", bat_soc.soc);
+
             RF_txQueue_Send(tmp_buf, sizeof(Bat_Soc_t));
 
-            //RF_txQueue_Send(tmp_buf, 32);
-
-            // uint8_t testdata[32]={0};
-            // testdata[0]=count2;
-            // RF_txQueue_Send(testdata, 32);
                         
         }
     }

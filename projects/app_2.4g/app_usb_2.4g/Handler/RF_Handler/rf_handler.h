@@ -12,8 +12,8 @@
 #define txqueue_item_size     (max_rf_payload_len + rf_protocol_overhead)  
 //接收队列每项大小，净荷长度+接收pipes+净荷数据;RF接收中断会判断长度和pipes并补上压入qeueue
 #define rxqueue_item_size     (max_rf_payload_len + 1 + rf_protocol_overhead) 
-#define rf_send_queue_len    20
-#define rf_recv_queue_len    20
+#define rf_send_queue_len    64
+#define rf_recv_queue_len    64
 
 extern my_queue_t rf_rxQueue; 
 extern my_queue_t rf_txQueue;

@@ -149,5 +149,5 @@ typedef struct {
 extern uint8_t temp_Parsebuf[sizeof(BatteryDynamicInfo_t)];
 
 void Protocol_ParseByte(my_queue_t* uart_rx_queue);
-
+uint16_t crc16_modbus(const uint8_t *data, uint16_t length);
 #endif /* __BAT_PROTOCOL_H */

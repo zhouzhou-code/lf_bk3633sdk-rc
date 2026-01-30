@@ -186,8 +186,10 @@ uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pip
             *pipes = temp_buf[1];                // 第二字节为接收管道
         if(data_ptr) 
             *data_ptr = &temp_buf[2];            // 指向有效数据
+       
         return 1; // 读取成功
     } else {
+      
         return 0; // 队列为空，读取失败
     }
 }
