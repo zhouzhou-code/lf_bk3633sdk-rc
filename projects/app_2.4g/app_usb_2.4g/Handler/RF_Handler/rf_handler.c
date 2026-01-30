@@ -15,7 +15,7 @@ my_queue_t rf_rxQueue;               // 接收队列
 
 
 RF_HandleTypeDef hrf; //全局RF句柄
-//中断计数
+//全局中断计数
 uint32_t rf_int_count_rxdr = 0;
 uint32_t rf_int_count_txds = 0;
 uint32_t rf_int_count_maxrt = 0;
@@ -219,7 +219,7 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
         // 如果它返回 OK，说明硬件空闲并接受了新数据。
         if(HAL_RF_Transmit_IT(hrf, &tx_data[1], len) == HAL_OK){
             uart_printf("rf_send_service len:%d\n", len);
-            //只有发送成功受理了，才真正把数据从队列里弹出来
+            //只有把queue数据放入硬件FIFO了，才pop出来
             queue_pop(&rf_txQueue, tx_data);
             
         }
