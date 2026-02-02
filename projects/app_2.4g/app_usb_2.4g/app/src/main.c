@@ -34,6 +34,8 @@
 #include "spi.h"
 #include "adc.h"
 #include "uart2.h"
+#include "my_drv_uart.h"
+
 #include "aon_rtc.h"
 #include "rf.h"
 #ifdef __AES_TEST__
@@ -257,7 +259,8 @@ int main(void)
     uart2_init(115200);//
     #endif
     uart2_printf("main start2~~~~~\r\n");
-    uart_printf("main start~~~~~\r\n");
+    uart0_printf("main start uart0~~~~~\r\n");
+    uart_printf("main start uart1~~~~~\r\n");
 
     //定时器初始化
     Timer_Handler_Init();
@@ -515,12 +518,12 @@ int main(void)
     //     //Do_Pairing_As_Host_SM();
     // }
     /* 非阻塞host */
-    RF_Handler_Init();//初始化RF句柄及队列
-    Host_Pairing_Start(); //启动机配对模式
-    while(1)
-    {
-        Host_Pairing_Task(); //非阻塞配对任务调用
-    }
+    // RF_Handler_Init();//初始化RF句柄及队列
+    // Host_Pairing_Start(); //启动机配对模式
+    // while(1)
+    // {
+    //     Host_Pairing_Task(); //非阻塞配对任务调用
+    // }
     
 
 
@@ -632,6 +635,7 @@ int main(void)
     uint8_t rec_data[32];
     //简易调度器，根据时间戳调用task
     uart_printf("enter main loop\r\n");
+    uart0_printf("enter main loop\r\n");
     while(1){
         //任务调用周期分别为 5ms 10ms 20ms 50ms
         static uint32_t last_timestamp[10] = {0};
@@ -640,13 +644,11 @@ int main(void)
         if((Get_SysTick_ms() - last_timestamp[0]) >= 2){
             //5ms任务
             //串口收到电池数据解包
-            Protocol_ParseByte(&uart2_rxQueue);
+            Protocol_ParseByte(&uart0_rxQueue);
             
             last_timestamp[0] = Get_SysTick_ms();
         }
         if((Get_SysTick_ms() - last_timestamp[1]) >= 5){
-            //5ms
-            // RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms就不能正常发送？？？why???
             last_timestamp[1] = Get_SysTick_ms();
         }
 

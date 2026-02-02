@@ -8,6 +8,8 @@
 #include "ll.h"
 #include "wdt.h"
 #include "rwprf_config.h"
+#include "user_config.h"
+
 
 #define MAX(x, y)                  (((x) > (y)) ? (x) : (y))
 #define MIN(x, y)                  (((x) < (y)) ? (x) : (y))

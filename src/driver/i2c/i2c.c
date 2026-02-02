@@ -8,6 +8,7 @@
 #include "BK3633_RegList.h"
 #include "icu.h"
 #include "drv_gpio.h"
+#include "user_config.h"
 
 
 #define NUMBER_ROUND_UP(a,b)        ((a) / (b) + (((a) % (b)) ? 1 : 0))

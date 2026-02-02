@@ -12,7 +12,9 @@
 #ifndef USER_CONFIG_H_
 #define USER_CONFIG_H_
 #include "uart2.h"
-#include "uart.h"
+// #include "uart.h"
+#include "my_drv_uart.h"
+
 
 /// Use RC 32Kif INTER_RC32K set to 1
 #define INTER_RC32K            1
@@ -43,7 +45,7 @@
 
 
 #define uart_printf              uart2_printf
-//#define uart_printf              uart0_printf
+//  #define uart_printf                uart0_printf
 
 #ifndef NULL
 #define NULL (void*)0

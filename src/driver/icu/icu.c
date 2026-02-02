@@ -23,6 +23,7 @@
 #include "BK3633_RegList.h"
 #include "rf.h"
 #include "drv_gpio.h"
+#include "user_config.h"
 
 
 #if 1

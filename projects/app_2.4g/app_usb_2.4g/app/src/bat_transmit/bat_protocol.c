@@ -132,7 +132,7 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
             //     uart_printf("%x,",tmp_buf[i]);
             // uart_printf("\r\n");
             uart_printf("soc=%d%%\r\n", bat_soc.soc);
-
+            uart0_printf("soc=%d%%\r\n", bat_soc.soc);
             RF_txQueue_Send(tmp_buf, sizeof(Bat_Soc_t));
 
                         
