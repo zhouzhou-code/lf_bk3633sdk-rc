@@ -105,9 +105,11 @@ void gpio_int_enable(gpio_num_t gpio_num, gpio_int_mode_t mode, gpio_isr_t cb)
 {
     if (gpio_num >= GPIO_INT_MAX_NUM) return;
 
-    // 注册回调
-    s_gpio_callbacks[gpio_num] = cb;
-
+    if(cb != NULL)
+    {
+        s_gpio_callbacks[gpio_num] = cb;
+    }
+    
     // 配置触发类型 每2位控制一个GPIO
     if (gpio_num < 16) {
         REG_GPIO_INT_TYPE_L &= ~(3 << (gpio_num * 2));
@@ -160,7 +162,7 @@ void gpio_int_disable(gpio_num_t gpio_num)
 //     }
 // }
 
-// 终极优化版：利用 CPU 指令直接查找，无循环轮询
+//利用 CPU 指令直接查找，无循环轮询
 void gpio_isr(void)
 {
     // 1. 读取状态 (Status) 和 使能 (Enable)

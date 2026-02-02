@@ -267,6 +267,7 @@ int main(void)
 
    //gpio_init();
     flash_init();
+    pair_gpio_init();//初始化配对按键
   //  xvr_reg_initial_24();
   //  gpio_set_neg(0x04);
 
@@ -718,6 +719,7 @@ int main(void)
             //     uart_printf("%02X ", data);
             // }
             // uart_printf("\r\n");
+            uart_printf("pair cnt=%d\r\n", cnt);
         }
     }
 
