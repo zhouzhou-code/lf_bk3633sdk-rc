@@ -176,7 +176,6 @@ void RF_txQueue_Clear(void)
 }
 
 
-
 /**
  * @brief  从接收队列取出一帧数据
  * @param   data_ptr:  输出参数，指向接收到的数据指针
@@ -205,7 +204,7 @@ uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pip
 }
 
 
-// RF 服务处理函数，放在循环/任务中定时运行
+// RF 服务处理函数，放在循环/任务中定时运行,自动管理tx/rx模式切换
 void RF_Service_Handler(RF_HandleTypeDef *hrf)
 {
     // peek - try - pop 
