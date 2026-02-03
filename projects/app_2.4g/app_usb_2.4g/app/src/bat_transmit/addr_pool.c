@@ -77,7 +77,7 @@ int8_t addrpool_alloc_addr_random(SingleByteAddrPool_t* pool, uint8_t *out_id) {
     entropy_counter++;
 
     // 计算高熵起点 混合：系统时间 + 累加器 + 对象地址(不同pool地址不同)
-    uint32_t seed = entropy_counter + (uint32_t)pool;
+    uint32_t seed = entropy_counter + (uint32_t)pool + Get_SysTick_ms();    
     uint8_t start_index = (uint8_t)((seed * 131)^(seed>>8)); 
 
     // 定义查找步长 (必须是奇数，推荐质数)；步长越大，相邻分配的 ID 离得越远

@@ -57,35 +57,55 @@
 #include "gpio_init.h"
 
 
-// 修改测试地址为“非保护区”
-#define FLASH_TEST_ADDR  0x80000  // 512KB 处，位于 256KB~768KB 之间
-
-void Flash_Test_Minimal(void) {
-    uint32_t write_data = 0x11223344;
-    uint32_t read_data = 0;
-
-    uart_printf("\r\n[Flash Test] Try Safe Addr @ 0x%X\r\n", FLASH_TEST_ADDR);
-
-    // // 1. 擦除
-    // flash_erase(0, FLASH_TEST_ADDR, 0x1000, NULL);
-
-    // // 2. 写入 (这次应该能成功，因为驱动会自动调 flash_wp_none)
-    // flash_write(0, FLASH_TEST_ADDR, 4, (uint8_t*)&write_data, NULL);
-
-    // 3. 读取
-    flash_read(0, FLASH_TEST_ADDR, 4, (uint8_t*)&read_data, NULL);
-
-    // 4. 验证
-    if (read_data == write_data) {
-        uart_printf("[Flash Test] PASS! RW Success.\r\n");
-    } else {
-        uart_printf("[Flash Test] FAIL! W:%x R:%x (Check protection?)\r\n", write_data, read_data);
-    }
-}
-
 
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
+static void printf_all_registers(void)
+{
+    uart_printf("TRX_CONFIG     = 0x%02X\r\n", TRX_CONFIG);
+    uart_printf("TRX_EN_AA      = 0x%02X\r\n", TRX_EN_AA);
+    uart_printf("TRX_EN_RXADDR  = 0x%02X\r\n", TRX_EN_RXADDR);
+    uart_printf("TRX_SETUP_AW   = 0x%02X\r\n", TRX_SETUP_AW);
+    uart_printf("TRX_SETUP_RETR = 0x%02X\r\n", TRX_SETUP_RETR);
+    uart_printf("TRX_RF_CH      = 0x%02X\r\n", TRX_RF_CH);
+    uart_printf("TRX_RF_SETUP   = 0x%02X\r\n", TRX_RF_SETUP);
+
+    uart_printf("TRX_RX_ADDR_P0 = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P0_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_ADDR_P1 = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P1_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_ADDR_P2 = 0x%02X\r\n", TRX_RX_ADDR_P2);
+    uart_printf("TRX_RX_ADDR_P3 = 0x%02X\r\n", TRX_RX_ADDR_P3);
+    uart_printf("TRX_RX_ADDR_P4 = 0x%02X\r\n", TRX_RX_ADDR_P4);
+    uart_printf("TRX_RX_ADDR_P5 = 0x%02X\r\n", TRX_RX_ADDR_P5);
+
+    uart_printf("TRX_TX_ADDR    = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_TX_ADDR_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_PW_P0   = 0x%02X\r\n", TRX_RX_PW_P0);
+    uart_printf("TRX_RX_PW_P1   = 0x%02X\r\n", TRX_RX_PW_P1);
+    uart_printf("TRX_RX_PW_P2   = 0x%02X\r\n", TRX_RX_PW_P2);
+    uart_printf("TRX_RX_PW_P3   = 0x%02X\r\n", TRX_RX_PW_P3);
+    uart_printf("TRX_RX_PW_P4   = 0x%02X\r\n", TRX_RX_PW_P4);
+    uart_printf("TRX_RX_PW_P5   = 0x%02X\r\n", TRX_RX_PW_P5);
+
+    uart_printf("TRX_DYNPD      = 0x%02X\r\n", TRX_DYNPD);
+    uart_printf("TRX_FEATURE    = 0x%02X\r\n", TRX_FEATURE);
+
+    uart_printf("addXVR_Reg0x24 = 0x%08lX\r\n", addXVR_Reg0x24);
+    uart_printf("addXVR_Reg0x3b = 0x%08lX\r\n", addXVR_Reg0x3b);
+    uart_printf("addXVR_Reg0x2e = 0x%08lX\r\n", addXVR_Reg0x2e);
+    uart_printf("addXVR_Reg0x26 = 0x%08lX\r\n", addXVR_Reg0x26);
+    uart_printf("addXVR_Reg0x2  = 0x%08lX\r\n", addXVR_Reg0x2);
+    uart_printf("addXVR_Reg0x2c = 0x%08lX\r\n", addXVR_Reg0x2c);
+    uart_printf("addXVR_Reg0x2d = 0x%08lX\r\n", addXVR_Reg0x2d);
+    uart_printf("addXVR_Reg0x3a = 0x%08lX\r\n", addXVR_Reg0x3a);
+}
 
 static void stack_integrity_check(void)
 {
@@ -502,38 +522,10 @@ int main(void)
         }
     }
     #endif
-    /* ------------------------------------配对测试-------------------------------------- */
-    
-    // HAL_RF_Init(&h_pair,&Pairing_Config);
-    // printf_all_registers();
-    // HAL_RF_SetTxMode(&h_pair);
-    // uart_printf("Slave: Start Pairing...\n");
-    // uint16_t cnt=0;
-    // uint16_t rec_cnt=0;
-    // while(1){
-    //     cnt++;
-    //     HAL_RF_Transmit_ACK(&h_pair, (uint8_t*)&cnt, sizeof(uint16_t));
-    //     uart_printf("Slave: Pair Req Sent test:%d\n", cnt);
-    //     Delay_us(100);
-    // }
+    /* ------------------------------------配对测试,过-------------------------------------- */
 
-    // HAL_RF_SetRxMode(&h_pair);
-    // while(1){
-    //     uint8_t rx_buf[32];
-    //     uint8_t len=0;
-    //     if(HAL_RF_Receive(&h_pair, rx_buf, &len)==HAL_OK){
-    //         uart_printf("Host: Received Data during wait REQ\n");
-    //         rec_cnt++;
-    //         uart_printf("Host: Data Len=%d, rec_cnt=%d\n",len, rec_cnt);
-
-    //     }
-
-    // }
-
-    // uint8_t *p_mac = (uint8_t *)0x0007e000;
-    // uart_printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\r\n",
-    // p_mac[0], p_mac[1], p_mac[2], p_mac[3], p_mac[4], p_mac[5]);
-
+    // Save_Pair_Info((uint8_t *)"\xDE\xAD\xBE\xEF\x01");
+    Load_Pair_Info();
 
     /* 非阻塞slave */
     //my_key_init();
