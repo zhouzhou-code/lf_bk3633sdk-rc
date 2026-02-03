@@ -51,6 +51,15 @@ typedef struct {
     uint8_t cmd;
     uint8_t magic_number;
 } pair_verify_pkt; 
+
+//Flash存储结构体
+typedef struct {
+    uint32_t magic;         // [0-3]  魔数，判断数据有效性
+    uint8_t  pair_addr[5];  // [4-8]  配对地址
+    uint8_t  padding[2];    // [9-10] 填充位，凑4字节对齐
+    uint8_t  checksum;      // [11]   简单的累加校验和
+} PairInfo_t;               // 总大小：12 字节
+
 #pragma pack()
 
 
@@ -59,8 +68,10 @@ typedef struct {
     uint32_t start_wait;
     uint32_t global_start_tick; // 总超时计时
     uint8_t is_running;
+
     uint32_t verify_cnt;               // ping-pong成功计数
-    uint8_t reach_goal_flag;          // 达到目标计数标志
+    uint32_t verify_target_count;      // 目标ping-pong次数
+    uint8_t reach_goal_flag;           // 达到目标计数标志
     uint32_t last_ping_recv_timestamp; // 上次收到ping的时间戳
 } SlavePairCtrl_t;
 
@@ -78,7 +89,8 @@ typedef struct {
     pair_resp_pkt resp_pkt;     // 缓存 RESP 包
     uint32_t txds_snapshot;     // 发送计数快照
     
-    uint32_t verify_cnt;         // 验证计数
+    uint32_t verify_cnt;               // ping-pong成功计数
+    uint32_t verify_target_count;      // 目标ping-pong次数，小于slave的目标ping-pong次数
 } HostPairCtrl_t;
 
 extern uint8_t slave_pair_success_flag;

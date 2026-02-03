@@ -542,17 +542,16 @@ int main(void)
     while(1)
     {
         Slave_Pairing_Task(); //非阻塞配对任务调用
-    //RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms
-
+        //RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms
         //Do_Pairing_As_Host_SM();
     }
     /* 非阻塞host */
-    // RF_Handler_Init();//初始化RF句柄及队列
-    // Host_Pairing_Start(); //启动机配对模式
-    // while(1)
-    // {
-    //     Host_Pairing_Task(); //非阻塞配对任务调用
-    // }
+    RF_Handler_Init();//初始化RF句柄及队列
+    Host_Pairing_Start(); //启动机配对模式
+    while(1)
+    {
+        Host_Pairing_Task(); //非阻塞配对任务调用
+    }
     
 
 

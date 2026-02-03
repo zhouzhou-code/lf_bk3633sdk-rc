@@ -197,7 +197,7 @@ typedef struct {
     uint8_t  EnDynamicPayload;   // 是否使能动态包长
     uint8_t  PayloadWidth;       // 固定包长;EnDynamicPayload无效时通道的固定包长值
     uint8_t  Support_Payload_Attach_ACK; // 是否支持接收方发ACK时附带数据
-    uint32_t Address[5];          // pipe的地址（pipe0/1为全地址，pipe2-5只用最低字节）
+    uint8_t Address[5];          // pipe的地址（pipe0/1为全地址，pipe2-5只用最低字节）
 } RF_RxPipesTypeDef;
 
 /** 
@@ -206,7 +206,7 @@ typedef struct {
 typedef struct {
     uint8_t    AddressWidth;     /*!< 全局地址宽度: 3, 4 或 5 字节 */
     
-    uint32_t   TxAddress[5];     /*!< 发送地址 (本机作为PTX发包时的目标地址) */
+    uint8_t    TxAddress[5];     /*!< 发送地址 (本机作为PTX发包时的目标地址) */
     uint8_t    Support_NoAck;            /*!< 是否支持无ACK发送命令 1==支持 (W_TX_PAYLOAD_NOACK) */
     uint8_t    AutoRetransmitCount;    /*!< 自动重传次数 (0~15, 0表示禁用重传) */
     uint8_t    AutoRetransmitDelay;    /*!< 自动重传延迟 (单位: 250μs, 0~15 对应 250μs~4000μs) */
@@ -313,11 +313,11 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf);
 void HAL_RF_SetChannel(RF_HandleTypeDef *hrf, uint8_t channel);
 void HAL_RF_GetChannel(RF_HandleTypeDef *hrf, uint8_t channel);
 
-HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr,uint8_t length);
-HAL_StatusTypeDef HAL_RF_GetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr);
+HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint8_t *dev_addr,uint8_t length);
+HAL_StatusTypeDef HAL_RF_GetTxAddress(RF_HandleTypeDef *hrf, uint8_t *dev_addr);
 
-HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint32_t *dev_addr,uint8_t length);
-HAL_StatusTypeDef HAL_RF_GetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint32_t *dev_addr);
+HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint8_t *dev_addr,uint8_t length);
+HAL_StatusTypeDef HAL_RF_GetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint8_t *dev_addr);
 
 //注意，切换模式不可只改变寄存器位，还需PowerUp以及拉低CE
 HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf);

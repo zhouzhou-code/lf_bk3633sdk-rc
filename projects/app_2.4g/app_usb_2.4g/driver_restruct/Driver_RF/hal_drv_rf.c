@@ -128,7 +128,12 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
         return HAL_ERROR; // 地址宽度无效
     __HAL_RF_SET_ADDR_WIDTH(tmp_addr_width);
 
-    RF_MemCpy(&TRX_TX_ADDR_0, Init->Protocol.TxAddress, tmp_addr_width);   // TX 发送地址
+    //发送地址转uint32_t类型数组
+    uint32_t tmp_addr_buffer[tmp_addr_width];
+    for(uint8_t i=0; i<tmp_addr_width; i++){
+        tmp_addr_buffer[i] = Init->Protocol.TxAddress[i];
+    }
+    RF_MemCpy(&TRX_TX_ADDR_0, tmp_addr_buffer, tmp_addr_width);   // TX 发送地址
     Init->Protocol.Support_NoAck ? __HAL_RF_EN_NOACK() : __HAL_RF_DIS_NOACK();    // 是否支持无ACK发送命令
     __HAL_RF_TX_RETRY(Init->Protocol.AutoRetransmitDelay, Init->Protocol.AutoRetransmitCount); //自动重传设置
 
@@ -164,8 +169,18 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
 
         Init->Protocol.RxPipes[i].Support_Payload_Attach_ACK ? __HAL_RF_EN_ACK_PAY() : __HAL_RF_DIS_ACK_PAY();
     }
-    RF_MemCpy(&TRX_RX_ADDR_P0_0, (uint32_t*)Init->Protocol.RxPipes[0].Address, tmp_addr_width);
-    RF_MemCpy(&TRX_RX_ADDR_P1_0, (uint32_t*)Init->Protocol.RxPipes[1].Address, tmp_addr_width);
+    //接收地址设置
+    uint32_t tmp_rxaddr_buffer[tmp_addr_width];
+    for(uint8_t i=0; i<tmp_addr_width; i++){
+        tmp_rxaddr_buffer[i] = Init->Protocol.RxPipes[0].Address[i];
+    }
+    RF_MemCpy(&TRX_RX_ADDR_P0_0, tmp_rxaddr_buffer, tmp_addr_width);
+    
+    for(uint8_t i=0; i<tmp_addr_width; i++){
+        tmp_rxaddr_buffer[i] = Init->Protocol.RxPipes[1].Address[i];
+    }
+    RF_MemCpy(&TRX_RX_ADDR_P1_0, tmp_rxaddr_buffer, tmp_addr_width);
+    
     TRX_RX_ADDR_P2 = Init->Protocol.RxPipes[2].Address[0];
     TRX_RX_ADDR_P3 = Init->Protocol.RxPipes[3].Address[0];
     TRX_RX_ADDR_P4 = Init->Protocol.RxPipes[4].Address[0];
@@ -497,18 +512,22 @@ void HAL_RF_SetChannel(RF_HandleTypeDef *hrf, uint8_t channel)
 /**
   * @brief  设置发送地址
   * @param  hrf: RF 句柄
-  * @param  dev_addr: 发送地址指针
+  * @param  dev_addr: 发送地址指针,uint8_t类型，内部转成uint32类型赋值给寄存器
   * @param  length: 地址宽度 必须传入和AddressWidth相同的值！
   */
-HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr,uint8_t length)
+HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint8_t *dev_addr,uint8_t length)
 {   
     if(length!=hrf->Params.Protocol.AddressWidth) 
         return HAL_RF_STATE_ERROR;
 
+    memcpy(hrf->Params.Protocol.TxAddress, dev_addr, sizeof(uint8_t)*length);
 
-    memcpy(hrf->Params.Protocol.TxAddress, dev_addr, sizeof(uint32_t)*length);
-    
-    RF_MemCpy(&TRX_TX_ADDR_0, hrf->Params.Protocol.TxAddress, hrf->Params.Protocol.AddressWidth);
+    uint32_t tmp_buffer[length];
+    for(uint8_t i=0; i<length; i++){
+        tmp_buffer[i] = hrf->Params.Protocol.TxAddress[i];
+    }
+
+    RF_MemCpy(&TRX_TX_ADDR_0, tmp_buffer, hrf->Params.Protocol.AddressWidth);
     return HAL_RF_STATE_READY;
 }
 
@@ -517,21 +536,31 @@ HAL_StatusTypeDef HAL_RF_SetTxAddress(RF_HandleTypeDef *hrf, uint32_t *dev_addr,
 /**
   * @brief  设置接收通道地址
   * @param  hrf: RF 句柄
-  * @param  dev_addr: 接收地址指针
-  * @param  length: 地址宽度 必须传入和AddressWidth相同的值！
+  * @param  dev_addr: 接收地址指针,uint8类型，内部转成uint32类型
+  * @param  pipe: 接收管道号 (0-5)
+  * @param  length: 地址宽度 必须传入和AddressWidth相同的值
   */
-HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint32_t *dev_addr,uint8_t length)
+HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint8_t *dev_addr,uint8_t length)
 {
     if(pipe >5 || dev_addr == NULL) return HAL_RF_STATE_ERROR;
-    if(length!=hrf->Params.Protocol.AddressWidth) return HAL_RF_STATE_ERROR;
+    if(length != hrf->Params.Protocol.AddressWidth)
+        return HAL_RF_STATE_ERROR;
 
-    memcpy(hrf->Params.Protocol.RxPipes[pipe].Address, dev_addr, sizeof(uint32_t)*length);
+    memcpy(hrf->Params.Protocol.RxPipes[pipe].Address, dev_addr, sizeof(uint8_t)*length);
+
+    // 转换地址类型
+    uint32_t tmp_buffer[length];
+    for(uint8_t i=0; i<length; i++){
+        tmp_buffer[i] = hrf->Params.Protocol.RxPipes[pipe].Address[i];
+    }
+
+   
     switch(pipe){
         case 0:
-            RF_MemCpy(&TRX_RX_ADDR_P0_0, hrf->Params.Protocol.RxPipes[0].Address, hrf->Params.Protocol.AddressWidth);
+            RF_MemCpy(&TRX_RX_ADDR_P0_0, tmp_buffer, hrf->Params.Protocol.AddressWidth);
             break;
         case 1:
-            RF_MemCpy(&TRX_RX_ADDR_P1_0, hrf->Params.Protocol.RxPipes[1].Address, hrf->Params.Protocol.AddressWidth);
+            RF_MemCpy(&TRX_RX_ADDR_P1_0, tmp_buffer, hrf->Params.Protocol.AddressWidth);
             break;
         case 2:
             TRX_RX_ADDR_P2 = hrf->Params.Protocol.RxPipes[2].Address[0];

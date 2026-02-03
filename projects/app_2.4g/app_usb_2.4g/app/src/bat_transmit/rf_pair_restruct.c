@@ -14,13 +14,60 @@
 uint8_t slave_pair_success_flag = 0;
 uint8_t host_pair_success_flag = 0;
 
-static const uint32_t PAIR_ADDR_DEFAULT[5] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
+static const uint8_t PAIR_ADDR_DEFAULT[5] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
 
 static uint8_t slave_magic_number = 0x5A; 
 static uint8_t host_magic_number  = 0xA5;
 
 SingleByteAddrPool_t g_addr3;
 SingleByteAddrPool_t g_addr4;
+
+static void printf_all_registers(void)
+{
+    uart_printf("TRX_CONFIG     = 0x%02X\r\n", TRX_CONFIG);
+    uart_printf("TRX_EN_AA      = 0x%02X\r\n", TRX_EN_AA);
+    uart_printf("TRX_EN_RXADDR  = 0x%02X\r\n", TRX_EN_RXADDR);
+    uart_printf("TRX_SETUP_AW   = 0x%02X\r\n", TRX_SETUP_AW);
+    uart_printf("TRX_SETUP_RETR = 0x%02X\r\n", TRX_SETUP_RETR);
+    uart_printf("TRX_RF_CH      = 0x%02X\r\n", TRX_RF_CH);
+    uart_printf("TRX_RF_SETUP   = 0x%02X\r\n", TRX_RF_SETUP);
+
+    uart_printf("TRX_RX_ADDR_P0 = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P0_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_ADDR_P1 = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P1_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_ADDR_P2 = 0x%02X\r\n", TRX_RX_ADDR_P2);
+    uart_printf("TRX_RX_ADDR_P3 = 0x%02X\r\n", TRX_RX_ADDR_P3);
+    uart_printf("TRX_RX_ADDR_P4 = 0x%02X\r\n", TRX_RX_ADDR_P4);
+    uart_printf("TRX_RX_ADDR_P5 = 0x%02X\r\n", TRX_RX_ADDR_P5);
+
+    uart_printf("TRX_TX_ADDR    = ");
+    for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_TX_ADDR_0)[i]);
+    uart_printf("\r\n");
+
+    uart_printf("TRX_RX_PW_P0   = 0x%02X\r\n", TRX_RX_PW_P0);
+    uart_printf("TRX_RX_PW_P1   = 0x%02X\r\n", TRX_RX_PW_P1);
+    uart_printf("TRX_RX_PW_P2   = 0x%02X\r\n", TRX_RX_PW_P2);
+    uart_printf("TRX_RX_PW_P3   = 0x%02X\r\n", TRX_RX_PW_P3);
+    uart_printf("TRX_RX_PW_P4   = 0x%02X\r\n", TRX_RX_PW_P4);
+    uart_printf("TRX_RX_PW_P5   = 0x%02X\r\n", TRX_RX_PW_P5);
+
+    uart_printf("TRX_DYNPD      = 0x%02X\r\n", TRX_DYNPD);
+    uart_printf("TRX_FEATURE    = 0x%02X\r\n", TRX_FEATURE);
+
+    uart_printf("addXVR_Reg0x24 = 0x%08lX\r\n", addXVR_Reg0x24);
+    uart_printf("addXVR_Reg0x3b = 0x%08lX\r\n", addXVR_Reg0x3b);
+    uart_printf("addXVR_Reg0x2e = 0x%08lX\r\n", addXVR_Reg0x2e);
+    uart_printf("addXVR_Reg0x26 = 0x%08lX\r\n", addXVR_Reg0x26);
+    uart_printf("addXVR_Reg0x2  = 0x%08lX\r\n", addXVR_Reg0x2);
+    uart_printf("addXVR_Reg0x2c = 0x%08lX\r\n", addXVR_Reg0x2c);
+    uart_printf("addXVR_Reg0x2d = 0x%08lX\r\n", addXVR_Reg0x2d);
+    uart_printf("addXVR_Reg0x3a = 0x%08lX\r\n", addXVR_Reg0x3a);
+}
 
 // 调试打印函数
 static void printf_txrx_addr(void)
@@ -41,17 +88,28 @@ static uint8_t Check_Global_Timeout(uint32_t start_tick) {
     return 0;
 }
 
-static SlavePairCtrl_t g_slave_ctrl = {SLAVE_PAIR_IDLE, 0, 0, 0, 0};
+static SlavePairCtrl_t g_slave_ctrl = {
+    .state = SLAVE_PAIR_IDLE, 
+    .is_running = 0,
+    .start_wait = 0,
+    .global_start_tick = 0,
+    .verify_cnt = 0,
+    .verify_target_count = 5,
+    .reach_goal_flag = 0,
+    .last_ping_recv_timestamp = 0
+};
 
 void Slave_Pairing_Start(void) {
     memset(&g_slave_ctrl, 0, sizeof(g_slave_ctrl));
     g_slave_ctrl.state = SLAVE_PAIR_IDLE;
     g_slave_ctrl.is_running = 1;
     g_slave_ctrl.global_start_tick = Get_SysTick_ms();
+    g_slave_ctrl.verify_target_count = 5;
     
     HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
     HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
     HAL_RF_SetTxMode(&hrf);
+    printf_all_registers();
     uart_printf("Slave: Start Pairing Task...\n");
 }
 
@@ -78,13 +136,6 @@ void Slave_Pairing_Task(void) {
     // 维持RF底层
     RF_Service_Handler(&hrf);
 
-    // // 全局超时保护
-    // if (Check_Global_Timeout(g_slave_ctrl.global_start_tick)) {
-    //     uart_printf("Slave: Global Timeout! Reset.\n");
-    //     Slave_Pairing_Start(); //重置状态
-    //     return;
-    // }
-
     switch (g_slave_ctrl.state) {
         case SLAVE_PAIR_IDLE:
             g_slave_ctrl.state = SLAVE_PAIR_SEND_REQ;
@@ -106,15 +157,17 @@ void Slave_Pairing_Task(void) {
             if (RF_rxQueue_Recv(&recv_resp_pkg, &len, NULL) == 1) {
                 if (len == sizeof(pair_resp_pkt) && recv_resp_pkg->cmd == CMD_PAIR_RESP) {
                     
-                    uint32_t new_addr[5];
-                    for(int i=0; i<5; i++) new_addr[i] = recv_resp_pkg->new_addr[i];
-
                     uart_printf("Slave: Got RESP! Switch to New Addr.\n");
 
                     // 立即切换地址
+                    uint32_t new_addr[5];
+                    for(int i=0; i<5; i++) new_addr[i] = recv_resp_pkg->new_addr[i];
+                    
                     RF_rxQueue_clear();
-                    HAL_RF_SetTxAddress(&hrf, new_addr, 5);
-                    HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
+                    // HAL_RF_SetTxAddress(&hrf, new_addr, 5);
+                    // HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
+                    HAL_RF_SetTxAddress(&hrf, recv_resp_pkg->new_addr, 5);
+                    HAL_RF_SetRxAddress(&hrf, 0, recv_resp_pkg->new_addr, 5);
 
                     //进入验证
                     g_slave_ctrl.verify_cnt = 0;
@@ -144,21 +197,18 @@ void Slave_Pairing_Task(void) {
                     RF_txQueue_Send((uint8_t*)&pong_pkt, sizeof(pong_pkt));
                     
                     g_slave_ctrl.verify_cnt++;
-                    uart_printf("Slave: Verified %d/5\n", g_slave_ctrl.verify_cnt);
+                    uart_printf("Slave: Verified %d/%d\n", g_slave_ctrl.verify_cnt, g_slave_ctrl.verify_target_count);
 
-                    if (g_slave_ctrl.verify_cnt >= 5) {
+                    if (g_slave_ctrl.verify_cnt >= g_slave_ctrl.verify_target_count) {
                         // 标记,host端达标了,但要陪Host跑到终点
                         g_slave_ctrl.reach_goal_flag = 1; 
                         uart_printf("Slave: ping pong reached!\n");
-                        printf_txrx_addr();
                     }
-
-
                 }
             }
-            //A：已经成功了,且Host很久(比如1秒)没ping->说明Host也好了
+            //A：已经成功了,且Host很久(比如3秒)没ping->说明Host也好了
             if (g_slave_ctrl.reach_goal_flag == 1) {
-                if (Get_SysTick_ms() - g_slave_ctrl.last_ping_recv_timestamp > 1000) {
+                if (Get_SysTick_ms() - g_slave_ctrl.last_ping_recv_timestamp > 3000) {
                     uart_printf("Slave: Host silent, Pairing Process DONE.\n");
                     g_slave_ctrl.state = SLAVE_PAIR_DONE;
                 }
@@ -183,14 +233,22 @@ void Slave_Pairing_Task(void) {
 
 
 
-static HostPairCtrl_t g_host_ctrl;
+static HostPairCtrl_t g_host_ctrl={
+    .state = HOST_PAIR_IDLE, 
+    .is_running = 0,
+    .start_wait = 0,
+    .global_start_tick = 0,
+    .last_ping_tick = 0,
+    .verify_cnt = 0,
+    .verify_target_count = 10
+};
 
 void Host_Pairing_Start(void) {
     memset(&g_host_ctrl, 0, sizeof(g_host_ctrl));
     g_host_ctrl.state = HOST_PAIR_IDLE;
     g_host_ctrl.is_running = 1;
     g_host_ctrl.global_start_tick = Get_SysTick_ms();
-
+    g_host_ctrl.verify_target_count = 10;
     // 初始化地址池
     ADDR_POOL_INIT_NORESERVED(&g_addr3);
     ADDR_POOL_INIT_NORESERVED(&g_addr4);
@@ -198,6 +256,7 @@ void Host_Pairing_Start(void) {
     HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
     HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
     HAL_RF_SetRxMode(&hrf);
+    printf_all_registers();
     
     uart_printf("Host: Start Pairing Task...\n");
 }
@@ -219,13 +278,6 @@ void Host_Pairing_Task(void) {
     uint8_t len;
     
     RF_Service_Handler(&hrf);
-
-    // // 全局超时保护
-    // if (Check_Global_Timeout(g_host_ctrl.global_start_tick)) {
-    //     uart_printf("Host: Global Timeout! Reset.\n");
-    //     Host_Pairing_Start();
-    //     return;
-    // }
 
     switch (g_host_ctrl.state) {
         case HOST_PAIR_IDLE:
@@ -284,8 +336,10 @@ void Host_Pairing_Task(void) {
                 uint32_t new_addr[5];
                 for(int i=0; i<5; i++) new_addr[i] = g_host_ctrl.resp_pkt.new_addr[i];
 
-                HAL_RF_SetTxAddress(&hrf, new_addr, 5);
-                HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
+                // HAL_RF_SetTxAddress(&hrf, new_addr, 5);
+                // HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
+                HAL_RF_SetTxAddress(&hrf, g_host_ctrl.resp_pkt.new_addr, 5);
+                HAL_RF_SetRxAddress(&hrf, 0, g_host_ctrl.resp_pkt.new_addr, 5);
 
                 //进入验证
                 g_host_ctrl.verify_cnt = 0;
@@ -293,9 +347,6 @@ void Host_Pairing_Task(void) {
                 g_host_ctrl.start_wait = Get_SysTick_ms();
                 g_host_ctrl.state = HOST_PAIR_VERIFY_PHASE;
                 uart_printf("Host: goto verify phase.\n");
-                // //发送20个PING包提高成功率
-                // for(int i=0;i<20;i++)
-                //     RF_txQueue_Send((uint8_t*)&ping_pkt, sizeof(ping_pkt));
             
             }
             else if (Get_SysTick_ms() - g_host_ctrl.start_wait > 50) {
@@ -305,13 +356,11 @@ void Host_Pairing_Task(void) {
             break;
 
         case HOST_PAIR_VERIFY_PHASE:
-        // uart_printf("Host: Verify Phase... Sent PING\n");
-        //定时发送PING包 50ms一个
+        //定时PING 50ms一次
         if (Get_SysTick_ms() - g_host_ctrl.last_ping_tick > 50) {
             RF_txQueue_Send((uint8_t*)&ping_pkt, sizeof(ping_pkt));
             g_host_ctrl.last_ping_tick = Get_SysTick_ms();
             uart_printf("Host: Sent PING,time:%d\n", g_host_ctrl.last_ping_tick);
-            //发完这一个包后，RF_Service_Handler 会自动把它发出去
         }
         //接收PONG
         if (RF_rxQueue_Recv(&recv_pong_pkt, &len, NULL) == 1) {
@@ -322,9 +371,9 @@ void Host_Pairing_Task(void) {
                 g_host_ctrl.start_wait = Get_SysTick_ms();
 
                 g_host_ctrl.verify_cnt++;
-                uart_printf("Host: Verified %d/10\n", g_host_ctrl.verify_cnt);
+                uart_printf("Host: Verified %d/%d\n", g_host_ctrl.verify_cnt, g_host_ctrl.verify_target_count);
 
-                if (g_host_ctrl.verify_cnt >= 5) {
+                if (g_host_ctrl.verify_cnt >= g_host_ctrl.verify_target_count) {
                     uart_printf("Host: Pairing SUCCESS!\n");
                     printf_txrx_addr();
                     g_host_ctrl.state = HOST_PAIR_DONE;
@@ -333,10 +382,9 @@ void Host_Pairing_Task(void) {
             }
         }
 
-        // 如果切过来 2000ms 还没收到 PONG，说明 Slave 没跟过来
-        if (Get_SysTick_ms() - g_host_ctrl.start_wait > 10000) {
+        // 如果切过来 2000ms 还没收到 PONG，说明Slave没跟过来，回退
+        if (Get_SysTick_ms() - g_host_ctrl.start_wait > 20000) {
             uart_printf("Host: Verify Timeout! Slave Lost. Revert.\n");
-            
             RF_txQueue_Clear();
             g_host_ctrl.state = HOST_PAIR_WAIT_REQ;
         }
@@ -346,6 +394,7 @@ void Host_Pairing_Task(void) {
             g_host_ctrl.is_running = 0;
             uart_printf("Host: Pairing Process Success Completed.\n");
             printf_txrx_addr();
+            //保存到flash
             break;
     }
 }

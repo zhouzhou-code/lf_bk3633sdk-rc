@@ -37,7 +37,7 @@ SingleByteAddrPool_t g_addr3;
 SingleByteAddrPool_t g_addr4;
 
 
-printf_all_registers(void)
+static void printf_all_registers(void)
 {
     uart_printf("TRX_CONFIG     = 0x%02X\r\n", TRX_CONFIG);
     uart_printf("TRX_EN_AA      = 0x%02X\r\n", TRX_EN_AA);
