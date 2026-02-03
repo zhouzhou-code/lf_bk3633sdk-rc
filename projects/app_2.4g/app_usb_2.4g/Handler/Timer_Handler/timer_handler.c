@@ -59,5 +59,5 @@ static void timer_pairkey_init(void)
 void Timer_Handler_Init(void)
 {
     timer_sys_timebase_init();
-    timer_pairkey_init();
+    //timer_pairkey_init();
 }

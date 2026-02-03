@@ -203,6 +203,20 @@ uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pip
     }
 }
 
+/**
+ * @brief  将接收队列数据清空
+ * @param   data_ptr:  输出参数，指向接收到的数据指针
+ * @param   out_len:   输出参数， 指向接收到的数据长度
+ * @param   pipes:     输出参数， 指向接收到的数据管道号
+ * @return  1:成功
+ */
+uint8_t RF_rxQueue_clear(void)
+{
+    my_queue_t* queue = &rf_rxQueue;
+    queue->in = queue->out; //直接将写索引等于读索引，清空队列
+    return 1;
+}
+
 
 // RF 服务处理函数，放在循环/任务中定时运行,自动管理tx/rx模式切换
 void RF_Service_Handler(RF_HandleTypeDef *hrf)

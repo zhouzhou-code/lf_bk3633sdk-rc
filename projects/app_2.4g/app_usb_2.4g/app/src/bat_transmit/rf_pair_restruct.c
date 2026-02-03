@@ -33,7 +33,7 @@ static void printf_txrx_addr(void)
 }
 
 // 全局超时检查 (防止死锁)
-#define GLOBAL_TIMEOUT_MS 10000
+#define GLOBAL_TIMEOUT_MS 100000
 static uint8_t Check_Global_Timeout(uint32_t start_tick) {
     if (Get_SysTick_ms() - start_tick > GLOBAL_TIMEOUT_MS) {
         return 1;
@@ -72,18 +72,18 @@ void Slave_Pairing_Task(void) {
     pair_verify_pkt *recv_ping_pkt = NULL;
     uint8_t len;
     
-    const uint16_t RESP_WAIT_TIMEOUT = 200;  // 
-    const uint16_t VERIFY_TIMEOUT = 2000;   //
+    const uint16_t RESP_WAIT_TIMEOUT = 100;  //这个时间可以短
+    const uint16_t VERIFY_TIMEOUT = 5000;    //5s，这个时间不能太短
 
     // 维持RF底层
     RF_Service_Handler(&hrf);
 
-    // 全局超时保护
-    if (Check_Global_Timeout(g_slave_ctrl.global_start_tick)) {
-        uart_printf("Slave: Global Timeout! Reset.\n");
-        Slave_Pairing_Start(); // 重置状态
-        return;
-    }
+    // // 全局超时保护
+    // if (Check_Global_Timeout(g_slave_ctrl.global_start_tick)) {
+    //     uart_printf("Slave: Global Timeout! Reset.\n");
+    //     Slave_Pairing_Start(); //重置状态
+    //     return;
+    // }
 
     switch (g_slave_ctrl.state) {
         case SLAVE_PAIR_IDLE:
@@ -102,6 +102,7 @@ void Slave_Pairing_Task(void) {
             break;
 
         case SLAVE_PAIR_WAIT_RESP:
+            //uart_printf("Slave: Wait RESP:%d\n", Get_SysTick_ms());
             if (RF_rxQueue_Recv(&recv_resp_pkg, &len, NULL) == 1) {
                 if (len == sizeof(pair_resp_pkt) && recv_resp_pkg->cmd == CMD_PAIR_RESP) {
                     
@@ -111,6 +112,7 @@ void Slave_Pairing_Task(void) {
                     uart_printf("Slave: Got RESP! Switch to New Addr.\n");
 
                     // 立即切换地址
+                    RF_rxQueue_clear();
                     HAL_RF_SetTxAddress(&hrf, new_addr, 5);
                     HAL_RF_SetRxAddress(&hrf, 0, new_addr, 5);
 
@@ -135,6 +137,9 @@ void Slave_Pairing_Task(void) {
                     recv_ping_pkt->cmd == CMD_PAIR_VERIFY_PING &&
                     recv_ping_pkt->magic_number == host_magic_number) {
                     
+                    // 重置超时计时和最后一次收到ping时间
+                    g_slave_ctrl.start_wait = Get_SysTick_ms();
+                    g_slave_ctrl.last_ping_recv_timestamp = Get_SysTick_ms();
                     // 收到 Ping，回复 Pong
                     RF_txQueue_Send((uint8_t*)&pong_pkt, sizeof(pong_pkt));
                     
@@ -142,18 +147,30 @@ void Slave_Pairing_Task(void) {
                     uart_printf("Slave: Verified %d/5\n", g_slave_ctrl.verify_cnt);
 
                     if (g_slave_ctrl.verify_cnt >= 5) {
-                        uart_printf("Slave: Pairing SUCCESS!\n");
+                        // 标记,host端达标了,但要陪Host跑到终点
+                        g_slave_ctrl.reach_goal_flag = 1; 
+                        uart_printf("Slave: ping pong reached!\n");
                         printf_txrx_addr();
-                        g_slave_ctrl.state = SLAVE_PAIR_DONE;
                     }
+
+
                 }
             }
-            
-            //验证阶段超时 说明 Host 没过来，或地址错了
-            if (Get_SysTick_ms() - g_slave_ctrl.start_wait > VERIFY_TIMEOUT) {
-                uart_printf("Slave: Verify Timeout! Revert.\n");
-                g_slave_ctrl.state = SLAVE_PAIR_SEND_REQ;
+            //A：已经成功了,且Host很久(比如1秒)没ping->说明Host也好了
+            if (g_slave_ctrl.reach_goal_flag == 1) {
+                if (Get_SysTick_ms() - g_slave_ctrl.last_ping_recv_timestamp > 1000) {
+                    uart_printf("Slave: Host silent, Pairing Process DONE.\n");
+                    g_slave_ctrl.state = SLAVE_PAIR_DONE;
+                }
             }
+            //B：还没成功，但是总超时了 -> 说明配对失败,host没在这个地址发包
+            else {
+                if (Get_SysTick_ms() - g_slave_ctrl.start_wait > VERIFY_TIMEOUT) {
+                    uart_printf("Slave: Verify Timeout! Failed.\n");
+                    g_slave_ctrl.state = SLAVE_PAIR_SEND_REQ;
+                }
+            }
+
             break;
 
         case SLAVE_PAIR_DONE:
@@ -203,12 +220,12 @@ void Host_Pairing_Task(void) {
     
     RF_Service_Handler(&hrf);
 
-    // 全局超时保护
-    if (Check_Global_Timeout(g_host_ctrl.global_start_tick)) {
-        uart_printf("Host: Global Timeout! Reset.\n");
-        Host_Pairing_Start();
-        return;
-    }
+    // // 全局超时保护
+    // if (Check_Global_Timeout(g_host_ctrl.global_start_tick)) {
+    //     uart_printf("Host: Global Timeout! Reset.\n");
+    //     Host_Pairing_Start();
+    //     return;
+    // }
 
     switch (g_host_ctrl.state) {
         case HOST_PAIR_IDLE:
@@ -223,8 +240,7 @@ void Host_Pairing_Task(void) {
             if (RF_rxQueue_Recv(&recv_req, &len, NULL) == 1) {
                 if (len == sizeof(pair_req_pkt) && recv_req->cmd == CMD_PAIR_REQ) {
                     uart_printf("Host: Recv Req from %08X\n", recv_req->slave_id);
-                    
-                    //准备 RESP 包
+                    //准备RESP包
                     g_host_ctrl.resp_pkt.cmd = CMD_PAIR_RESP;
                     g_host_ctrl.resp_pkt.new_addr[0] = ADDR_BASE_BYTE0;
                     g_host_ctrl.resp_pkt.new_addr[1] = ADDR_BASE_BYTE1;
@@ -248,8 +264,9 @@ void Host_Pairing_Task(void) {
             HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
             HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
             
-            // 连发5包
+            //连放5包到发送队列
             RF_txQueue_Clear();
+            RF_rxQueue_clear();
             for(int i=0; i<5; i++) 
                 RF_txQueue_Send((uint8_t*)&g_host_ctrl.resp_pkt, sizeof(pair_resp_pkt));
             
@@ -275,6 +292,7 @@ void Host_Pairing_Task(void) {
                 g_host_ctrl.last_ping_tick = 0; 
                 g_host_ctrl.start_wait = Get_SysTick_ms();
                 g_host_ctrl.state = HOST_PAIR_VERIFY_PHASE;
+                uart_printf("Host: goto verify phase.\n");
                 // //发送20个PING包提高成功率
                 // for(int i=0;i<20;i++)
                 //     RF_txQueue_Send((uint8_t*)&ping_pkt, sizeof(ping_pkt));
@@ -287,17 +305,22 @@ void Host_Pairing_Task(void) {
             break;
 
         case HOST_PAIR_VERIFY_PHASE:
-
+        // uart_printf("Host: Verify Phase... Sent PING\n");
+        //定时发送PING包 50ms一个
         if (Get_SysTick_ms() - g_host_ctrl.last_ping_tick > 50) {
             RF_txQueue_Send((uint8_t*)&ping_pkt, sizeof(ping_pkt));
             g_host_ctrl.last_ping_tick = Get_SysTick_ms();
-            // 发完这一个包后，RF_Service_Handler 会自动把它发出去
+            uart_printf("Host: Sent PING,time:%d\n", g_host_ctrl.last_ping_tick);
+            //发完这一个包后，RF_Service_Handler 会自动把它发出去
         }
         //接收PONG
         if (RF_rxQueue_Recv(&recv_pong_pkt, &len, NULL) == 1) {
             if (recv_pong_pkt->cmd == CMD_PAIR_VERIFY_PONG &&
                 recv_pong_pkt->magic_number == slave_magic_number) {
                 
+                //收到 Pong，重置超时计时
+                g_host_ctrl.start_wait = Get_SysTick_ms();
+
                 g_host_ctrl.verify_cnt++;
                 uart_printf("Host: Verified %d/10\n", g_host_ctrl.verify_cnt);
 
@@ -310,14 +333,14 @@ void Host_Pairing_Task(void) {
             }
         }
 
-            // 如果切过来 2000ms 还没收到 PONG，说明 Slave 没跟过来
-            if (Get_SysTick_ms() - g_host_ctrl.start_wait > 2000) {
-                uart_printf("Host: Verify Timeout! Slave Lost. Revert.\n");
-                
-                RF_txQueue_Clear();
-                g_host_ctrl.state = HOST_PAIR_WAIT_REQ;
-            }
-            break;
+        // 如果切过来 2000ms 还没收到 PONG，说明 Slave 没跟过来
+        if (Get_SysTick_ms() - g_host_ctrl.start_wait > 10000) {
+            uart_printf("Host: Verify Timeout! Slave Lost. Revert.\n");
+            
+            RF_txQueue_Clear();
+            g_host_ctrl.state = HOST_PAIR_WAIT_REQ;
+        }
+        break;
 
         case HOST_PAIR_DONE:
             g_host_ctrl.is_running = 0;

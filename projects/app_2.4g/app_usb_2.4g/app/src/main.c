@@ -57,6 +57,33 @@
 #include "gpio_init.h"
 
 
+// 修改测试地址为“非保护区”
+#define FLASH_TEST_ADDR  0x80000  // 512KB 处，位于 256KB~768KB 之间
+
+void Flash_Test_Minimal(void) {
+    uint32_t write_data = 0x11223344;
+    uint32_t read_data = 0;
+
+    uart_printf("\r\n[Flash Test] Try Safe Addr @ 0x%X\r\n", FLASH_TEST_ADDR);
+
+    // // 1. 擦除
+    // flash_erase(0, FLASH_TEST_ADDR, 0x1000, NULL);
+
+    // // 2. 写入 (这次应该能成功，因为驱动会自动调 flash_wp_none)
+    // flash_write(0, FLASH_TEST_ADDR, 4, (uint8_t*)&write_data, NULL);
+
+    // 3. 读取
+    flash_read(0, FLASH_TEST_ADDR, 4, (uint8_t*)&read_data, NULL);
+
+    // 4. 验证
+    if (read_data == write_data) {
+        uart_printf("[Flash Test] PASS! RW Success.\r\n");
+    } else {
+        uart_printf("[Flash Test] FAIL! W:%x R:%x (Check protection?)\r\n", write_data, read_data);
+    }
+}
+
+
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
 
@@ -267,7 +294,8 @@ int main(void)
 
    //gpio_init();
     flash_init();
-    pair_gpio_init();//初始化配对按键
+    //Flash_Test_Minimal();
+  //  pair_gpio_init();//初始化配对按键
   //  xvr_reg_initial_24();
   //  gpio_set_neg(0x04);
 
@@ -509,15 +537,15 @@ int main(void)
 
     /* 非阻塞slave */
     //my_key_init();
-    // RF_Handler_Init();     //初始化RF句柄及队列
-    // Slave_Pairing_Start(); //启动从机配对模式
-    // while(1)
-    // {
-    //      Slave_Pairing_Task(); //非阻塞配对任务调用
-    // //RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms
+    RF_Handler_Init();     //初始化RF句柄及队列
+    Slave_Pairing_Start(); //启动从机配对模式
+    while(1)
+    {
+        Slave_Pairing_Task(); //非阻塞配对任务调用
+    //RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms
 
-    //     //Do_Pairing_As_Host_SM();
-    // }
+        //Do_Pairing_As_Host_SM();
+    }
     /* 非阻塞host */
     // RF_Handler_Init();//初始化RF句柄及队列
     // Host_Pairing_Start(); //启动机配对模式
