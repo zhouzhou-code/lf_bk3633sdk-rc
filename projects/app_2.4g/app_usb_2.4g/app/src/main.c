@@ -143,12 +143,7 @@ static void stack_integrity_check(void)
 
 }
 
-void test_rf_app(void)
-{
-    uart_printf("test_rf_app\r\n");
-    uint8_t test_data[32];
-    RF_txQueue_Send(test_data, 32);
-}
+
 extern RF_HandleTypeDef h_pair; //配对专用RF句柄
 extern RF_ConfgTypeDef Pairing_Config;
 extern void printf_all_registers(void);
@@ -522,6 +517,11 @@ int main(void)
         }
     }
     #endif
+
+    /* ------------------------------------双通道收发-------------------------------------- */
+
+
+
     /* ------------------------------------配对测试,过-------------------------------------- */
 
     // Save_Pair_Info((uint8_t *)"\xDE\xAD\xBE\xEF\x01");
@@ -529,14 +529,14 @@ int main(void)
 
     /* 非阻塞slave */
     //my_key_init();
-    RF_Handler_Init();     //初始化RF句柄及队列
-    Slave_Pairing_Start(); //启动从机配对模式
-    while(1)
-    {
-        Slave_Pairing_Task(); //非阻塞配对任务调用
-        //RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms
-        //Do_Pairing_As_Host_SM();
-    }
+    // RF_Handler_Init();     //初始化RF句柄及队列
+    // Slave_Pairing_Start(); //启动从机配对模式
+    // while(1)
+    // {
+    //     Slave_Pairing_Task(); //非阻塞配对任务调用
+    //     //RF_Service_Handler(&hrf);  //RF发送服务处理函数，周期200ms
+    //     //Do_Pairing_As_Host_SM();
+    // }
     /* 非阻塞host */
     RF_Handler_Init();//初始化RF句柄及队列
     Host_Pairing_Start(); //启动机配对模式
@@ -545,7 +545,6 @@ int main(void)
         Host_Pairing_Task(); //非阻塞配对任务调用
     }
     
-
 
    //按键+阻塞式配对测试
     // while(1)

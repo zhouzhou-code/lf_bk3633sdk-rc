@@ -27,14 +27,13 @@ typedef struct {
     uint8_t reserved_id[32]; //32字节保留位图 表示256个地址预留情况
 } SingleByteAddrPool_t;
 
-//内部函数，用户不直接调用以下函数，使用宏 ADDR_POOL_INIT 初始化地址池
+//内部函数，用户不直接调用该函数，使用宏 ADDR_POOL_INIT 初始化地址池
 void __addrpool_init_internal(SingleByteAddrPool_t *pool, uint8_t *list, uint16_t count);
 
 void addrpool_occupy(SingleByteAddrPool_t* pool, uint8_t id);
 void addrpool_free(SingleByteAddrPool_t* pool, uint8_t id);
 int8_t addrpool_alloc_addr_first(SingleByteAddrPool_t* pool,uint8_t *out_id) ;
 int8_t addrpool_alloc_addr_random(SingleByteAddrPool_t* pool,uint8_t *out_id) ;
-void addrpool_print_summary(void);
 
 
 #endif // __ADDR_POOL_H__

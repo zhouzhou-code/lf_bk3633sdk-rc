@@ -105,20 +105,3 @@ int8_t addrpool_alloc_addr_random(SingleByteAddrPool_t* pool, uint8_t *out_id) {
 
     return -1;
 }
-
-
-
-
-
-/**
- * @brief 调试打印：显示当前已分配了多少个地址
- */
-// void addrpool_print_summary(void) {
-//     uint16_t used_count = 0;
-//     for (int i = 0; i < 32; i++) {
-//         for (int j = 0; j < 8; j++) {
-//             if (pool->bitmap[i] & (1 << j)) used_count++;
-//         }
-//     }
-//     //uart_printf("AddrPool: %d / 256 slots used.\r\n", used_count);
-// }

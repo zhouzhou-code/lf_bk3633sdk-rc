@@ -8,9 +8,9 @@
 
 /* rf_txQueue每一项是固定长度为32+1字节，第一字节存放净荷长度，发送时只发送净荷 */
 
-uint8_t rf_send_queue_buffer[txqueue_item_size*rf_send_queue_len]; //发送队列缓冲区
+uint8_t rf_send_queue_buffer[sizeof(Rf_txQueueItem_t)*rf_send_queue_len]; //发送队列缓冲区
 my_queue_t rf_txQueue;               // 发送队列
-uint8_t rf_recv_queue_buffer[rxqueue_item_size*rf_recv_queue_len]; //接收队列缓冲区
+uint8_t rf_recv_queue_buffer[sizeof(Rf_rxQueueItem_t)*rf_recv_queue_len]; //接收队列缓冲区
 my_queue_t rf_rxQueue;               // 接收队列
 
 
@@ -20,34 +20,41 @@ uint32_t rf_int_count_rxdr = 0;
 uint32_t rf_int_count_txds = 0;
 uint32_t rf_int_count_maxrt = 0;
 
-
 //接收中断回调函数,数据push到接收队列
 void rxdr_callback(RF_HandleTypeDef *hrf)
 {
     if(hrf->RxBuff_valid == 1) {
         hrf->RxBuff_valid = 0;
-        uint8_t temp[1+1+hrf->RxLen];
-        temp[0] = hrf->RxLen;               // 第一字节为有效长度
-        temp[1] = hrf->RxPipes;             // 第二字节为接收管道          
-        memcpy(&temp[2], hrf->RxBuff, hrf->RxLen);
+
+        //封包入队列
+        Rf_rxQueueItem_t temp;
+        temp.pipes = hrf->RxPipes;
+        temp.len = hrf->RxLen;
+        memcpy(temp.payload, hrf->RxBuff, hrf->RxLen);
         
-        queue_push_overwrite(&rf_rxQueue, temp);
+        queue_push_overwrite(&rf_rxQueue, (Rf_rxQueueItem_t*)&temp);
     }
     rf_int_count_rxdr++;
 }
+//发送完成中断回调函数，切换pipe0到监听slave0地址
 void txds_callback(RF_HandleTypeDef *hrf)
 {
+    //HAL_RF_SetRxAddress(hrf, 0, Init_S.Protocol.RxPipes[0].Address, Init_S.Protocol.AddressWidth);
     rf_int_count_txds++;
-    uart_printf("tx=%d\n", rf_int_count_txds);   
+    uart_printf("tx=%d\n", rf_int_count_txds);
+
 }
+
+//达到最大重传中断回调函数，切换pipe0到监听slave0地址
 void maxrt_callback(RF_HandleTypeDef *hrf)
 {
+    //HAL_RF_SetRxAddress(hrf, 0, Init_S.Protocol.RxPipes[0].Address, Init_S.Protocol.AddressWidth);
     rf_int_count_maxrt++;
     uart_printf("rt=%d\n", rf_int_count_maxrt);
 }
 
-//初始化参数配置结构体
-RF_ConfgTypeDef Init_S=
+//初始化默认参数配置结构体
+RF_ConfgTypeDef Init_default_S=
 {
     .Mode = MODE_TX,
     .DataRate = BPS_2M,
@@ -135,36 +142,42 @@ RF_ConfgTypeDef Init_S=
 void RF_Handler_Init(void)
 {
     /* 初始化RF模块 */
-    HAL_RF_Init(&hrf, &Init_S);
+    //默认地址的rxpipe地址设置为slave0地址，上电从flash中读取
+    //Init_default_S.Protocol.RxPipes[0].Address
+
+    HAL_RF_Init(&hrf, &Init_default_S);
     HAL_RF_TimeManager_register(&hrf, Get_SysTick_ms);
 
     /* 默认初始化为发送模式 */
     HAL_RF_SetTxMode(&hrf);
     /* 初始化发送和接收队列 */
     queue_init(&rf_txQueue, rf_send_queue_buffer, 
-                txqueue_item_size*rf_send_queue_len, rf_send_queue_len, txqueue_item_size);
+                sizeof(rf_send_queue_buffer), rf_send_queue_len, sizeof(Rf_txQueueItem_t));
     queue_init(&rf_rxQueue, rf_recv_queue_buffer,
-                rxqueue_item_size*rf_recv_queue_len, rf_recv_queue_len, rxqueue_item_size);
+                sizeof(rf_recv_queue_buffer), rf_recv_queue_len, sizeof(Rf_rxQueueItem_t));
     
 }
 
 /* 发送数据入队函数
+ * dest_addr: 目标地址指针,传入5字节地址
  * data_pack: 指向要发送的数据包指针
  * len: 数据包长度，最大不超过 max_rf_payload_len 32字节
  */
-void RF_txQueue_Send(uint8_t *data_pack, uint8_t len)
+void RF_txQueue_Send(uint8_t *dest_addr,uint8_t *data_pack, uint8_t len)
 {
     if(len > max_rf_payload_len) {
         len = max_rf_payload_len; //限制最大长度
     }
 
-    /* 封包，在净荷数据前加上长度 */
-    uint8_t temp_data[txqueue_item_size];
-    temp_data[0] = len;
+    /* 封包 */
+    Rf_txQueueItem_t temp_item;
+    temp_item.len = len;
 
-    memcpy(&temp_data[1], data_pack, len);
+    memcpy(temp_item.dest_addr, dest_addr, sizeof(temp_item.dest_addr));
+    memcpy(temp_item.payload, data_pack, temp_item.len);
+    
     //入队
-    queue_push_overwrite(&rf_txQueue, temp_data);
+    queue_push_overwrite(&rf_txQueue, (Rf_txQueueItem_t*)&temp_item);
 }
 
 /* txQueue清空函数
@@ -178,7 +191,7 @@ void RF_txQueue_Clear(void)
 
 /**
  * @brief  从接收队列取出一帧数据
- * @param   data_ptr:  输出参数，指向接收到的数据指针
+ * @param   data_ptr:  输出参数， 指向接收到的数据指针
  * @param   out_len:   输出参数， 指向接收到的数据长度
  * @param   pipes:     输出参数， 指向接收到的数据管道号
  * @return  1:成功, 0:失败(空)
@@ -187,14 +200,14 @@ uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pip
 {
     HAL_RF_SetRxMode(&hrf); //确保在接收模式
 
-    static uint8_t temp_buf[rxqueue_item_size]; //静态缓冲区，防止指针失效
-    if(queue_pop(&rf_rxQueue, temp_buf) == 1) {
+    static Rf_rxQueueItem_t temp_item;
+    if(queue_pop(&rf_rxQueue, &temp_item) == 1) {
         if(out_len) 
-            *out_len = temp_buf[0];              // 第一字节为有效长度
+            *out_len = temp_item.len;              // 数据长度
         if(pipes)
-            *pipes = temp_buf[1];                // 第二字节为接收管道
+            *pipes = temp_item.pipes;              // 接收管道
         if(data_ptr) 
-            *data_ptr = &temp_buf[2];            // 指向有效数据
+            *data_ptr = temp_item.payload;         // 指向有效数据
        
         return 1; // 读取成功
     } else {
@@ -223,35 +236,31 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
 {
     // peek - try - pop 
     // 处理发送队列
-    uint8_t tx_data[txqueue_item_size];
+    Rf_txQueueItem_t tx_item;
 
     // 检查队列是否为空，不要直接pop
     if(!queue_is_empty(&rf_txQueue)) {
         
         // 使用Peek看队头数据，但不移除,这样即使硬件忙发送失败，数据也不会丢失
-        queue_peek(&rf_txQueue, tx_data);
+        queue_peek(&rf_txQueue, &tx_item);
         if(__HAL_RF_Get_TRxMode_Bit() == 1) {
             HAL_RF_SetTxMode(hrf);
         }
-        // uart_printf("TRX_CONFIG_mode:%d\n",TRX_CONFIG);
-        // 判断净荷长度
-        uint8_t len = tx_data[0]<=max_rf_payload_len ? tx_data[0] : max_rf_payload_len;
+
+        // 设置发送和接收地址
+        HAL_RF_SetTxAddress(&hrf, tx_item.dest_addr, 5);
+        HAL_RF_SetRxAddress(&hrf, 0, tx_item.dest_addr, 5);
         
         // 尝试调用发送函数
-        // 如果返回 BUSY，说明它内部运行了超时检测逻辑但还没发完
-        // 如果返回 OK，说明硬件空闲并接受了新数据。
-        if(HAL_RF_Transmit_IT(hrf, &tx_data[1], len) == HAL_OK){
-            uart_printf("rf_send_service len:%d\n", len);
+        // 如果返回 BUSY，说明它内部运行了超时检测逻辑但还没超时
+        // 如果返回 OK，说明硬件空闲并接受了新数据
+        if(HAL_RF_Transmit_IT(hrf, tx_item.payload, tx_item.len) == HAL_OK){
+            uart_printf("rf_send_service len:%d\n", tx_item.len);
             //只有把queue数据放入硬件FIFO了，才pop出来
-            queue_pop(&rf_txQueue, tx_data);
-            
+            queue_pop(&rf_txQueue, &tx_item);
         }
     }
     else{
         HAL_RF_SetRxMode(hrf); //队列空，切换到接收模式
     }
-
-    // //退出之前确保在接收模式，让中断能正常接收
-    // HAL_RF_SetRxMode(hrf);
-
 }

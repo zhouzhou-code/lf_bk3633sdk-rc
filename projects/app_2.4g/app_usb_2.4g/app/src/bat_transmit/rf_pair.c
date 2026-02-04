@@ -19,10 +19,6 @@
 #include "rwprf_config.h"
 
 
-
-
-
-
 static const uint8_t PAIR_ADDR_DEFAULT[5] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
 
 SingleByteAddrPool_t g_addr3;
@@ -84,91 +80,6 @@ static void printf_txrx_addr(void)
     for(int i=0;i<5;i++) uart_printf("%02X ", (volatile uint32_t*)(&TRX_TX_ADDR_0)[i]);
     uart_printf("\r\n");
 }
-
-
-// #define FLASH_OPCODE_PP      12   
-// #define FLASH_OPCODE_SE      13  
-// #define BIT_ADDRESS_SW       0
-// #define BIT_OP_TYPE_SW       24
-// #define BIT_OP_SW            29
-
-
-// static void Flash_Erase_Force(uint32_t address)
-// {
-//     // A. 强制解锁 (关键！)
-//     flash_wp_none();
-
-//     GLOBAL_INT_DISABLE(); 
-
-//     // B. 等待空闲
-//     while(REG_FLASH_OPERATE_SW & 0x80000000);
-
-//     // C. 发送擦除命令
-//     REG_FLASH_OPERATE_SW = (  (address << BIT_ADDRESS_SW)
-//                             | (FLASH_OPCODE_SE << BIT_OP_TYPE_SW)
-//                             | (0x1 << BIT_OP_SW));
-
-//     // D. 等待完成
-//     while(REG_FLASH_OPERATE_SW & 0x80000000);
-
-//     // E. 恢复保护 (安全起见)
-//     extern void flash_wp_all(void);
-//     flash_wp_all();
-
-//     GLOBAL_INT_RESTORE(); 
-// }
-
-// //原厂函数写flash强制保护，无法写入用户区，故自定义写函数
-// static void Flash_Write_User_Data(uint32_t address, uint8_t *data, uint32_t len)
-// {
-//     uint32_t i;
-//     uint32_t addr = address & (~0x1F); 
-//     uint32_t buf[8];                   
-//     uint8_t *pb = (uint8_t *)&buf[0];
-
-//     if (len == 0) return;
-
-//     flash_wp_none(); 
-
-//     GLOBAL_INT_DISABLE(); 
-
-//     while(len) 
-//     {
-//         // 读取旧数据以处理非对齐写入 (Read-Modify-Write)
-//         if((address & 0x1F) || (len < 32)) {
-//             flash_read_data(pb, addr, 32);
-//         } else {
-//             memset(buf, 0xFF, 32); 
-//         }
-
-//         //填充新数据
-//         for(i = (address & 0x1F); i < 32; i++) {
-//             if(len) {
-//                 pb[i] = *data++;
-//                 address++;
-//                 len--;
-//             }
-//         }
-
-//         // 等待Flash空闲
-//         while(REG_FLASH_OPERATE_SW & 0x80000000); 
-
-//         // 填入硬件 FIFO
-//         for (i=0; i<8; i++) REG_FLASH_DATA_SW_FLASH = buf[i]; 
-//         // 发送 Page Program (PP) 命令
-//         REG_FLASH_OPERATE_SW = (  (addr << BIT_ADDRESS_SW)
-//                                 | (FLASH_OPCODE_PP << BIT_OP_TYPE_SW)
-//                                 | (0x1 << BIT_OP_SW));
-        
-//         // 等待写入完成
-//         while(REG_FLASH_OPERATE_SW & 0x80000000); 
-//         addr += 32; 
-//     }
-
-//     //写完后立刻恢复默认保护，确保代码区安全
-//     flash_wp_all(); 
-//     GLOBAL_INT_RESTORE(); 
-// }
 
 #define OP_IDX_PP      12   // Page Program 索引
 #define OP_IDX_SE      13   // Sector Erase 索引
@@ -378,7 +289,7 @@ void Slave_Pairing_Task(void) {
             // 确保地址正确
             HAL_RF_SetTxAddress(&hrf, PAIR_ADDR_DEFAULT, 5);
             HAL_RF_SetRxAddress(&hrf, 0, PAIR_ADDR_DEFAULT, 5);
-            RF_txQueue_Send((uint8_t*)&req_pkt, sizeof(req_pkt));
+            RF_txQueue_Send(PAIR_ADDR_DEFAULT,(uint8_t*)&req_pkt, sizeof(req_pkt));
 
             g_slave_ctrl.start_wait = Get_SysTick_ms();
             g_slave_ctrl.state = SLAVE_PAIR_WAIT_RESP;
@@ -423,7 +334,7 @@ void Slave_Pairing_Task(void) {
                     g_slave_ctrl.start_wait = Get_SysTick_ms();
                     g_slave_ctrl.last_ping_recv_timestamp = Get_SysTick_ms();
                     // 收到 Ping，回复 Pong
-                    RF_txQueue_Send((uint8_t*)&pong_pkt, sizeof(pong_pkt));
+                    RF_txQueue_Send(g_slave_ctrl.resp_pkt.new_addr,(uint8_t*)&pong_pkt, sizeof(pong_pkt));
                     
                     g_slave_ctrl.verify_cnt++;
                     uart_printf("Slave: Verified %d/%d\n", g_slave_ctrl.verify_cnt, g_slave_ctrl.verify_target_count);
@@ -557,7 +468,7 @@ void Host_Pairing_Task(void) {
             RF_txQueue_Clear();
             RF_rxQueue_clear();
             for(int i=0; i<5; i++) 
-                RF_txQueue_Send((uint8_t*)&g_host_ctrl.resp_pkt, sizeof(pair_resp_pkt));
+                RF_txQueue_Send(PAIR_ADDR_DEFAULT,(uint8_t*)&g_host_ctrl.resp_pkt, sizeof(pair_resp_pkt));
             
             // 记录基准
             g_host_ctrl.txds_snapshot = rf_int_count_txds; 
@@ -590,7 +501,7 @@ void Host_Pairing_Task(void) {
         case HOST_PAIR_VERIFY_PHASE:
         //定时PING 50ms一次
         if (Get_SysTick_ms() - g_host_ctrl.last_ping_tick > 50) {
-            RF_txQueue_Send((uint8_t*)&ping_pkt, sizeof(ping_pkt));
+            RF_txQueue_Send(g_host_ctrl.resp_pkt.new_addr,(uint8_t*)&ping_pkt, sizeof(ping_pkt));
             g_host_ctrl.last_ping_tick = Get_SysTick_ms();
             uart_printf("Host: Sent PING,time:%d\n", g_host_ctrl.last_ping_tick);
         }
