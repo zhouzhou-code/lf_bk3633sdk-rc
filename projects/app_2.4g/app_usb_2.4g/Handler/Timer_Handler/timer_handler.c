@@ -18,9 +18,9 @@ static void Inc_Systick(void)
 }
 static void timer_sys_timebase_init(void)
 {
-    Timer_Initial(1,1,15); // T1_0,1M counter每1us递减一次
+    Timer_Initial(1,0,0); // T1_0,32K counter每1us递减一次
     //1ms一次的定时中断
-    Timer1_Start(0,32767); // 1ms   设置为32767才能保证1ms进一次中断,why?
+    Timer1_Start(0,1000); // 1ms
     timer_cb_register(1,0,Inc_Systick);
     //中断使能  需要去intc.c中手动使能timer1中断
 }
