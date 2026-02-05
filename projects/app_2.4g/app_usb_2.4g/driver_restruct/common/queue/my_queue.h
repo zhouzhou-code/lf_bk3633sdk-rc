@@ -11,6 +11,7 @@ typedef struct {
     uint16_t item_count;    /* 队列项数 */
     volatile uint16_t in;    /* 写索引 (Write/Producer) */
     volatile uint16_t out;   /* 读索引 (Read/Consumer) */
+    uint32_t overwrite_cnt;   /* 覆盖写入计数器 */
 } my_queue_t;
 
 

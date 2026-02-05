@@ -92,6 +92,7 @@ uint8_t queue_push_overwrite(my_queue_t *queue, const void *p_src)
 
     /* 检查队列是否满，如果满了，强行移动 out 指针，丢弃旧数据 */
     if (queue_is_full(queue)) {
+        queue->overwrite_cnt++;
         uint16_t next_out = queue->out + 1;
         if (next_out >= queue->item_count) {
             next_out = 0;
@@ -127,7 +128,7 @@ uint8_t queue_pop(my_queue_t *queue, void *p_dest)
         //art_printf("queue_pop fail: empty\r\n");
         return 0;
     }
-
+    //uint32_t in_time = Get_SysTick_ms();
     // 获取读指针位置
     uint8_t * read_ptr = queue_get_read_ptr(queue);
 
@@ -144,6 +145,9 @@ uint8_t queue_pop(my_queue_t *queue, void *p_dest)
 
     // 更新 out
     queue->out = next_out;
+
+   // uint32_t out_time = Get_SysTick_ms() - in_time;
+    //uart_printf("queue_pop_time=%d\r\n", out_time);
     return 1;
 }
 

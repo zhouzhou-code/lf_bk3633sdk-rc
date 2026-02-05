@@ -16,9 +16,9 @@ my_queue_t rf_rxQueue;               // 接收队列
 
 RF_HandleTypeDef hrf; //全局RF句柄
 //全局中断计数
-uint32_t rf_int_count_rxdr = 0;
-uint32_t rf_int_count_txds = 0;
-uint32_t rf_int_count_maxrt = 0;
+volatile uint32_t rf_int_count_rxdr = 0;
+volatile uint32_t rf_int_count_txds = 0;
+volatile uint32_t rf_int_count_maxrt = 0;
 
 //接收中断回调函数,数据push到接收队列
 void rxdr_callback(RF_HandleTypeDef *hrf)
@@ -31,7 +31,7 @@ void rxdr_callback(RF_HandleTypeDef *hrf)
         temp.pipes = hrf->RxPipes;
         temp.len = hrf->RxLen;
         memcpy(temp.payload, hrf->RxBuff, hrf->RxLen);
-        
+
         queue_push_overwrite(&rf_rxQueue, (Rf_rxQueueItem_t*)&temp);
     }
     rf_int_count_rxdr++;
@@ -41,7 +41,7 @@ void txds_callback(RF_HandleTypeDef *hrf)
 {
     //HAL_RF_SetRxAddress(hrf, 0, Init_S.Protocol.RxPipes[0].Address, Init_S.Protocol.AddressWidth);
     rf_int_count_txds++;
-    uart_printf("tx=%d\n", rf_int_count_txds);
+    //uart_printf("tx=%d\n", rf_int_count_txds);
 
 }
 
@@ -64,8 +64,8 @@ RF_ConfgTypeDef Init_default_S=
         .AddressWidth = 5,
         .TxAddress = {0x10, 0x11, 0x36, 0x00, 0x00},
         .Support_NoAck = 1,             
-        .AutoRetransmitDelay = 2,        // 最大重传延迟 750us
-        .AutoRetransmitCount = 3,        // 最大重传次数 15
+        .AutoRetransmitDelay = ,        // 最大重传延迟 750us
+        .AutoRetransmitCount = 10,        // 最大重传次数 15
         
         .RxPipes[0] = {
             .PipeNum = 0,
@@ -197,21 +197,18 @@ void RF_txQueue_Clear(void)
  * @return  1:成功, 0:失败(空)
  */
 uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pipes)
-{
-    HAL_RF_SetRxMode(&hrf); //确保在接收模式
-
+{   
     static Rf_rxQueueItem_t temp_item;
-    if(queue_pop(&rf_rxQueue, &temp_item) == 1) {
+    uint8_t flag = queue_pop(&rf_rxQueue, &temp_item);
+    if(flag == 1) {
         if(out_len) 
             *out_len = temp_item.len;              // 数据长度
         if(pipes)
             *pipes = temp_item.pipes;              // 接收管道
         if(data_ptr) 
             *data_ptr = temp_item.payload;         // 指向有效数据
-       
         return 1; // 读取成功
     } else {
-      
         return 0; // 队列为空，读取失败
     }
 }
@@ -255,7 +252,7 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
         // 如果返回 BUSY，说明它内部运行了超时检测逻辑但还没超时
         // 如果返回 OK，说明硬件空闲并接受了新数据
         if(HAL_RF_Transmit_IT(hrf, tx_item.payload, tx_item.len) == HAL_OK){
-            uart_printf("rf_send_service len:%d\n", tx_item.len);
+            //uart_printf("rf_send_service len:%d\n", tx_item.len);
             //只有把queue数据放入硬件FIFO了，才pop出来
             queue_pop(&rf_txQueue, &tx_item);
         }

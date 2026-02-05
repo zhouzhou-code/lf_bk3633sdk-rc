@@ -76,7 +76,7 @@
 
 /* 读接收FIFO的有效载荷长度 */
 #define __HAL_RF_GET_RX_RPL_WIDTH()          (TRX_RX_RPL_WIDTH & 0x3F)
-
+#define __HAL_RF_GET_RX_PIPEID()             ((TRX_IRQ_STATUS >> 1) & 0x07)
 
 /* 标志位相关 */
 #define __HAL_RF_GET_IRQ_Status()             (TRX_IRQ_STATUS)

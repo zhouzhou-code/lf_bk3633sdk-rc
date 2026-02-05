@@ -5,6 +5,7 @@
 #include "user_config.h"
 #include <string.h> 
 #include "hal_drv_rf.h"
+#include "timer_handler.h"
 
 
 #define UART_PRINTF    uart_printf
@@ -638,23 +639,32 @@ HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
 void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
 {
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
-        uart_printf("in RX_DR\r\n");
+        // uart_printf("in RX_DR\r\n");
         /* 读取数据到hrf队列 */
-        hrf->RxLen = __HAL_RF_GET_RX_RPL_WIDTH(); //动态载荷长度
-        hrf->RxPipes = ((TRX_IRQ_STATUS >> 1) & 0x07); //接收管道号
         
-        RF_Read_fifo((uint8_t*)(hrf->RxBuff), hrf->RxLen);
-        hrf->RxBuff_valid = 1;
+        //fifo是三层结构，每一层32字节，一次读一层，三层 都没数据则fifo为空
+        uint8_t fifo_status;
+        do { 
+            hrf->RxLen = __HAL_RF_GET_RX_RPL_WIDTH(); //动态载荷长度
+            hrf->RxPipes = __HAL_RF_GET_RX_PIPEID();  //接收管道号
+            
+            RF_Read_fifo((uint8_t*)(hrf->RxBuff), hrf->RxLen);
+            hrf->RxBuff_valid = 1;
 
-        if(hrf->Params.IRQ.RxDR.user_cb != NULL){
-            hrf->Params.IRQ.RxDR.user_cb(hrf);
-        }
+            if(hrf->Params.IRQ.RxDR.user_cb != NULL){
+                hrf->Params.IRQ.RxDR.user_cb(hrf);
+            }
+
+            //检查fifo是否为空
+            fifo_status = __HAL_RF_GET_FIFO_STATUS();
+        }while ( (fifo_status & RF_RX_EMPTY) == 0 ); 
+
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_RX_DR_MASK);
         __HAL_RF_CMD_FLUSH_RXFIFO();
     }
 
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS_MASK)){
-        uart_printf("in TX_DS\r\n");
+        // uart_printf("in TX_DS\r\n");
         hrf->TxState = TX_Tramsmit_SUCCESS;
 
         if(hrf->Params.IRQ.TxDS.user_cb != NULL){
@@ -667,7 +677,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
         
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
-        uart_printf("in MAX_RT\r\n");
+        // uart_printf("in MAX_RT\r\n");
         hrf->TxState = TX_Tramsmit_FAIL;
         if(hrf->Params.IRQ.MaxRT.user_cb != NULL){
             hrf->Params.IRQ.MaxRT.user_cb(hrf);
