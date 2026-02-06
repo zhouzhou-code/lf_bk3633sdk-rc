@@ -198,7 +198,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
     /* XVR 模拟参数初始化 */
     addXVR_Reg0x24 = 0x000e0782;
     addXVR_Reg0x3b = 0x36340048;
-
+    uint32_t bps=0;
     /* 数据速率 */
     switch ( Init->DataRate )
     {
@@ -210,6 +210,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
             addXVR_Reg0x30 &= ~(0x1ff<<8);
             addXVR_Reg0x30 |= 0x28<<8;
             TRX_RF_SETUP = 0x27;
+            bps = 250000;
             break;
         case BPS_1M : // 1Mbps
             addXVR_Reg0x2e &= 0xfffffe00 ;
@@ -217,6 +218,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
             addXVR_Reg0x26 &= 0xe000ffff;
             addXVR_Reg0x26 |= 0x10200000;
             TRX_RF_SETUP = 0x07;
+            bps = 1000000;
             break;
         case BPS_2M : // 2Mbps
             addXVR_Reg0x2e &= 0xfffffe00 ;
@@ -224,6 +226,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
             addXVR_Reg0x26 &= 0xe000ffff;
             addXVR_Reg0x26 |= 0x10200000;
             TRX_RF_SETUP = 0x0F;
+            bps = 2000000;
             break;
         default:
             return HAL_ERROR;
@@ -249,9 +252,17 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
 
     // 3. 初始化 RF_HandleTypeDef 结构体
     hrf->Params = *Init;
-    hrf->TimeManager.Tx_TimeOut = ((Init->Protocol.AutoRetransmitDelay*250+250)*   //每次重发间隔
-                                    Init->Protocol.AutoRetransmitCount +           //重发次数
-                                    500 )/1000  ;                                  //500是冗余时间
+
+    //整包发送时间（us） = (包长字节数 × 8 × 1,000,000) / bps
+    //超时时间=(1+maxrt)*整包发送时间 +重发间隔*maxrt +冗余时间
+    uint16_t pack_time_us =  ( (32*8*1000000) / bps ); //最大包长32字节
+    uint32_t tx_timeout_us = ( (1+Init->Protocol.AutoRetransmitCount)*pack_time_us + 
+                             (Init->Protocol.AutoRetransmitDelay+1)*250*Init->Protocol.AutoRetransmitCount + 
+                             500 //500是冗余时间
+                             ); 
+    uart_printf("tx_timeout_us=%d\r\n", tx_timeout_us);
+
+    hrf->TimeManager.Tx_TimeOut = (tx_timeout_us / 1000);
     hrf->State = HAL_RF_STATE_READY;
 
     return HAL_OK;
@@ -362,16 +373,17 @@ HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint
      /* 如果正在发送，检查是否超时 */
     if (hrf->TxState != TX_IDLE) {
         uart_printf("Tx-busy\r\n");
-        // uart_printf("cur_time:%d, start_time:%d, timeout:%d\r\n",
-        //             hrf->TimeManager.GetSysTimeMs(),
-        //             hrf->TimeManager.Tx_start_time,
-        //             hrf->TimeManager.Tx_TimeOut);
+        uart_printf("cur_time:%d, start_time:%d, timeout:%d,Mode=%d\r\n",
+                    hrf->TimeManager.GetSysTimeMs(),
+                    hrf->TimeManager.Tx_start_time,
+                    hrf->TimeManager.Tx_TimeOut,
+                    __HAL_RF_Get_TRxMode_Bit());
 
         uint32_t cur_time = hrf->TimeManager.GetSysTimeMs();
         uint32_t elapsed_time = cur_time - hrf->TimeManager.Tx_start_time;
-        if (elapsed_time >= hrf->TimeManager.Tx_TimeOut) {
+        if (elapsed_time >= (hrf->TimeManager.Tx_TimeOut)) {
             /* 发送超时处理 */
-            /* 按照经验，这个超时不会触发，一直触发就是没切换到tx*/
+            /* 按照经验，这个超时不会触发，一直触发就是没切换到tx/maxrt和tx_ds中断都不触发*/
             uart_printf("TX timeout detected,\r\n");
             hrf->TxState = TX_TIMEOUT;
             hrf->TimeManager.Tx_Timeout_cnt++;
@@ -641,7 +653,7 @@ HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
 void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
 {
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
-        // uart_printf("in RX_DR\r\n");
+         uart_printf("in RX_DR\r\n");
         /* 读取数据到hrf队列 */
         
         //fifo是三层结构，每一层32字节，一次读一层，三层 都没数据则fifo为空
@@ -666,7 +678,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
 
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS_MASK)){
-        // uart_printf("in TX_DS\r\n");
+         uart_printf("in TX_DS\r\n");
         hrf->TxState = TX_Tramsmit_SUCCESS;
 
         if(hrf->Params.IRQ.TxDS.user_cb != NULL){
@@ -679,7 +691,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
         
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
-        // uart_printf("in MAX_RT\r\n");
+         uart_printf("in MAX_RT\r\n");
         hrf->TxState = TX_Tramsmit_FAIL;
         if(hrf->Params.IRQ.MaxRT.user_cb != NULL){
             hrf->Params.IRQ.MaxRT.user_cb(hrf);

@@ -525,8 +525,8 @@ void Host_Pairing_Task(void) {
             }
         }
 
-        // 如果切过来 2000ms 还没收到 PONG，说明Slave没跟过来，回退
-        if (Get_SysTick_ms() - g_host_ctrl.start_wait > 20000) {
+        // 如果切过来4000ms 还没收到 PONG，说明Slave没跟过来，回退
+        if (Get_SysTick_ms() - g_host_ctrl.start_wait > 4000) {
             uart_printf("Host: Verify Timeout! Slave Lost. Revert.\n");
             RF_txQueue_Clear();
             g_host_ctrl.state = HOST_PAIR_WAIT_REQ;

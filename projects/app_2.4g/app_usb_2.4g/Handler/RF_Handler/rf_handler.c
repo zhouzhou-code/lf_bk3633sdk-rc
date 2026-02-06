@@ -50,14 +50,14 @@ void maxrt_callback(RF_HandleTypeDef *hrf)
 {
     //HAL_RF_SetRxAddress(hrf, 0, Init_S.Protocol.RxPipes[0].Address, Init_S.Protocol.AddressWidth);
     rf_int_count_maxrt++;
-    uart_printf("rt=%d\n", rf_int_count_maxrt);
+    //uart_printf("rt=%d\n", rf_int_count_maxrt);
 }
 
 //初始化默认参数配置结构体
 RF_ConfgTypeDef Init_default_S=
 {
     .Mode = MODE_TX,
-    .DataRate = BPS_2M,
+    .DataRate = BPS_1M,
     .TxPower = RF_TX_POWER_P7p6_dBm,
     .Channel = 0x05, // 频道5
     .Protocol ={
@@ -256,8 +256,12 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
             //只有把queue数据放入硬件FIFO了，才pop出来
             queue_pop(&rf_txQueue, &tx_item);
         }
+        
     }
     else{
-        HAL_RF_SetRxMode(hrf); //队列空，切换到接收模式
+        // 队列虽然空了，但如果发送还没完成 (BUSY)，则不能切RX
+        if(hrf->TxState != TX_BUSY_Tramsmit) {
+            HAL_RF_SetRxMode(hrf); 
+        }
     }
 }
