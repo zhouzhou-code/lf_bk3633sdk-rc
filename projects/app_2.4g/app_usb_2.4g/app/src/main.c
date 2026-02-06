@@ -552,6 +552,7 @@ int main(void)
      RF_Handler_Init();//初始化RF句柄及队列
      //printf_all_registers();
      HAL_RF_SetTxMode(&hrf);//设置为发送模式
+     HAL_RF_SetTxPower(&hrf, RF_TX_POWER_N4p6_dBm);//设置发送功率
      uint32_t txcount=0;
      uint32_t txcount1=0;
      uint8_t test_send_data0[5];
@@ -569,7 +570,7 @@ int main(void)
             HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
             HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
             RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
-            RF_Service_Handler(&hrf);  //处理发送队列，卡死在这里
+            RF_Service_Handler(&hrf);  
 
         }
         else{ //换地址发！

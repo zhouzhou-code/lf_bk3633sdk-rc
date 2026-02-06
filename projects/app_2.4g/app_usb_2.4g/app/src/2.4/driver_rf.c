@@ -792,6 +792,7 @@ void driver_rf_ouput_power_value_set(uint8_t power_level)
 //  uart_printf("24= %2x\r\n",XVR_REG24);
 }
 
+
 /*
 关闭AGC（自动增益控制）：
 在读取RSSI前，需要关闭AGC（通过 addXVR_Reg0x3c |= 0x01<<31;），以保证RSSI值的准确性。

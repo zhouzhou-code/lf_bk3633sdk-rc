@@ -13,7 +13,7 @@ int uart_printf(const char *fmt,...);
 
 SYSTEM_STRUCT_DATA system_data;
 uint32_t RF_flag=0;
-
+#define LIMITS(x, min, max)  ((x)<(min)?(min):((x)>(max)?(max):(x)))
 
 
 // 配置模拟寄存器，固定值不可改
@@ -244,6 +244,8 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
     Init->IRQ.TxDS.enable ? __HAL_RF_EN_IRQ_TX_DS() : __HAL_RF_DIS_IRQ_TX_DS();
     Init->IRQ.MaxRT.enable ? __HAL_RF_EN_IRQ_MAX_RT() : __HAL_RF_DIS_IRQ_MAX_RT();
 
+    /* 发射功率 */
+    HAL_RF_SetTxPower(hrf, Init->TxPower);
 
     // 3. 初始化 RF_HandleTypeDef 结构体
     hrf->Params = *Init;
@@ -736,4 +738,28 @@ uint8_t HAL_RF_GetRSSI(RF_HandleTypeDef *hrf)
 {
     (void)hrf;
     return (uint8_t)get_XVR_Reg0x13_rssi_ind_o;
+}
+
+/**
+  * @brief  设置发射功率
+  * @param  hrf: RF 句柄
+  * @param  power_level: 发射功率等级,取值0~ff,数值越大功率越大
+  */
+uint8_t HAL_RF_SetTxPower(RF_HandleTypeDef *hrf, RF_TxPowerTypeDef power_level)
+{
+    LIMITS(power_level,0,0x0f);
+    hrf->Params.TxPower = power_level;
+
+    uint32_t XVR_REG24_BAK;
+    uint32_t regv_0x24;
+
+    extern volatile uint32_t XVR_ANALOG_REG_BAK[32];
+
+    XVR_ANALOG_REG_BAK[4] |=1<<29;
+    addXVR_Reg0x4 = XVR_ANALOG_REG_BAK[4];
+    regv_0x24=addXVR_Reg0x24&0xFFFFF87F;
+    regv_0x24=regv_0x24|(power_level<<7);
+    addXVR_Reg0x24 = regv_0x24;
+    XVR_REG24_BAK = addXVR_Reg0x24;
+    return 1;
 }

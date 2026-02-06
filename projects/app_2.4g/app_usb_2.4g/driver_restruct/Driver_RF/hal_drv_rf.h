@@ -146,12 +146,24 @@ typedef enum
 /** 
   * @brief  RF发射功率枚举
   */
-typedef enum 
+typedef enum
 {
-    RF_TX_POWER_N18dBm = 0,  // -18dBm
-    RF_TX_POWER_N12dBm,      // -12dBm
-    RF_TX_POWER_N6dBm,       // -6dBm
-    RF_TX_POWER_0dBm,        // 0dBm
+  RF_TX_POWER_N8p6_dBm = 0,       // -8.6 dBm
+  RF_TX_POWER_N4p6_dBm = 1,       // -4.6 dBm
+  RF_TX_POWER_N1p7_dBm = 2,       // -1.7 dBm
+  RF_TX_POWER_P0p5_dBm = 3,       //  0.5 dBm
+  RF_TX_POWER_P2p1_dBm = 4,       //  2.1 dBm
+  RF_TX_POWER_P3p4_dBm = 5,       //  3.4 dBm
+  RF_TX_POWER_P4p6_dBm = 6,       //  4.6 dBm
+  RF_TX_POWER_P5p7_dBm = 7,       //  5.7 dBm
+  RF_TX_POWER_P6p5_dBm = 8,       //  6.5 dBm
+  RF_TX_POWER_P7p1_dBm = 9,       //  7.1 dBm
+  RF_TX_POWER_P7p6_dBm = 10,       //  7.6 dBm
+  RF_TX_POWER_P8p0_dBm = 11,       //  8.0 dBm
+  RF_TX_POWER_P8p4_dBm = 12,       //  8.4 dBm
+  RF_TX_POWER_P8p8_dBm = 13,       //  8.8 dBm
+  RF_TX_POWER_P9p1_dBm = 14,       //  9.1 dBm
+  RF_TX_POWER_P9p5_dBm = 15        //  9.5 dBm
 } RF_TxPowerTypeDef;
 
 /** 
@@ -244,7 +256,7 @@ typedef struct {
 typedef struct {
     RF_ModeTypeDef      Mode;           /*!< 工作模式: 接收或发送 */
     RF_DataRateTypeDef  DataRate;       /*!< 数据速率 */
-    RF_TxPowerTypeDef   TxPower;        /*!< 发射功率 */
+    RF_TxPowerTypeDef   TxPower;        /*!< 发射功率:0~f */
     uint8_t             Channel;        /*!< 初始频段 channel */
     /* 协议配置 */
     RF_ProtocolTypeDef  Protocol;       /*!< 协议相关配置 */
@@ -330,6 +342,7 @@ uint8_t HAL_RF_GetIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef IRQ_Flag
 uint8_t HAL_RF_Get_FifoStatus_Flags(RF_HandleTypeDef *hrf, RF_FIFOStatusBitsTypeDef Flags);
 /* 状态查询 */
 HAL_RF_StateTypeDef HAL_RF_GetState(RF_HandleTypeDef *hrf);
+uint8_t HAL_RF_SetTxPower(RF_HandleTypeDef *hrf, RF_TxPowerTypeDef power_level);
 uint8_t HAL_RF_GetRSSI(RF_HandleTypeDef *hrf);
 
 
