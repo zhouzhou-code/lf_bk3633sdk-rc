@@ -196,6 +196,8 @@ void Timer0_1m5_Start(uint8_t index,uint32_t cnt)
     }
 }
 
+
+//默认32k时钟源,这个cnt的单位实际上是us
 void Timer1_Start(uint8_t index,uint32_t cnt)
 {
     uint32_t count;

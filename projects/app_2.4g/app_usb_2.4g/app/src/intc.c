@@ -85,6 +85,9 @@ void intc_init(void)
   setf_SYS_Reg0x10_int_aon_gpio_en; //使能
   clrf_SYS_Reg0x11_int_aon_gpio_pri; //aon_gpio系统级中断设为irq
 
+  setf_SYS_Reg0x10_int_aon_rtc_en; //使能aon rtc系统级中断
+  clrf_SYS_Reg0x11_int_aon_rtc_pri; //aon rtc系统级中断设为irq
+
   uart_printf("intc_init  bk24\r\n");
 }
 

@@ -573,8 +573,7 @@ void cpu_usb_reduce_voltage_sleep()
 void cpu_24_reduce_voltage_sleep()
 {
     uint32_t tmp_reg;
-
-    do
+    do //指令预取到Cache
     {
         char *text;
         __attribute__((unused)) volatile char temp;
@@ -586,16 +585,17 @@ void cpu_24_reduce_voltage_sleep()
         }
     } while(0);
     
-    set_flash_clk(0x08);
+    set_flash_clk(0x08); //flash降频
+    //CPU主时钟从PLL切回到晶振(00:ROSC,01)   
     set_SYS_Reg0x2_core_sel(0x01);
     set_SYS_Reg0x2_core_div(0x0);
+    //无线协议栈休眠
     rw_sleep();
 
     setf_SYS_Reg0x17_enb_busrt_sel;
-    setf_SYS_Reg0x17_CLK96M_PWD;
-    setf_SYS_Reg0x17_HP_LDO_PWD;
-    setf_SYS_Reg0x17_cb_bias_pwd;
-
+    setf_SYS_Reg0x17_CLK96M_PWD; //关PLL
+    setf_SYS_Reg0x17_HP_LDO_PWD; //关大电流LDOA
+    setf_SYS_Reg0x17_cb_bias_pwd;//关偏置电流
 
     tmp_reg = addSYS_Reg0x17 | 0x08;
     system_sleep_status = 1;
@@ -608,18 +608,19 @@ void cpu_24_reduce_voltage_sleep()
     }
     #endif
 
-    set_SYS_Reg0x2_core_sel(0x00);
-
+    set_SYS_Reg0x2_core_sel(0x00);//切到低速时钟ROSC
     addSYS_Reg0x17 = tmp_reg;
+    setf_SYS_Reg0x1_CPU_PWD;//cpu睡眠,停止执行
 
-    setf_SYS_Reg0x1_CPU_PWD;
-
-  //    don't used 96M
+    uart_printf("exit sleep\r\n");
+    /* 硬件中断唤醒之后  cpu从这里执行----*/
+  
+    //    don't used 96M
   //  addSYS_Reg0x17 = 0x82;
   // used 96M
-    addSYS_Reg0x17 = 0x80;
+    addSYS_Reg0x17 = 0x80; //恢复模拟电路PLL,HPLDO,偏置电流
     addPMU_Reg0x14=0x6666;
-    set_SYS_Reg0x2_core_sel(0x01);
+    set_SYS_Reg0x2_core_sel(0x01);//切回外部晶振
     
     rw_wakeup();
 

@@ -14,7 +14,9 @@ static volatile uint32_t Systick_ms=0;
 static void Inc_Systick(void)
 {
     Systick_ms++;
+    //翻转电平测试
     gpio_toggle(Port_Pin(0,7));
+    uart_printf("systick_irq:%d\r\n",Systick_ms);
 }
 static void timer_sys_timebase_init(void)
 {

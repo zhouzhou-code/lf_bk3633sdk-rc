@@ -515,14 +515,24 @@ int main(void)
     }
     #endif
 
-    //定时器初始化
+    //定时器初始化(依赖xvr里初始化rc32k时钟，放在rc32k初始化后面)
     Timer_Handler_Init();
 
-    
     /*------------------------------------测试队列性能------------------------------------*/
     gpio_config(Port_Pin(0,3), GPIO_OUTPUT, GPIO_PULL_NONE); 
     gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
     gpio_set(Port_Pin(0,7),0);
+    uart_printf("enter sleep:%d\r\n",Get_SysTick_ms());
+    //cpu延时等串口发完
+    for(int i=0;i<10000;i++){
+        __nop();
+    }
+
+    cpu_24_reduce_voltage_sleep();   //进入低电压睡眠
+    uart_printf("wake up from sleep:%d\r\n",Get_SysTick_ms());
+
+    
+
     // gpio_set(Port_Pin(0,3),1);
     // gpio_set(Port_Pin(0,3),0);
     // Rf_rxQueueItem_t temp;
@@ -572,7 +582,7 @@ int main(void)
             HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
             HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
             RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
-            RF_Service_Handler(&hrf);  
+              
 
         }
         else{ //换地址发！
@@ -581,20 +591,28 @@ int main(void)
             HAL_RF_SetTxAddress(&hrf, pipe1_addr, 5);//设置发送地址为pipe1地址
             HAL_RF_SetRxAddress(&hrf,0, pipe1_addr, 5);//设置发送地址为pipe1地址
             RF_txQueue_Send(pipe1_addr,test_send_data1, sizeof(test_send_data1));//测试发送数据入队
-            RF_Service_Handler(&hrf);
 
             if(txcount>25) {
                 txcount=0;
             }   
         }
         //只发送240次，测试
-        if(txcount1>=2000){
+        if(txcount1>=100){
             while(1){
                 uart_printf("send all count=%d \r\n", txcount1);
+                uart_printf("enter sleep:%d\r\n",Get_SysTick_ms());
+                // cpu_24_reduce_voltage_sleep();                   //进入低电压睡眠
+                // //cpu_reduce_voltage_sleep(); //进入深度睡眠
+                // uart_printf("wake up from sleep:%d\r\n",Get_SysTick_ms());
+
                 delay_ms(10000);
             }
         }
-        delay_ms(20);
+        delay_ms(100);
+        RF_Service_Handler(&hrf);
+
+        //
+       
     }
 
     HAL_RF_SetRxMode(&hrf);//设置为接收模式
