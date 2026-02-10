@@ -90,7 +90,7 @@ void timer_cb_register(uint8_t Timer, uint8_t index,TIMER_INT_CALLBACK_T cb)
         }
     }
 }
-
+//最大分频16
 void Timer_Initial(uint8_t timer,uint8_t src,uint8_t div)//timer:0:T0,1:T1  ; src:0:32k,1:16M
 {
     if(timer == 0)
@@ -203,6 +203,35 @@ void Timer1_Start(uint8_t index,uint32_t cnt)
     uint32_t count;
     count = (cnt*32 )/1000;
        switch(index)
+    {
+        case 0:
+            bk_timer_hit &= ~0x10;
+            addTIMER1_Reg0x0 = count;
+            bk_timer1_T0_cnt = count;
+            setf_TIMER1_Reg0x3_timer0_en;
+            break;
+        case 1:
+            bk_timer_hit &= ~0x20;
+            addTIMER1_Reg0x1 = count;
+            bk_timer1_T1_cnt = count;
+            setf_TIMER1_Reg0x3_timer1_en;
+            break;
+        case 2:
+            bk_timer_hit &= ~0x40;
+            addTIMER1_Reg0x2 = count;
+            bk_timer0_T2_cnt = count;
+            setf_TIMER1_Reg0x3_timer2_en;
+            break;
+        default:
+            break;
+    }
+
+    setf_SYS_Reg0x10_int_timer1_en;
+}
+void Timer1_Start_setload_value(uint8_t index,uint32_t load_value)
+{
+    uint32_t count= load_value;
+    switch(index)
     {
         case 0:
             bk_timer_hit &= ~0x10;

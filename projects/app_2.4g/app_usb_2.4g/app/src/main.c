@@ -522,14 +522,20 @@ int main(void)
     gpio_config(Port_Pin(0,3), GPIO_OUTPUT, GPIO_PULL_NONE); 
     gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
     gpio_set(Port_Pin(0,7),0);
-    uart_printf("enter sleep:%d\r\n",Get_SysTick_ms());
-    //cpu延时等串口发完
-    for(int i=0;i<10000;i++){
-        __nop();
-    }
+    while(1){
+       //uart_printf("enter sleep:%d\r\n",Get_SysTick_ms());
 
-    cpu_24_reduce_voltage_sleep();   //进入低电压睡眠
-    uart_printf("wake up from sleep:%d\r\n",Get_SysTick_ms());
+       delay_ms(5);
+       gpio_toggle(Port_Pin(0,3));
+    }
+    
+    //cpu延时等串口发完
+    // for(int i=0;i<10000;i++){
+    //     __nop();
+    // }
+
+    // cpu_24_reduce_voltage_sleep();   //进入低电压睡眠
+    // uart_printf("wake up from sleep:%d\r\n",Get_SysTick_ms());
 
     
 

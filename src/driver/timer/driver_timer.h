@@ -31,18 +31,21 @@ extern volatile uint8_t bk_timer_hit;
 void timer_cb_register(uint8_t Timer, uint8_t index,TIMER_INT_CALLBACK_T cb);
 void Timer_Initial(uint8_t timer,uint8_t src,uint8_t div);
 void Timer_ISR(void);
-void Timer0_Stop(uint8_t index);
 
+void Timer0_Stop(uint8_t index);
 void Timer0_Start(uint8_t index,uint32_t time);
+
 void Timer1_Start(uint8_t index,uint32_t cnt);
+void Timer1_Start_setload_value(uint8_t index,uint32_t load_value);
 void Timer1_ReStart(uint8_t index,uint32_t cnt);
 void Timer1_Stop(uint8_t index);
+
 void Timer_ISR0(void);
 void Timer_ISR1(void);
 void Timer_ISR2(void);
 void Delay(int num);
-void Timer0_1m5_Start(uint8_t index,uint32_t cnt);
 
+void Timer0_1m5_Start(uint8_t index,uint32_t cnt);
 
 
 #endif
