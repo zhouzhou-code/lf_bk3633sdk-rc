@@ -36,7 +36,7 @@
 #define PWM_DRIVER                0
 #define USB_DRIVER              1
 #define SPI_DRIVER              0
-#define AON_RTC_DRIVER          0
+#define AON_RTC_DRIVER          1
 
 #define RF_DRIVER          1
 

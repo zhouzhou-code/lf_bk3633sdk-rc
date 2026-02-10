@@ -39,6 +39,7 @@
 
 void aon_rtc_init(void);
 void aon_rtc_isr(void);
+
 #ifdef USE_FREERTOS
 void aon_rtc_set_sleep_tick(unsigned int ticks);
 void aon_restore_ticktimer(unsigned int maxticks);

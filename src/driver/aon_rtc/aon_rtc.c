@@ -42,6 +42,8 @@ void aon_rtc_init(void)
 
     setf_SYS_Reg0x10_int_aon_rtc_en  ;   // rtc int enable
 
+    //自己改测试:先关中断
+
 }
 
  unsigned int rtc_cnt=0;
@@ -51,7 +53,7 @@ void aon_rtc_isr(void)
     setf_rtc_aon_Reg0x0_rtc_tick_int ;     
     rtc_cnt++;
 
- //   uart_printf("rtc_cnt=%d\n",rtc_cnt++);
+    //uart_printf("rtc_cnt=%d\n",rtc_cnt++);
     //uart_printf("rtc_cnt=%d\n",ip_slotclk_sclk_getf());
     //ip_slotclk_sclk_setf(0x10000);   
     //uart_printf("rtc_cnt=%d\n",ip_slotclk_sclk_getf());

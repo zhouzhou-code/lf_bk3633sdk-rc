@@ -64,8 +64,8 @@ RF_ConfgTypeDef Init_default_S=
         .AddressWidth = 5,
         .TxAddress = {0x10, 0x11, 0x36, 0x00, 0x00},
         .Support_NoAck = 1,             
-        .AutoRetransmitDelay = 5,        // 最大重传延迟 750us
-        .AutoRetransmitCount = 5,        // 最大重传次数 15
+        .AutoRetransmitDelay = 5,        // 最大重传延迟 6*250=
+        .AutoRetransmitCount = 5,        // 最大重传次数 5
         
         .RxPipes[0] = {
             .PipeNum = 0,

@@ -303,12 +303,10 @@ int main(void)
     uart0_printf("main start uart0~~~~~\r\n");
     uart_printf("main start uart1~~~~~\r\n");
 
-    //定时器初始化
-    Timer_Handler_Init();
+    
 
    //gpio_init();
     flash_init();
-    //Flash_Test_Minimal();
   //  pair_gpio_init();//初始化配对按键
   //  xvr_reg_initial_24();
   //  gpio_set_neg(0x04);
@@ -517,6 +515,10 @@ int main(void)
     }
     #endif
 
+    //定时器初始化
+    Timer_Handler_Init();
+
+    
     /*------------------------------------测试队列性能------------------------------------*/
     gpio_config(Port_Pin(0,3), GPIO_OUTPUT, GPIO_PULL_NONE); 
     gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
@@ -547,90 +549,90 @@ int main(void)
 
     /* ------------------------------------双通道收发-------------------------------------- */
     //使用pipe0接收ACK
-    // uint8_t pipe0_addr[5] = {0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
-    // uint8_t pipe1_addr[5] = {0xA1, 0xA1, 0xA1, 0xA1, 0xA1};
-    //  RF_Handler_Init();//初始化RF句柄及队列
-    //  //printf_all_registers();
-    //  HAL_RF_SetTxMode(&hrf);//设置为发送模式
-    //  HAL_RF_SetTxPower(&hrf, RF_TX_POWER_N4p6_dBm);//设置发送功率
-    //  uint32_t txcount=0;
-    //  uint32_t txcount1=0;
-    //  uint8_t test_send_data0[5];
-    //  uint8_t test_send_data1[14];
-    // for(int i=0;i<5;i++) test_send_data0[i]=i;
-    // for(int i=0;i<14;i++) test_send_data1[i]=i;
-    // while(1) //发送
-    // {
-    //     txcount++;
-    //     txcount1++;
+    uint8_t pipe0_addr[5] = {0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
+    uint8_t pipe1_addr[5] = {0xA1, 0xA1, 0xA1, 0xA1, 0xA1};
+     RF_Handler_Init();//初始化RF句柄及队列
+     //printf_all_registers();
+     HAL_RF_SetTxMode(&hrf);//设置为发送模式
+     HAL_RF_SetTxPower(&hrf, RF_TX_POWER_N4p6_dBm);//设置发送功率
+     uint32_t txcount=0;
+     uint32_t txcount1=0;
+     uint8_t test_send_data0[5];
+     uint8_t test_send_data1[14];
+    for(int i=0;i<5;i++) test_send_data0[i]=i;
+    for(int i=0;i<14;i++) test_send_data1[i]=i;
+    while(1) //发送
+    {
+        txcount++;
+        txcount1++;
 
-    //     //发10次pipe0,再换地址发10次pipe1
-    //     if(txcount<=10){
-    //         test_send_data0[0]=txcount;
-    //         HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
-    //         HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
-    //         RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
-    //         RF_Service_Handler(&hrf);  
+        //发10次pipe0,再换地址发10次pipe1
+        if(txcount<=10){
+            test_send_data0[0]=txcount;
+            HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
+            HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
+            RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
+            RF_Service_Handler(&hrf);  
 
-    //     }
-    //     else{ //换地址发！
+        }
+        else{ //换地址发！
 
-    //         test_send_data1[0]=txcount-10;
-    //         HAL_RF_SetTxAddress(&hrf, pipe1_addr, 5);//设置发送地址为pipe1地址
-    //         HAL_RF_SetRxAddress(&hrf,0, pipe1_addr, 5);//设置发送地址为pipe1地址
-    //         RF_txQueue_Send(pipe1_addr,test_send_data1, sizeof(test_send_data1));//测试发送数据入队
-    //         RF_Service_Handler(&hrf);
+            test_send_data1[0]=txcount-10;
+            HAL_RF_SetTxAddress(&hrf, pipe1_addr, 5);//设置发送地址为pipe1地址
+            HAL_RF_SetRxAddress(&hrf,0, pipe1_addr, 5);//设置发送地址为pipe1地址
+            RF_txQueue_Send(pipe1_addr,test_send_data1, sizeof(test_send_data1));//测试发送数据入队
+            RF_Service_Handler(&hrf);
 
-    //         if(txcount>25) {
-    //             txcount=0;
-    //         }   
-    //     }
-    //     //只发送240次，测试
-    //     if(txcount1>=2000){
-    //         while(1){
-    //             uart_printf("send all count=%d \r\n", txcount1);
-    //             delay_ms(10000);
-    //         }
-    //     }
-    //     delay_ms(20);
-    // }
+            if(txcount>25) {
+                txcount=0;
+            }   
+        }
+        //只发送240次，测试
+        if(txcount1>=2000){
+            while(1){
+                uart_printf("send all count=%d \r\n", txcount1);
+                delay_ms(10000);
+            }
+        }
+        delay_ms(20);
+    }
 
-    // HAL_RF_SetRxMode(&hrf);//设置为接收模式
-    // HAL_RF_SetRxAddress(&hrf, 0, pipe0_addr, 5);//设置pipe0地址
-    // HAL_RF_SetRxAddress(&hrf, 1, pipe1_addr, 5);//设置pipe1地址
-    // uint32_t rx_cnt=0;
-    // //printf_all_registers();
-    // while(1)//接收                                                
-    // {
-    //     uint8_t* rec_data;
-    //     uint8_t  out_len;
-    //     uint8_t  pipes;
-    //     gpio_set(Port_Pin(0,3),1);
-    //     if(RF_rxQueue_Recv(&rec_data, &out_len, &pipes)!=0){
-    //         gpio_set(Port_Pin(0,3),0);
-    //         rx_cnt++;
-    //         //uart_printf("len=%d, pipe=%d,data0=%d \r\n", out_len, pipes,rec_data[0]);
-    //         uart_printf("%d %d %d %d\r\n",rec_data[0], rx_cnt,rf_int_count_rxdr,rf_rxQueue.overwrite_cnt);
-    //     }
-    //     delay_ms(15);
-    // }
+    HAL_RF_SetRxMode(&hrf);//设置为接收模式
+    HAL_RF_SetRxAddress(&hrf, 0, pipe0_addr, 5);//设置pipe0地址
+    HAL_RF_SetRxAddress(&hrf, 1, pipe1_addr, 5);//设置pipe1地址
+    uint32_t rx_cnt=0;
+    //printf_all_registers();
+    while(1)//接收                                                
+    {
+        uint8_t* rec_data;
+        uint8_t  out_len;
+        uint8_t  pipes;
+        gpio_set(Port_Pin(0,3),1);
+        if(RF_rxQueue_Recv(&rec_data, &out_len, &pipes)!=0){
+            gpio_set(Port_Pin(0,3),0);
+            rx_cnt++;
+            //uart_printf("len=%d, pipe=%d,data0=%d \r\n", out_len, pipes,rec_data[0]);
+            uart_printf("%d %d %d %d\r\n",rec_data[0], rx_cnt,rf_int_count_rxdr,rf_rxQueue.overwrite_cnt);
+        }
+        delay_ms(15);
+    }
 
 
     /* ------------------------------------配对测试,过-------------------------------------- */
 
     // Save_Pair_Info((uint8_t *)"\xDE\xAD\xBE\xEF\x01");
-    Load_Pair_Info();
+    //Load_Pair_Info();
 
     /* 非阻塞slave */
     //my_key_init();
-    RF_Handler_Init();     //初始化RF句柄及队列
-    Slave_Pairing_Start(); //启动从机配对模式
-    while(1)
-    {
-        Slave_Pairing_Task(); //非阻塞配对任务调用
-        //delay_ms(10);
-        //RF_Service_Handler(&hrf);  
-    }
+    // RF_Handler_Init();     //初始化RF句柄及队列
+    // Slave_Pairing_Start(); //启动从机配对模式
+    // while(1)
+    // {
+    //     Slave_Pairing_Task(); //非阻塞配对任务调用
+    //     //delay_ms(10);
+    //     //RF_Service_Handler(&hrf);  
+    // }
     /* 非阻塞host */
     // RF_Handler_Init();//初始化RF句柄及队列
     // Host_Pairing_Start(); //启动机配对模式

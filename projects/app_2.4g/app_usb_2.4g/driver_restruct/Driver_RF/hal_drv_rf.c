@@ -383,7 +383,7 @@ HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint
         uint32_t elapsed_time = cur_time - hrf->TimeManager.Tx_start_time;
         if (elapsed_time >= (hrf->TimeManager.Tx_TimeOut)) {
             /* 发送超时处理 */
-            /* 按照经验，这个超时不会触发，一直触发就是没切换到tx/maxrt和tx_ds中断都不触发*/
+            /* 按照经验，这个超时不会触发，一直触发就是没切换到tx(maxrt和tx_ds中断都不触发)*/
             uart_printf("TX timeout detected,\r\n");
             hrf->TxState = TX_TIMEOUT;
             hrf->TimeManager.Tx_Timeout_cnt++;
