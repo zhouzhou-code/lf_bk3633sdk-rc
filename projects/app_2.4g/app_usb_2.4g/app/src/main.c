@@ -55,6 +55,7 @@
 #include "rf_pair.h"
 #include "addr_pool.h"
 #include "gpio_init.h"
+#include "app_sleep.h"
 
 
 
@@ -522,22 +523,28 @@ int main(void)
     gpio_config(Port_Pin(0,3), GPIO_OUTPUT, GPIO_PULL_NONE); 
     gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
     gpio_set(Port_Pin(0,7),0);
-    while(1){
-       uart_printf("enter sleep:%d\r\n",Get_SysTick_ms());
-        uart_printf("tset1\r\n");
-       delay_ms(5);
-        uart_printf("tset2\r\n");
-       gpio_toggle(Port_Pin(0,3));
-       uart_printf("tset3\r\n");
-    }
+    // while(1){
+    //    //uart_printf("e:%d\r\n",Get_SysTick_ms());
+
+    //    if(Get_SysTick_ms()>=1000*60){ //运行1分钟测试
+    //           uart_printf("test over 1 min\r\n");
+    //           while(1);
+    //    }
+    // }
     
-    //cpu延时等串口发完
+
+
+    // uart_printf("e:%d\r\n",Get_SysTick_ms());
+    // // cpu延时等串口寄存器发完
     // for(int i=0;i<10000;i++){
     //     __nop();
     // }
 
     // cpu_24_reduce_voltage_sleep();   //进入低电压睡眠
-    // uart_printf("wake up from sleep:%d\r\n",Get_SysTick_ms());
+    // while(1){
+    //     app_enter_deep_sleep_with_wakeup_by_rtc(100); //进入深度睡眠，5秒后被RTC唤醒
+    //     uart_printf("wake up from sleep:%d\r\n",Get_SysTick_ms());
+    // }
 
     
 
@@ -579,6 +586,7 @@ int main(void)
      uint8_t test_send_data1[14];
     for(int i=0;i<5;i++) test_send_data0[i]=i;
     for(int i=0;i<14;i++) test_send_data1[i]=i;
+    set_power(RF_TX_POWER_N8p6_dBm); //设置发射功率为-8.6dBm
     while(1) //发送
     {
         txcount++;
@@ -590,8 +598,6 @@ int main(void)
             HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
             HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
             RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
-              
-
         }
         else{ //换地址发！
 
@@ -608,12 +614,10 @@ int main(void)
         if(txcount1>=100){
             while(1){
                 uart_printf("send all count=%d \r\n", txcount1);
-                uart_printf("enter sleep:%d\r\n",Get_SysTick_ms());
-                // cpu_24_reduce_voltage_sleep();                   //进入低电压睡眠
-                // //cpu_reduce_voltage_sleep(); //进入深度睡眠
-                // uart_printf("wake up from sleep:%d\r\n",Get_SysTick_ms());
 
-                delay_ms(10000);
+                //app_enter_deep_sleep_with_wakeup_by_rtc(1000);
+                //__HAL_RF_PowerDown();
+                //delay_ms(10000);
             }
         }
         delay_ms(100);

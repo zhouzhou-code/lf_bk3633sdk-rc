@@ -99,8 +99,9 @@ void intc_init(void)
     uint32_t IntStat;
     uint32_t irq_status = 0; //记录挂起位，方便最后统一清除
 
-    cpu_wakeup();
-
+    //cpu_wakeup();
+    cpu_24_wakeup();
+    
     IntStat = intc_status_get();
 
     if(IntStat & INT_BK24_bit)

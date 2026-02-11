@@ -325,7 +325,7 @@ void Timer1_Stop(uint8_t index)
         clrf_TIMER1_Reg0x3_timer2_en;
         bk_timer_hit &= ~0x40;
     }
-    clrf_SYS_Reg0x10_int_timer1_en;
+    //clrf_SYS_Reg0x10_int_timer1_en;
 }
 
 // FIQ Timer0_PT0

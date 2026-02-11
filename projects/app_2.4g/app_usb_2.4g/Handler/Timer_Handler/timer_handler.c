@@ -23,7 +23,7 @@ static void Inc_Systick(void)
 }
 static void timer_sys_timebase_init(void)
 {
-    Timer_Initial(1,0,16-1); // T1_0,32K,最大分频16, cnt单位为1/2=0.5ms
+    Timer_Initial(1,0,16-1); // T1,32K,最大分频16, cnt单位为1/2=0.5ms
     //1ms一次的定时中断
     //Timer1_Start_setload_value(0,2);
     //4294967295*0.5ms=2147483647.5ms=2147483.6475s=596.5232 hours
@@ -77,38 +77,26 @@ uint32_t Get_SysTick_ms(void)
     return Systick_ms;
 }
 
-
 void delay_ms(uint32_t ms)
 {
     uint32_t start = Get_SysTick_ms();
     while((Get_SysTick_ms() - start) < ms);
 }
-
-
-/* 使用timer1_1绑定pair按键消抖 */
-static void pairkey_timercb(void)
+     
+/* timer1_1做唤醒源 */
+static void timer1_1_cb(void)
 {
-    static uint8_t check_count = 1;
-    if(gpio_get_input(Port_Pin(pair_port,pair_pin))==0)
-    {
-        uart_printf("pair timer cb:%d\r\n", check_count++);
-    }
-    //uart_printf("pair timer cb:%d\r\n", check_count++);
-    //gpio_int_enable(Port_Pin(pair_port,pair_pin), GPIO_INT_EDGE_FALLING,NULL); //重新使能按键中断
-    Timer1_Stop(1);
+    //关闭timer1_1
+    clrf_TIMER1_Reg0x3_timer1_en;
 }
-static void timer_pairkey_init(void)
+static void timer1_1_init(void)
 {
-    Timer_Initial(1,1,15); // T1_0,1M counter每1us递减一次
-    //15ms一次的定时中断
-    //Timer1_Start(1,15000); //15ms
-    timer_cb_register(1,1,pairkey_timercb);
-    //中断使能  需要去intc.c中手动使能timer1中断
+    timer_cb_register(1,1,timer1_1_cb);
 }
-
 
 void Timer_Handler_Init(void)
-{
+{   
+    /* timer1_n使用了32k时钟，是aon_timer,低功耗模式下也在跑 */
     timer_sys_timebase_init();
-    //timer_pairkey_init();
+    timer1_1_init();
 }

@@ -43,12 +43,6 @@ void aon_rtc_init(void)
     //系统中断使能
     setf_SYS_Reg0x10_int_aon_rtc_en  ;   //rtc int enable
 
-    //以下代码为自己改写
-    //加上:irq,算了在intc.c中设置吧
-    //clrf_SYS_Reg0x11_int_aon_rtc_pri;
-    clrf_rtc_aon_Reg0x0_rtc_tick_int_en; //初始化时不设置周期性中断
-    clrf_rtc_aon_Reg0x0_rtc_aon_int_en ; //初始化时不设置唤醒中断
-
 }
 
  unsigned int rtc_cnt=0;
@@ -56,12 +50,13 @@ void aon_rtc_init(void)
 void aon_rtc_isr(void)
 {   
     //先唤醒CPU
-    cpu_24_wakeup();
+    //cpu_24_wakeup();
 
     uart_printf("rtc_int\r\n");
 
     //清除tick int标志位
-    setf_rtc_aon_Reg0x0_rtc_tick_int ;     
+    setf_rtc_aon_Reg0x0_rtc_tick_int ;
+    setf_rtc_aon_Reg0x0_rtc_aon_int     ;
     rtc_cnt++;
 
     

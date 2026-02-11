@@ -58,14 +58,14 @@ RF_ConfgTypeDef Init_default_S=
 {
     .Mode = MODE_TX,
     .DataRate = BPS_1M,
-    .TxPower = RF_TX_POWER_P7p6_dBm,
+    .TxPower = RF_TX_POWER_N8p6_dBm,
     .Channel = 0x05, // 频道5
     .Protocol ={
         .AddressWidth = 5,
         .TxAddress = {0x10, 0x11, 0x36, 0x00, 0x00},
         .Support_NoAck = 1,             
         .AutoRetransmitDelay = 5,        // 最大重传延迟 6*250=
-        .AutoRetransmitCount = 5,        // 最大重传次数 5
+        .AutoRetransmitCount = 3,        // 最大重传次数 3
         
         .RxPipes[0] = {
             .PipeNum = 0,
