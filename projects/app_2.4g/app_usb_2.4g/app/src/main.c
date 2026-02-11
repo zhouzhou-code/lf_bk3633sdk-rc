@@ -56,6 +56,7 @@
 #include "addr_pool.h"
 #include "gpio_init.h"
 #include "app_sleep.h"
+#include "app_key_scan.h"
 
 
 
@@ -520,9 +521,58 @@ int main(void)
     Timer_Handler_Init();
 
     /*------------------------------------测试队列性能------------------------------------*/
-    gpio_config(Port_Pin(0,3), GPIO_OUTPUT, GPIO_PULL_NONE); 
-    gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
-    gpio_set(Port_Pin(0,7),0);
+    // Key Test Init
+    const key_config_t my_keys[] = {
+        {KEY_ID_LEFT,   Port_Pin(0, 2), 3000}, // Left Key: 3s Long Press
+        {KEY_ID_RIGHT,  Port_Pin(0, 3), 1000}, // Right Key: Default 1s
+    };
+    app_key_init(my_keys, sizeof(my_keys)/sizeof(key_config_t));
+    
+    uart_printf("Key Test Start...\r\n");
+    
+    while(1) {
+        static uint32_t last_scan_time = 0;
+        if (Get_SysTick_ms() - last_scan_time >= 10) {
+            last_scan_time = Get_SysTick_ms();
+            app_key_scan_10ms();
+            
+            // 1. Handle Left Key (Long Press 3s)
+            key_event_t evt_left = app_key_get_event(KEY_ID_LEFT);
+            if (evt_left == KEY_EVT_LONG_PRESS) {
+                uart_printf("Power On/Off\r\n");
+            }
+
+            // 2. Handle Right Key (5 Short Presses)
+            static uint8_t right_cnt = 0;
+            static uint32_t right_last_time = 0;
+            key_event_t evt_right = app_key_get_event(KEY_ID_RIGHT);
+            
+            if (evt_right == KEY_EVT_SHORT_PRESS) {
+                uint32_t now = Get_SysTick_ms();
+                // Reset count if interval > 1s
+                if (now - right_last_time > 1000) {
+                    right_cnt = 0;
+                }
+                right_cnt++;
+                right_last_time = now;
+                
+                if (right_cnt >= 5) {
+                    uart_printf("Enter Pairing\r\n");
+                    right_cnt = 0;
+                }
+            }
+        }
+    }
+
+    // gpio_config(Port_Pin(0,3), GPIO_OUTPUT, GPIO_PULL_NONE); 
+    // gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
+    // gpio_set(Port_Pin(0,7),0);
+
+    
+
+
+
+
     // while(1){
     //    //uart_printf("e:%d\r\n",Get_SysTick_ms());
 
