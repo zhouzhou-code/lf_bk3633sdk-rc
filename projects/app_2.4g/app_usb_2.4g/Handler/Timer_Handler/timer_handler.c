@@ -42,7 +42,11 @@ uint32_t read_timer1_0_cnt(void)
     // 操作: 设置 Bit[3:2]=0 (Index 0), 设置 Bit[0]=1 (Start Read)
     addTIMER1_Reg0x4 = 1;
 
-    // 读取真正的计数值
+    //回读一次状态寄存器。
+    // 这行代码的作用是强迫 CPU 等待总线写操作真正完成（Flush Write Buffer）
+    volatile uint32_t dummy = addTIMER1_Reg0x4;
+    while(addTIMER1_Reg0x4 & 1); //等待硬件把 addTIMER1_Reg0x4的第0位:timerl_cnt_read 清零
+
     return addTIMER1_Reg0x5;
 }
 uint32_t Get_SysTick_ms(void)
@@ -53,7 +57,7 @@ uint32_t Get_SysTick_ms(void)
     //先读一次溢出计数器和cnt
     overflow_cnt_tmp = overflow_cnt;       
     cnt_val_tmp = read_timer1_0_cnt(); 
-    uart_printf("cnt=%d,ovf=%d\r\n", cnt_val_tmp, overflow_cnt_tmp);
+    //uart_printf("cnt=%d,ovf=%d\r\n", cnt_val_tmp, overflow_cnt_tmp);
     
     //再读一次溢出计数器 
     if (overflow_cnt != overflow_cnt_tmp)
@@ -69,7 +73,7 @@ uint32_t Get_SysTick_ms(void)
     uint32_t total_ticks = (overflow_cnt_tmp * 0xFFFFFFFF) + cnt_val_tmp;    
     // 转换时间1tick = 0.5ms
     Systick_ms = total_ticks * 0.5;
-
+   // uart_printf("return=%d\r\n", Systick_ms);
     return Systick_ms;
 }
 

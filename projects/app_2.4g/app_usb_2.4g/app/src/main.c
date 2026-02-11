@@ -515,7 +515,7 @@ int main(void)
     }
     #endif
 
-    //定时器初始化(依赖xvr里初始化rc32k时钟，放在rc32k初始化后面)
+    //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
     Timer_Handler_Init();
 
     /*------------------------------------测试队列性能------------------------------------*/
@@ -523,10 +523,12 @@ int main(void)
     gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
     gpio_set(Port_Pin(0,7),0);
     while(1){
-       //uart_printf("enter sleep:%d\r\n",Get_SysTick_ms());
-
+       uart_printf("enter sleep:%d\r\n",Get_SysTick_ms());
+        uart_printf("tset1\r\n");
        delay_ms(5);
+        uart_printf("tset2\r\n");
        gpio_toggle(Port_Pin(0,3));
+       uart_printf("tset3\r\n");
     }
     
     //cpu延时等串口发完
