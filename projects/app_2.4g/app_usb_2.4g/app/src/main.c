@@ -288,6 +288,41 @@ void AudioOut_Cbk(void*ptr,int sz){
 }
 #endif
 
+void app_key_event_handler(key_id_t id, key_event_t event)
+{
+    // 1. Handle Left Key (All States Print)
+    if (id == KEY_ID_LEFT) {
+        switch(event) {
+            case KEY_EVT_DOWN:          uart_printf("Key Left: DOWN (Edge Detect)\r\n"); break;
+            case KEY_EVT_UP:            uart_printf("Key Left: UP (Edge Detect)\r\n"); break;
+            case KEY_EVT_SHORT_PRESS:   uart_printf("Key Left: SHORT PRESS\r\n"); break;
+            case KEY_EVT_LONG_PRESS:    uart_printf("Key Left: LONG PRESS (Power On/Off Trigger)\r\n"); break;
+            case KEY_EVT_LONG_HOLD:     /* uart_printf("Key Left: LONG HOLDING...\r\n"); */ break;
+            case KEY_EVT_LONG_RELEASE:  uart_printf("Key Left: LONG RELEASE\r\n"); break;
+            default: break;
+        }
+    } 
+    // 2. Handle Right Key (5 Short Presses)
+    else if (id == KEY_ID_RIGHT) {
+        if (event == KEY_EVT_SHORT_PRESS) {
+            static uint8_t right_cnt = 0;
+            static uint32_t right_last_time = 0;
+            uint32_t now = Get_SysTick_ms();
+            // Reset count if interval > 1s
+            if (now - right_last_time > 1000) {
+                right_cnt = 0;
+            }
+            right_cnt++;
+            right_last_time = now;
+            
+            if (right_cnt >= 5) {
+                uart_printf("Enter Pairing\r\n");
+                right_cnt = 0;
+            }
+        }
+    }
+}
+
 int main(void)
 {
     icu_init();
@@ -520,13 +555,13 @@ int main(void)
     //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
     Timer_Handler_Init();
 
-    /*------------------------------------测试队列性能------------------------------------*/
-    // Key Test Init
-    const key_config_t my_keys[] = {
-        {KEY_ID_LEFT,   Port_Pin(0, 2), 3000}, // Left Key: 3s Long Press
-        {KEY_ID_RIGHT,  Port_Pin(0, 3), 1000}, // Right Key: Default 1s
+    /*----------------------------测试按键功能--------------------------------------*/
+     const key_config_t my_keys[] = {
+        {KEY_ID_LEFT,   Port_Pin(0, 2), 2000, false}, // Left Key: 3s Long Press
+        {KEY_ID_RIGHT,  Port_Pin(0, 3), 1000, false}, // Right Key: Default 1s
     };
     app_key_init(my_keys, sizeof(my_keys)/sizeof(key_config_t));
+    app_key_register_callback(app_key_event_handler);
     
     uart_printf("Key Test Start...\r\n");
     
@@ -534,44 +569,17 @@ int main(void)
         static uint32_t last_scan_time = 0;
         if (Get_SysTick_ms() - last_scan_time >= 10) {
             last_scan_time = Get_SysTick_ms();
-            app_key_scan_10ms();
-            
-            // 1. Handle Left Key (Long Press 3s)
-            key_event_t evt_left = app_key_get_event(KEY_ID_LEFT);
-            if (evt_left == KEY_EVT_LONG_PRESS) {
-                uart_printf("Power On/Off\r\n");
-            }
-
-            // 2. Handle Right Key (5 Short Presses)
-            static uint8_t right_cnt = 0;
-            static uint32_t right_last_time = 0;
-            key_event_t evt_right = app_key_get_event(KEY_ID_RIGHT);
-            
-            if (evt_right == KEY_EVT_SHORT_PRESS) {
-                uint32_t now = Get_SysTick_ms();
-                // Reset count if interval > 1s
-                if (now - right_last_time > 1000) {
-                    right_cnt = 0;
-                }
-                right_cnt++;
-                right_last_time = now;
-                
-                if (right_cnt >= 5) {
-                    uart_printf("Enter Pairing\r\n");
-                    right_cnt = 0;
-                }
-            }
+            app_key_scan(10);
         }
     }
+
+    /*------------------------------------测试队列性能------------------------------------*/
+    // Key Test Init
+   
 
     // gpio_config(Port_Pin(0,3), GPIO_OUTPUT, GPIO_PULL_NONE); 
     // gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
     // gpio_set(Port_Pin(0,7),0);
-
-    
-
-
-
 
     // while(1){
     //    //uart_printf("e:%d\r\n",Get_SysTick_ms());

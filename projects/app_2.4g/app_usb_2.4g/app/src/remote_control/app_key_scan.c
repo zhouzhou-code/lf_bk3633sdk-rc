@@ -1,24 +1,39 @@
 #include "app_key_scan.h"
 #include <string.h>
 
-// 配置参数
-#define KEY_DEBOUNCE_TICKS      2    // 2 * 10ms = 20ms
-#define KEY_DEFAULT_LONG_PRESS_MS 1000 // 默认长按时间 1s
+// 配置参数（以毫秒为单位）
+#define KEY_DEBOUNCE_MS             20     // 默认消抖时间 20ms
+#define KEY_DEFAULT_LONG_PRESS_MS   1000   // 默认长按时间 1s
 
 // 按键控制结构体
 typedef struct {
-    uint8_t gpio_pin;       // 对应的物理 GPIO Pin (0-39)
-    uint8_t debounce_cnt;
-    uint16_t press_cnt;
-    uint16_t long_press_ticks; // 长按判定 tick 数
-    bool enabled;           // 是否已启用/配置
-    bool active_state;      // true为高电平有效，false为低电平有效（通常上拉输入为false）
-    bool stable_level;      // 当前稳定电平状态 (true=按下, false=释放)
-    bool long_press_reported;
-    key_event_t event;      // 待处理事件
+    uint8_t  gpio_pin;             // 对应的物理 GPIO Pin (0-39)
+    uint16_t debounce_ms_acc;      // 消抖累计毫秒
+    uint16_t press_ms;             // 按下累计毫秒
+    uint16_t long_press_ms;        // 长按判定毫秒
+    bool     enabled;              // 是否已启用/配置
+    bool     active_state;         // true为高电平有效，false为低电平有效
+    bool     stable_level;         // 当前稳定电平状态 (true=按下, false=释放)
+    bool     long_press_reported;
+    key_event_t event;             // 待处理事件
 } key_ctrl_t;
 
 static key_ctrl_t m_keys[KEY_ID_MAX];
+//全局统一中断回调,中心化事件分发,根据内部通过id+envent实现业务逻辑
+static app_key_callback_t m_key_callback = NULL;
+
+void app_key_register_callback(app_key_callback_t cb)
+{
+    m_key_callback = cb;
+}
+
+static void trigger_event(key_id_t id, key_event_t event)
+{
+    m_keys[id].event = event;
+    if (m_key_callback != NULL && event != KEY_EVT_NONE) {
+        m_key_callback(id, event);
+    }
+}
 
 void app_key_init(const key_config_t *p_config, uint8_t count)
 {
@@ -46,16 +61,14 @@ void app_key_init(const key_config_t *p_config, uint8_t count)
         // 设置长按时间
         uint16_t lp_ms = p_config[i].long_press_ms;
         if (lp_ms == 0) lp_ms = KEY_DEFAULT_LONG_PRESS_MS;
-        p_key->long_press_ticks = lp_ms / 10;
-        if (p_key->long_press_ticks == 0) p_key->long_press_ticks = 1;
+        p_key->long_press_ms = lp_ms;
 
-        // 假设所有按键均为低电平有效（内部上拉）
-        // 如果需要支持高电平有效，可以在 key_config_t 中增加 active_level 字段
-        p_key->active_state = false; 
+        // 有效电平
+        p_key->active_state = p_config[i].active_level ? true : false;
 
         // 3. 配置 GPIO
-        // 使用 drv_gpio.h 中的宏：输入模式，开启上拉
-        gpio_config(pin, GPIO_INPUT, GPIO_PULL_HIGH);
+        // 根据有效电平选择合适的上下拉
+        gpio_config(pin, GPIO_INPUT, p_key->active_state ? GPIO_PULL_LOW : GPIO_PULL_HIGH);
         
         // 4. 初始化当前状态
         // 读取当前 GPIO 电平，设置初始状态以避免上电误触发
@@ -64,11 +77,17 @@ void app_key_init(const key_config_t *p_config, uint8_t count)
         // 计算当前是否按下：(读取值 == 激活电平)
         bool is_pressed = (val == (p_key->active_state ? 1 : 0));
         p_key->stable_level = is_pressed;
+        p_key->debounce_ms_acc = 0;
+        p_key->press_ms = 0;
+        p_key->long_press_reported = false;
     }
 }
 
-void app_key_scan_10ms(void)
+void app_key_scan(uint16_t period_ms)
 {
+    if (period_ms == 0) {
+        return;
+    }
     for(int i = 0; i < KEY_ID_MAX; i++) {
         key_ctrl_t *p_key = &m_keys[i];
         
@@ -83,46 +102,51 @@ void app_key_scan_10ms(void)
         
         // 消抖逻辑
         if (is_pressed_raw != p_key->stable_level) {
-            p_key->debounce_cnt++;
-            if (p_key->debounce_cnt >= KEY_DEBOUNCE_TICKS) {
+            p_key->debounce_ms_acc += period_ms;
+            if (p_key->debounce_ms_acc >= KEY_DEBOUNCE_MS) {
                 // 状态确认
                 p_key->stable_level = is_pressed_raw;
-                p_key->debounce_cnt = 0;
+                p_key->debounce_ms_acc = 0;
                 
                 if (p_key->stable_level) {
                     // 刚按下
-                    p_key->event = KEY_EVT_DOWN;
-                    p_key->press_cnt = 0;
+                    trigger_event(i, KEY_EVT_DOWN);
+                    p_key->press_ms = 0;
                     p_key->long_press_reported = false;
                 } else {
                     // 刚释放
-                    p_key->event = KEY_EVT_UP;
+                    trigger_event(i, KEY_EVT_UP);
                     
                     if (p_key->long_press_reported) {
-                        p_key->event = KEY_EVT_LONG_RELEASE;
+                        trigger_event(i, KEY_EVT_LONG_RELEASE);
                     } else {
                         // 如果不是长按，则判定为短按
-                        p_key->event = KEY_EVT_SHORT_PRESS;
+                        trigger_event(i, KEY_EVT_SHORT_PRESS);
                     }
                 }
             }
         } else {
-            p_key->debounce_cnt = 0;
+            p_key->debounce_ms_acc = 0;
         }
         
         // 长按逻辑（仅在按下状态时检测）
         if (p_key->stable_level) {
-            p_key->press_cnt++;
-            if (p_key->press_cnt >= p_key->long_press_ticks) {
+            p_key->press_ms += period_ms;
+            if (p_key->press_ms >= p_key->long_press_ms) {
                 if (!p_key->long_press_reported) {
-                    p_key->event = KEY_EVT_LONG_PRESS;
+                    trigger_event(i, KEY_EVT_LONG_PRESS);
                     p_key->long_press_reported = true;
                 } else {
-                    p_key->event = KEY_EVT_LONG_HOLD; 
+                    trigger_event(i, KEY_EVT_LONG_HOLD); 
                 }
             }
         }
     }
+}
+
+void app_key_scan_10ms(void)
+{
+    app_key_scan(10);
 }
 
 key_event_t app_key_get_event(key_id_t key)

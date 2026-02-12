@@ -38,12 +38,26 @@ typedef struct {
     key_id_t id;             ///< 逻辑按键 ID
     gpio_num_t pin;          ///< 物理引脚，使用 Port_Pin(port, pin) 生成
     uint16_t long_press_ms;  ///< 长按判定时间(ms)，0表示使用默认值(1000ms)
+    bool active_level;       ///< 有效电平：true=高电平有效，false=低电平有效(默认)
 } key_config_t;
+
+/**
+ * @brief 按键事件回调函数类型
+ * @param id 触发事件的按键 ID
+ * @param event 触发的事件类型
+ */
+typedef void (*app_key_callback_t)(key_id_t id, key_event_t event);
+
+/**
+ * @brief 设置按键事件全局回调
+ * @param cb 回调函数指针
+ */
+void app_key_register_callback(app_key_callback_t cb);
 
 /**
  * @brief 初始化按键扫描模块
  * 
- * 配置指定的 GPIO 为上拉输入模式，并初始化内部状态机。
+ * 根据 active_level 配置 GPIO 上下拉，并初始化内部状态机。
  * 
  * @param p_config 按键配置数组指针
  * @param count 配置数组的元素个数
@@ -51,9 +65,9 @@ typedef struct {
  * @example
  * // 定义按键映射表
  * const key_config_t my_keys[] = {
- *     {KEY_ID_LEFT,   Port_Pin(Port0, Pin1)}, // P0.1 对应左键
- *     {KEY_ID_RIGHT,  Port_Pin(Port0, Pin2)}, // P0.2 对应右键
- *     {KEY_ID_MIDDLE, Port_Pin(Port1, Pin5)}, // P1.5 对应中键
+ *     {KEY_ID_LEFT,   Port_Pin(Port0, Pin1), 1000, false}, // P0.1 左键，低电平有效
+ *     {KEY_ID_RIGHT,  Port_Pin(Port0, Pin2), 1000, true }, // P0.2 右键，高电平有效
+ *     {KEY_ID_MIDDLE, Port_Pin(Port1, Pin5), 1500, false}, // P1.5 中键，低电平有效
  * };
  * 
  * // 系统初始化时调用
@@ -66,14 +80,15 @@ void app_key_init(const key_config_t *p_config, uint8_t count);
  * 
  * 核心状态机处理函数，必须周期性调用。
  * 
- * @note 请确保调用周期严格为 10ms，否则消抖和长按时间计算会不准确。
+ * @note 需周期性调用，调用周期以毫秒传入，内部基于该周期完成消抖与计时。
  * 
  * @example
  * // 在定时器中断或主循环中调用
  * if (is_time_for_10ms_task()) {
- *     app_key_scan_10ms();
+ *     app_key_scan(10);
  * }
  */
+void app_key_scan(uint16_t period_ms);
 void app_key_scan_10ms(void);
 
 /**
