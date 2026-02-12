@@ -45,7 +45,7 @@
 // }
 
 //调用icu中的休眠函数，进入深度睡眠，并设置aon定时唤醒
-void app_enter_deep_sleep_with_wakeup_by_rtc(uint32_t sleep_ms)
+void app_enter_sleep_with_wakeup_by_timer(uint32_t sleep_ms)
 {
     //设置定时器1_1唤醒时间
     uint32_t start = Get_SysTick_ms();

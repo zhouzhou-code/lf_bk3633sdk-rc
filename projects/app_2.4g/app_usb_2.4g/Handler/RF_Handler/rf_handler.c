@@ -139,6 +139,8 @@ RF_ConfgTypeDef Init_default_S=
 };
 
 
+#include "app_addr_manage.h"
+
 void RF_Handler_Init(void)
 {
     /* 初始化RF模块 */
@@ -147,6 +149,10 @@ void RF_Handler_Init(void)
 
     HAL_RF_Init(&hrf, &Init_default_S);
     HAL_RF_TimeManager_register(&hrf, Get_SysTick_ms);
+
+    // 强制应用 app_addr_manage 的地址配置
+    // 这将覆盖 Init_default_S 中的硬编码地址
+    app_addr_apply_to_rf();
 
     /* 默认初始化为发送模式 */
     HAL_RF_SetTxMode(&hrf);
@@ -244,9 +250,8 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
             HAL_RF_SetTxMode(hrf);
         }
 
-        // 设置发送和接收地址
-        HAL_RF_SetTxAddress(&hrf, tx_item.dest_addr, 5);
-        HAL_RF_SetRxAddress(&hrf, 0, tx_item.dest_addr, 5);
+        // 使用 app_addr_manage 接口进行发送准备 自动备份Pipe0
+        app_addr_tx_prepare(tx_item.dest_addr);
         
         // 尝试调用发送函数
         // 如果返回 BUSY，说明它内部运行了超时检测逻辑但还没超时
@@ -261,6 +266,8 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
     else{
         // 队列虽然空了，但如果发送还没完成 (BUSY)，则不能切RX
         if(hrf->TxState != TX_BUSY_Tramsmit) {
+            // 发送完成，恢复 Pipe0 地址
+            app_addr_tx_restore();
             HAL_RF_SetRxMode(hrf); 
         }
     }

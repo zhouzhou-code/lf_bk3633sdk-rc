@@ -57,6 +57,7 @@
 #include "gpio_init.h"
 #include "app_sleep.h"
 #include "app_key_scan.h"
+#include "app_addr_manage.h"
 
 
 
@@ -288,6 +289,7 @@ void AudioOut_Cbk(void*ptr,int sz){
 }
 #endif
 
+uint8_t pair_flag=0;
 void app_key_event_handler(key_id_t id, key_event_t event)
 {
     // 1. Handle Left Key (All States Print)
@@ -316,7 +318,13 @@ void app_key_event_handler(key_id_t id, key_event_t event)
             right_last_time = now;
             
             if (right_cnt >= 5) {
-                uart_printf("Enter Pairing\r\n");
+                //翻转pair_flag
+                pair_flag=!pair_flag;
+                if(pair_flag)
+                    uart_printf("Enter Pairing\r\n");
+                else
+                    uart_printf("Exit Pairing\r\n");
+
                 right_cnt = 0;
             }
         }
@@ -344,6 +352,7 @@ int main(void)
 
    //gpio_init();
     flash_init();
+    app_addr_init();
   //  pair_gpio_init();//初始化配对按键
   //  xvr_reg_initial_24();
   //  gpio_set_neg(0x04);
@@ -555,21 +564,43 @@ int main(void)
     //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
     Timer_Handler_Init();
 
+    // Slave_Pairing_Task(&pair_flag); //启动从机配对模式
+    // while(1)
+    // {
+    //     Slave_Pairing_Task(&pair_flag); //非阻塞配对任务调用
+    //     //delay_ms(10);
+    //     //RF_Service_Handler(&hrf);  
+    // }
+    /* 非阻塞host */
+    // RF_Handler_Init();//初始化RF句柄及队列
+    // while(1)
+    // {
+    //     Host_Pairing_Task(&pair_flag); //非阻塞配对任务调用
+    // }
     /*----------------------------测试按键功能--------------------------------------*/
      const key_config_t my_keys[] = {
         {KEY_ID_LEFT,   Port_Pin(0, 2), 2000, false}, // Left Key: 3s Long Press
-        {KEY_ID_RIGHT,  Port_Pin(0, 3), 1000, false}, // Right Key: Default 1s
+        {KEY_ID_RIGHT,  Port_Pin(3, 1), 1000, false}, // Right Key: Default 1s
     };
     app_key_init(my_keys, sizeof(my_keys)/sizeof(key_config_t));
     app_key_register_callback(app_key_event_handler);
     
     uart_printf("Key Test Start...\r\n");
+    RF_Handler_Init();//初始化RF句柄及队列
     
+    #define is_host 0
+
     while(1) {
         static uint32_t last_scan_time = 0;
         if (Get_SysTick_ms() - last_scan_time >= 10) {
             last_scan_time = Get_SysTick_ms();
             app_key_scan(10);
+
+            #if is_host
+            Host_Pairing_Task(&pair_flag);
+            #else
+            Slave_Pairing_Task(&pair_flag);
+            #endif
         }
     }
 
@@ -654,14 +685,14 @@ int main(void)
         if(txcount<=10){
             test_send_data0[0]=txcount;
             HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
-            HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
+            //HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
             RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
         }
         else{ //换地址发！
 
             test_send_data1[0]=txcount-10;
             HAL_RF_SetTxAddress(&hrf, pipe1_addr, 5);//设置发送地址为pipe1地址
-            HAL_RF_SetRxAddress(&hrf,0, pipe1_addr, 5);//设置发送地址为pipe1地址
+            //HAL_RF_SetRxAddress(&hrf,0, pipe1_addr, 5);//设置发送地址为pipe1地址
             RF_txQueue_Send(pipe1_addr,test_send_data1, sizeof(test_send_data1));//测试发送数据入队
 
             if(txcount>25) {
@@ -717,16 +748,15 @@ int main(void)
     // Slave_Pairing_Start(); //启动从机配对模式
     // while(1)
     // {
-    //     Slave_Pairing_Task(); //非阻塞配对任务调用
+    //     Slave_Pairing_Task(&pair_flag); //非阻塞配对任务调用
     //     //delay_ms(10);
     //     //RF_Service_Handler(&hrf);  
     // }
     /* 非阻塞host */
     // RF_Handler_Init();//初始化RF句柄及队列
-    // Host_Pairing_Start(); //启动机配对模式
     // while(1)
     // {
-    //     Host_Pairing_Task(); //非阻塞配对任务调用
+    //     Host_Pairing_Task(&pair_flag); //非阻塞配对任务调用
     // }
     
 

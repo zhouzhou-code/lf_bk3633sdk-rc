@@ -6,6 +6,7 @@
 #include <string.h> 
 #include "hal_drv_rf.h"
 #include "timer_handler.h"
+#include "app_addr_manage.h"
 
 
 #define UART_PRINTF    uart_printf
@@ -595,6 +596,14 @@ HAL_StatusTypeDef HAL_RF_SetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint8
     return HAL_RF_STATE_READY;
 }
 
+HAL_StatusTypeDef HAL_RF_GetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint8_t *dev_addr)
+{
+    //从hrf中获取pipe的地址
+    if(pipe >5 || dev_addr == NULL) 
+        return HAL_RF_STATE_ERROR;
+    memcpy(dev_addr, hrf->Params.Protocol.RxPipes[pipe].Address, sizeof(uint8_t)*hrf->Params.Protocol.AddressWidth);
+    return HAL_RF_STATE_READY;
+}
 
 /**
   * @brief  设置为发送模式
@@ -687,6 +696,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
         //__HAL_RF_CMD_FLUSH_TXFIFO();
         hrf->TxState = TX_IDLE;
+        app_addr_tx_restore(); //发送完成后恢复 Pipe0 地址
         HAL_RF_SetRxMode(hrf); //发送完成后切换到接收模式
     }
         
@@ -700,6 +710,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
         __HAL_RF_CMD_FLUSH_TXFIFO();//发送失败必须要清空TX FIFO，下次才能继续写FIFO发送
         
         hrf->TxState = TX_IDLE;
+        app_addr_tx_restore(); //发送完成后恢复Pipe0地址
         HAL_RF_SetRxMode(hrf); //发送失败后切换到接收模式
     }
 

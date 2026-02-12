@@ -9,8 +9,7 @@
 
 //用户flash：0x7E000~0x7F000
 //Flash存储配置配对信息的位置
-#define FLASH_PAIR_ADDR           0x7E000  
-#define FLASH_MAGIC_NUM           0x5AA5BEEF
+// 已迁移至 app_addr_manage 模块统一管理
 
 typedef enum {
     SLAVE_PAIR_IDLE = 0,
@@ -59,15 +58,6 @@ typedef struct {
     uint8_t cmd;
     uint8_t magic_number;
 } pair_verify_pkt; 
-
-//Flash存储结构体
-typedef struct {
-    uint32_t magic;         // [0-3]  魔数，判断数据有效性
-    uint8_t  pair_addr[5];  // [4-8]  配对地址
-    uint8_t  padding[2];    // [9-10] 填充位，凑4字节对齐
-    uint8_t  checksum;      // [11]   简单的累加校验和
-} PairInfo_t;               // 总大小：12 字节
-
 #pragma pack()
 
 
@@ -106,18 +96,14 @@ extern uint8_t slave_pair_success_flag;
 extern uint8_t host_pair_success_flag;
 
 // 非阻塞配对接口
-void Slave_Pairing_Start(void);
-void Slave_Pairing_Stop(void);
-void Slave_Pairing_Task(void);
-
-void Host_Pairing_Start(void);
-void Host_Pairing_Stop(void);
-void Host_Pairing_Task(void);
+void Slave_Pairing_Task(uint8_t *flag);
+void Host_Pairing_Task(uint8_t *flag);
 
 //配对信息存取接口
-void Load_Pair_Info(void);          // 上电加载配对信息
-void Save_Pair_Info(uint8_t *addr); // 保存配对地址
-void Clear_Pair_Info(void);         // 清除配对信息
+//已废弃，使用 app_addr_manage 模块接口
+//void Load_Pair_Info(void);          
+//void Save_Pair_Info(uint8_t *addr); 
+//void Clear_Pair_Info(void);         
 
 
 

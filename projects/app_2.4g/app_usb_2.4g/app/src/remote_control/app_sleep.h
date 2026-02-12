@@ -5,6 +5,7 @@
 #include "aon_rtc.h"
 
 void app_enter_deep_sleep_with_wakeup_by_rtc(uint32_t sleep_ms);
+void app_enter_sleep_with_wakeup_by_timer(uint32_t sleep_ms);
 
 
 #endif // SLEEP_H

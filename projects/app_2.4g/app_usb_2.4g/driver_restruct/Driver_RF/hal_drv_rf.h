@@ -334,7 +334,6 @@ HAL_StatusTypeDef HAL_RF_GetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint8
 //注意，切换模式不可只改变寄存器位，还需PowerUp以及拉低CE
 HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf);
 HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf);
-HAL_StatusTypeDef HAL_RF_Get_CurTRXMode(RF_HandleTypeDef *hrf);
 
 void HAL_RF_ClearIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef _Flags);
 uint8_t HAL_RF_GetIRQFlags(RF_HandleTypeDef *hrf, IRQ_StatusBitsTypeDef IRQ_Flags);
