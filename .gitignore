@@ -13,12 +13,7 @@
 *.crf
 *.sct
 
-# Keil相关
-*.uvopt
-*.uvproj
-*.uvprojx
-*.uvgui.*
-*.bak
+
 
 # 日志和临时文件
 *.log
