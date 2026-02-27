@@ -5,6 +5,7 @@
 #include "hal_drv_rf.h"
 #include <string.h>
 #include <stdlib.h> // for rand()
+#include <stddef.h>
 #include "addr_pool.h"
 #include "rf_handler.h"
 
@@ -41,7 +42,8 @@
 // 类型定义
 // -----------------------------------------------------------
 
-//Flash 存储结构 6通道独立管理
+// Flash 存储结构 6通道独立管理
+#pragma pack(push, 1)
 typedef struct {
     uint32_t magic;         // 0x5AA5BEEF
     
@@ -61,6 +63,7 @@ typedef struct {
     uint8_t padding[3];    // 对齐填充 (4 + 10 + 4 + 1 + 3 = 22 bytes)
     uint8_t checksum;      // 校验和
 } PairInfo_t;
+#pragma pack(pop)
 
 // 地址管理上下文结构体
 typedef struct {
@@ -159,13 +162,11 @@ static void Flash_Write_User_Data(uint32_t address, const uint8_t *data, uint32_
  * @param info 结构体指针
  * @return 校验值
  */
-static uint8_t calc_checksum(PairInfo_t *info) {
-
+static uint8_t calc_checksum(const PairInfo_t *info) {
     uint8_t sum = 0;
-    uint8_t *p = (uint8_t*)info;
-    // 计算除 checksum 字段外的所有字节之和
-    // PairInfo_t 大小为 sizeof(PairInfo_t), checksum 是最后一个字节
-    for(int i=0; i < sizeof(PairInfo_t) - 1; i++) {
+    const uint8_t *p = (const uint8_t *)info;
+    // 只累计 checksum 字段之前的字节，避免把 checksum 自身算进去
+    for (size_t i = 0; i < offsetof(PairInfo_t, checksum); i++) {
         sum += p[i];
     }
     return sum;
@@ -263,6 +264,8 @@ void app_addr_init(void)
     // 2. 校验
     if (info.magic == FLASH_MAGIC_NUM && info.checksum == calc_checksum(&info)) {
         uart_printf("[Addr] Load Success. Mask=0x%02X\r\n", info.valid_mask);
+        uart_printf("[Addr] Info: pipe0=%02X%02X%02X%02X%02X\r\n", info.pipe0_addr[0], info.pipe0_addr[1], info.pipe0_addr[2], info.pipe0_addr[3], info.pipe0_addr[4]);
+        uart_printf("[Addr] Info: pipe1=%02X%02X%02X%02X%02X\r\n", info.pipe1_addr[0], info.pipe1_addr[1], info.pipe1_addr[2], info.pipe1_addr[3], info.pipe1_addr[4]);
         addr_manager.valid_mask = info.valid_mask;
         
         // 恢复 Pipe 0
@@ -332,6 +335,17 @@ void app_addr_get_pipe_addr(uint8_t pipe_id, uint8_t *buf)
     } else {
         memcpy(buf, ADDR_DEFAULT_PAIR, ADDR_LEN);
     }
+}
+
+uint8_t app_addr_set_pipe0_addr(const uint8_t *addr)
+{
+    if (!addr) {
+        return 0;
+    }
+
+    memcpy(addr_manager.pipe_cfg[0], addr, ADDR_LEN);
+    addr_manager.valid_mask |= (1 << 0);
+    return 1;
 }
 
 /**
@@ -429,22 +443,23 @@ void app_addr_apply_to_rf(void)
  */
 void app_addr_tx_prepare(const uint8_t *tx_addr)
 {
-    if (!tx_addr) 
-        return;
+    uint8_t cur_pipe0[ADDR_LEN];
 
-    if (!app_addr_is_pipe_paired(0)) {
-        uart_printf("[Addr] Pipe 0 not paired, cannot backup TX address.\r\n");
+    if (!tx_addr) {
         return;
     }
 
-    // 备份调用发送前Pipe0地址
-    if (!addr_manager.backup_valid) {
-        memcpy(addr_manager.backup_pipe0, addr_manager.pipe_cfg[0], ADDR_LEN);
-        addr_manager.backup_valid = 1;
+    // 读取当前硬件 Pipe0；仅当临时改写 Pipe0 时才做一次备份
+    if (HAL_RF_GetRxAddress(&hrf, 0, cur_pipe0) == HAL_RF_STATE_READY) {
+        if (!addr_manager.backup_valid && memcmp(cur_pipe0, tx_addr, ADDR_LEN) != 0) {
+            memcpy(addr_manager.backup_pipe0, cur_pipe0, ADDR_LEN);
+            addr_manager.backup_valid = 1;
+        }
     }
 
-    // 将Pipe0设置为TX地址 (接收 ACK)
-    HAL_RF_SetRxAddress(&hrf, 0, (uint8_t*)tx_addr, ADDR_LEN);
+    // 发送前同时切换 TX 地址和 Pipe0 地址，保证 ACK 匹配
+    HAL_RF_SetTxAddress(&hrf, (uint8_t *)tx_addr, ADDR_LEN);
+    HAL_RF_SetRxAddress(&hrf, 0, (uint8_t *)tx_addr, ADDR_LEN);
 }
 
 /**
@@ -459,5 +474,6 @@ void app_addr_tx_restore(void)
                    addr_manager.backup_pipe0[2], addr_manager.backup_pipe0[3],
                    addr_manager.backup_pipe0[4]);   
         HAL_RF_SetRxAddress(&hrf, 0, addr_manager.backup_pipe0, ADDR_LEN);
+        addr_manager.backup_valid = 0;
     }
 }

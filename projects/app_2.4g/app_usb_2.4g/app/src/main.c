@@ -588,7 +588,7 @@ int main(void)
     uart_printf("Key Test Start...\r\n");
     RF_Handler_Init();//初始化RF句柄及队列
     
-    #define is_host 0
+    #define is_host 1
 
     while(1) {
         static uint32_t last_scan_time = 0;

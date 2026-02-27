@@ -50,6 +50,13 @@ uint8_t app_addr_genatate_for_pair(uint8_t pipe_id, uint8_t *out_addr);
 void app_addr_get_pipe_addr(uint8_t pipe_id, uint8_t *buf);
 
 /**
+ * @brief 用已配对地址更新 Pipe0，并标记为有效
+ * @param addr 5字节地址
+ * @return uint8_t 1 成功, 0 失败
+ */
+uint8_t app_addr_set_pipe0_addr(const uint8_t *addr);
+
+/**
  * @brief 清除所有配对信息（恢复出厂）
  */
 void app_addr_clear_all(void);

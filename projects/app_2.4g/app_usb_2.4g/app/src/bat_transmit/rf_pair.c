@@ -226,6 +226,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
         case SLAVE_PAIR_DONE:
             uart_printf("Slave: Pairing Process Success Completed.\n");
             printf_txrx_addr();
+            app_addr_set_pipe0_addr(g_slave_ctrl.resp_pkt.new_addr);
             save_ctx_to_flash();
             *flag = 0;
             break;
