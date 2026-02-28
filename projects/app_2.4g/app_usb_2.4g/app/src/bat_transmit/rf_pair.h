@@ -99,12 +99,5 @@ extern uint8_t host_pair_success_flag;
 void Slave_Pairing_Task(uint8_t *flag);
 void Host_Pairing_Task(uint8_t *flag);
 
-//配对信息存取接口
-//已废弃，使用 app_addr_manage 模块接口
-//void Load_Pair_Info(void);          
-//void Save_Pair_Info(uint8_t *addr); 
-//void Clear_Pair_Info(void);         
-
-
 
 #endif // __RF_PAIR_H__

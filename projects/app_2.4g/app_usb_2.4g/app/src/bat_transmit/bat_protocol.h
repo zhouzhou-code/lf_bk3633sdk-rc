@@ -146,8 +146,9 @@ typedef struct {
 } ProtocolParser_t;
 
 
-extern uint8_t temp_Parsebuf[sizeof(BatteryDynamicInfo_t)];
-
 void Protocol_ParseByte(my_queue_t* uart_rx_queue);
 uint16_t crc16_modbus(const uint8_t *data, uint16_t length);
+bool bat_protocol_take_soc(Bat_Soc_t *out_soc);
+bool bat_protocol_take_pair_cmd(uint8_t *out_addr);
+void bat_protocol_send_pair_resp(uint8_t addr, uint8_t result_code);
 #endif /* __BAT_PROTOCOL_H */

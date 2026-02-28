@@ -182,7 +182,6 @@ void Slave_Pairing_Task(uint8_t* flag) {
             //监听Ping
             uint8_t pipe0_addr[5];
             HAL_RF_GetRxAddress(&hrf, 0, pipe0_addr);
-            uart_printf("ping,mode=%d,Pipe0 Addr:", __HAL_RF_Get_TRxMode_Bit());
             for(int i=0;i<5;i++) uart_printf("%02X ", pipe0_addr[i]);
             uart_printf("\n");
             if (RF_rxQueue_Recv(&recv_ping_pkt, &len, NULL) == 1) {
@@ -292,6 +291,8 @@ void Host_Pairing_Task(uint8_t* flag) {
         g_host_ctrl.verify_target_count = 10;
         //设置默认地址
         app_addr_get_default(def_addr);
+        uart_printf("Host: Default Address = %02X %02X %02X %02X %02X\n",
+                    def_addr[0], def_addr[1], def_addr[2], def_addr[3], def_addr[4]);
         HAL_RF_SetTxAddress(&hrf, def_addr, 5);
         HAL_RF_SetRxAddress(&hrf, 0, def_addr, 5);
         HAL_RF_SetRxMode(&hrf);

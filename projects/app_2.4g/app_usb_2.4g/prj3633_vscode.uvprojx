@@ -558,6 +558,16 @@
               <FileType>5</FileType>
               <FilePath>.\app\src\bat_transmit\rf_pair.h</FilePath>
             </File>
+            <File>
+              <FileName>app_bat_passthrough.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\bat_transmit\app_bat_passthrough.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_bat_passthrough.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\bat_transmit\app_bat_passthrough.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
