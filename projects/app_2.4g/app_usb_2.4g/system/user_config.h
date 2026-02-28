@@ -43,9 +43,12 @@
 
 
 
+//这里只能定义到串口2，如果其他头文件想用串口1，就只能在各自源文件前定义
+// #undef uart_printf
+// #define uart_printf uart0_printf
+//why?
 
 #define uart_printf              uart2_printf
-//  #define uart_printf                uart0_printf
 
 #ifndef NULL
 #define NULL (void*)0

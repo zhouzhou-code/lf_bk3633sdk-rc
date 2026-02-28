@@ -12,6 +12,8 @@
 #include "rf_handler.h"
 #include "rf_pair.h"
 
+#define APP_BAT_LOG uart0_printf
+
 typedef enum {
     APP_MODE_PASSTHROUGH = 0,
     APP_MODE_PAIRING
@@ -42,10 +44,10 @@ void app_bat_passthrough_run(void)
     uint32_t last_tick_2ms = 0;
     uint32_t last_tick_10ms = 0;
     uint32_t last_tick_100ms = 0;
-
+    
     RF_Handler_Init();
     gpio_config(Port_Pin(0, 3), GPIO_INPUT, GPIO_PULL_HIGH);
-    uart_printf("Battery passthrough v2 start\r\n");
+    APP_BAT_LOG("Battery passthrough v2 start\r\n");
 
     while (1) {
         uint32_t now = Get_SysTick_ms();
@@ -68,7 +70,7 @@ void app_bat_passthrough_run(void)
                 if (pair_io_low_acc_ms >= pair_io_debounce_ms && !pair_io_latched) {
                     pair_io_pending = 1;
                     pair_io_latched = 1;
-                    uart_printf("PAIR_IO low\r\n");
+                    APP_BAT_LOG("PAIR_IO low\r\n");
                 }
             } else {
                 pair_io_low_acc_ms = 0;
@@ -79,7 +81,7 @@ void app_bat_passthrough_run(void)
             if (bat_protocol_take_pair_cmd(&cmd_addr)) {
                 pair_cmd_pending = 1;
                 pair_rsp_addr = cmd_addr;
-                uart_printf("PAIR_CMD received, addr=0x%02X\r\n", pair_rsp_addr);
+                APP_BAT_LOG("PAIR_CMD received, addr=0x%02X\r\n", pair_rsp_addr);
             }
 
             if (app_mode == APP_MODE_PASSTHROUGH &&
@@ -90,7 +92,7 @@ void app_bat_passthrough_run(void)
                 app_mode = APP_MODE_PAIRING;
                 pair_io_pending = 0;
                 pair_cmd_pending = 0;
-                uart_printf("Enter pairing mode\r\n");
+                APP_BAT_LOG("Enter pairing mode\r\n");
             }
 
             if (app_mode == APP_MODE_PAIRING) {
@@ -99,7 +101,7 @@ void app_bat_passthrough_run(void)
                 if (pairing_running && pair_flag == 0) {
                     app_bat_pairing_stop(&pair_flag);
                     bat_protocol_send_pair_resp(pair_rsp_addr, 0x00);
-                    uart_printf("Pair result=SUCCESS\r\n");
+                    APP_BAT_LOG("Pair result=SUCCESS\r\n");
                     pairing_running = 0;
                     app_mode = APP_MODE_PASSTHROUGH;
                     pair_io_pending = 0;
@@ -108,7 +110,7 @@ void app_bat_passthrough_run(void)
                 } else if (pairing_running && (now - pair_start_tick > pair_total_timeout_ms)) {
                     app_bat_pairing_stop(&pair_flag);
                     bat_protocol_send_pair_resp(pair_rsp_addr, 0x01);
-                    uart_printf("Pair result=FAIL\r\n");
+                    APP_BAT_LOG("Pair result=FAIL\r\n");
                     pairing_running = 0;
                     app_mode = APP_MODE_PASSTHROUGH;
                     pair_io_pending = 0;
@@ -122,7 +124,7 @@ void app_bat_passthrough_run(void)
                     RF_txQueue_Send(dest_addr, (uint8_t *)&soc_pkt, sizeof(Bat_Soc_t));
                     last_soc = soc_pkt.soc;
                     last_soc_valid = 1;
-                    uart_printf("soc=%d%%\r\n", soc_pkt.soc);
+                    APP_BAT_LOG("soc=%d%%\r\n", soc_pkt.soc);
                 }
             }
         }

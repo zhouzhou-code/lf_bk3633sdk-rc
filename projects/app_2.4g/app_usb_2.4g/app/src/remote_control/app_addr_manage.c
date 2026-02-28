@@ -22,6 +22,8 @@
 #include "wdt.h"
 #include "rwprf_config.h"
 
+#undef uart_printf
+#define uart_printf uart0_printf
 
 
 

@@ -20,6 +20,8 @@
 
 #include "app_addr_manage.h"
 
+#undef uart_printf
+#define uart_printf uart0_printf
 
 
 static const uint8_t PAIR_ADDR_DEFAULT[5] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};

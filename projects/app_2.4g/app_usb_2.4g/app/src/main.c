@@ -61,6 +61,8 @@
 #include "app_addr_manage.h"
 #include "app_bat_passthrough.h"
 
+#undef uart_printf
+#define uart_printf uart0_printf
 
 
 extern void  xvr_reg_initial_24(void);
@@ -346,9 +348,9 @@ int main(void)
     uart_init(115200);
     uart2_init(115200);//
     #endif
-    uart2_printf("main start2~~~~~\r\n");
+    uart0_printf("main start2~~~~~\r\n");
     uart0_printf("main start uart0~~~~~\r\n");
-    uart_printf("main start uart1~~~~~\r\n");
+    uart_printf("main start debug~~~~~\r\n");
 
     
 
@@ -574,7 +576,6 @@ int main(void)
         while (1) {
             Host_Pairing_Task(&pair_flag);
         }
-
     }
     #endif
 
