@@ -17,11 +17,6 @@ typedef enum {
     APP_MODE_PAIRING
 } app_mode_t;
 
-static uint32_t tick_delta_abs(uint32_t a, uint32_t b)
-{
-    return (a > b) ? (a - b) : (b - a);
-}
-
 static void app_bat_pairing_stop(uint8_t *pair_flag)
 {
     *pair_flag = 0;
@@ -31,7 +26,6 @@ static void app_bat_pairing_stop(uint8_t *pair_flag)
 
 void app_bat_passthrough_run(void)
 {
-    const uint32_t pair_trigger_window_ms = 1000;
     const uint32_t pair_total_timeout_ms = 10000;
     const uint16_t pair_io_debounce_ms = 20;
     uint8_t pair_flag = 0;
@@ -44,8 +38,6 @@ void app_bat_passthrough_run(void)
     uint8_t pair_cmd_pending = 0;
     uint8_t pairing_running = 0;
     uint16_t pair_io_low_acc_ms = 0;
-    uint32_t pair_io_tick = 0;
-    uint32_t pair_cmd_tick = 0;
     uint32_t pair_start_tick = 0;
     uint32_t last_tick_2ms = 0;
     uint32_t last_tick_10ms = 0;
@@ -75,32 +67,23 @@ void app_bat_passthrough_run(void)
                 }
                 if (pair_io_low_acc_ms >= pair_io_debounce_ms && !pair_io_latched) {
                     pair_io_pending = 1;
-                    pair_io_tick = now;
                     pair_io_latched = 1;
                     uart_printf("PAIR_IO low\r\n");
                 }
             } else {
                 pair_io_low_acc_ms = 0;
                 pair_io_latched = 0;
+                pair_io_pending = 0;
             }
 
             if (bat_protocol_take_pair_cmd(&cmd_addr)) {
                 pair_cmd_pending = 1;
-                pair_cmd_tick = now;
                 pair_rsp_addr = cmd_addr;
                 uart_printf("PAIR_CMD received, addr=0x%02X\r\n", pair_rsp_addr);
             }
 
-            if (pair_io_pending && (now - pair_io_tick > pair_trigger_window_ms)) {
-                pair_io_pending = 0;
-            }
-            if (pair_cmd_pending && (now - pair_cmd_tick > pair_trigger_window_ms)) {
-                pair_cmd_pending = 0;
-            }
-
             if (app_mode == APP_MODE_PASSTHROUGH &&
-                pair_io_pending && pair_cmd_pending &&
-                tick_delta_abs(pair_io_tick, pair_cmd_tick) <= pair_trigger_window_ms) {
+                pair_io_pending && pair_cmd_pending) {
                 pair_flag = 1;
                 pairing_running = 1;
                 pair_start_tick = now;
