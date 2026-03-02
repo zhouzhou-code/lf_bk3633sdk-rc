@@ -24,7 +24,6 @@
 
 static const uint8_t PAIR_ADDR_DEFAULT[5] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
 
-
 static void printf_all_registers(void)
 {
     uart_printf("TRX_CONFIG     = 0x%02X\r\n", TRX_CONFIG);

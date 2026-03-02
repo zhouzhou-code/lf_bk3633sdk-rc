@@ -146,10 +146,6 @@ static void stack_integrity_check(void)
 
 }
 
-
-extern RF_HandleTypeDef h_pair; //配对专用RF句柄
-extern RF_ConfgTypeDef Pairing_Config;
-extern void printf_all_registers(void);
 void platform_reset(uint32_t error)
 {
 
@@ -349,11 +345,8 @@ int main(void)
     uart_printf("main start uart1~~~~~\r\n");
 
     
-
-   //gpio_init();
     flash_init();
     app_addr_init();
-  //  pair_gpio_init();//初始化配对按键
   //  xvr_reg_initial_24();
   //  gpio_set_neg(0x04);
 
@@ -381,9 +374,6 @@ int main(void)
     AplUsb_SetRxCbk(USB_ENDPID_Audio_SPK, (void*)AudioOut_Cbk);
     AplUsb_SetRxCbk(USB_ENDPID_Hid_MSE_OUT, (void*)Hid_RxCbk);
     #endif
-
-    
-    //gpio_cb_register(app_gpio_sleep);
     
     GLOBAL_INT_START();
  

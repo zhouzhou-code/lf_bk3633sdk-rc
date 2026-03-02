@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:openamp.readthedocs.io)",
+      "WebSearch",
+      "WebFetch(domain:www.openampproject.org)",
+      "WebFetch(domain:www.cnx-software.com)",
+      "WebFetch(domain:docs.zephyrproject.org)"
+    ]
+  }
+}

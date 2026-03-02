@@ -462,6 +462,26 @@
               <FileType>5</FileType>
               <FilePath>.\app\src\remote_control\app_addr_manage.h</FilePath>
             </File>
+            <File>
+              <FileName>rf_protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\rf_protocol.c</FilePath>
+            </File>
+            <File>
+              <FileName>rf_protocol.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\rf_protocol.h</FilePath>
+            </File>
+            <File>
+              <FileName>rc_scheduler.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\rc_scheduler.c</FilePath>
+            </File>
+            <File>
+              <FileName>rc_scheduler.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\rc_scheduler.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
