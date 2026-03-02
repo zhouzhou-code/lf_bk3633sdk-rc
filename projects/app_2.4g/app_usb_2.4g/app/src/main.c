@@ -64,7 +64,6 @@
 #undef uart_printf
 #define uart_printf uart0_printf
 
-
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
 static void printf_all_registers(void)
@@ -348,12 +347,10 @@ int main(void)
     uart_init(115200);
     uart2_init(115200);//
     #endif
-    uart0_printf("main start2~~~~~\r\n");
-    uart0_printf("main start uart0~~~~~\r\n");
-    uart_printf("main start debug~~~~~\r\n");
+    uart_printf("main start~~~~~\r\n");
+
 
     
-
    //gpio_init();
     flash_init();
     app_addr_init();
@@ -568,18 +565,15 @@ int main(void)
     //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
     Timer_Handler_Init();
 
-    #define  host 0
-    #if host
-    while(1){
-        uint8_t pair_flag = 1;
-        RF_Handler_Init();
-        while (1) {
-            Host_Pairing_Task(&pair_flag);
-        }
+    // SET pin P0.2: low=slave, high=host
+    gpio_config(Port_Pin(0, 2), GPIO_INPUT, GPIO_PULL_LOW);
+    if (gpio_get_input(Port_Pin(0, 2))) {
+        uart_printf("Mode=HOST (SET=P0.2 high)\r\n");
+        app_bat_host_run();
+    } else {
+        uart_printf("Mode=SLAVE (SET=P0.2 low)\r\n");
+        app_bat_passthrough_run();
     }
-    #endif
-
-    app_bat_passthrough_run();
 
     while (1) {
     }

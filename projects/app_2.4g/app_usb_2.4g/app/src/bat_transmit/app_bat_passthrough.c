@@ -1,6 +1,7 @@
 #include "app_bat_passthrough.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #include "drv_gpio.h"
 #include "my_drv_uart.h"
@@ -8,6 +9,7 @@
 #include "user_config.h"
 
 #include "app_addr_manage.h"
+#include "app_key_scan.h"
 #include "bat_protocol.h"
 #include "rf_handler.h"
 #include "rf_pair.h"
@@ -29,24 +31,27 @@ static void app_bat_pairing_stop(uint8_t *pair_flag)
 void app_bat_passthrough_run(void)
 {
     const uint32_t pair_total_timeout_ms = 10000;
-    const uint16_t pair_io_debounce_ms = 20;
     uint8_t pair_flag = 0;
     app_mode_t app_mode = APP_MODE_PASSTHROUGH;
     uint8_t last_soc_valid = 0;
     uint8_t last_soc = 0;
     uint8_t pair_rsp_addr = 0;
     uint8_t pair_io_pending = 0;
-    uint8_t pair_io_latched = 0;
     uint8_t pair_cmd_pending = 0;
     uint8_t pairing_running = 0;
-    uint16_t pair_io_low_acc_ms = 0;
     uint32_t pair_start_tick = 0;
     uint32_t last_tick_2ms = 0;
     uint32_t last_tick_10ms = 0;
     uint32_t last_tick_100ms = 0;
-    
+    uint32_t last_tick_200ms = 0;
+
     RF_Handler_Init();
-    gpio_config(Port_Pin(0, 3), GPIO_INPUT, GPIO_PULL_HIGH);
+    {
+        const key_config_t key_cfg[] = {
+            {KEY_ID_PAIR, Port_Pin(0, 3), 1000, false},
+        };
+        app_key_init(key_cfg, sizeof(key_cfg) / sizeof(key_cfg[0]));
+    }
     APP_BAT_LOG("Battery passthrough v2 start\r\n");
 
     while (1) {
@@ -63,18 +68,13 @@ void app_bat_passthrough_run(void)
 
             last_tick_10ms = now;
 
-            if (gpio_get_input(Port_Pin(0, 3)) == 0) {
-                if (pair_io_low_acc_ms < pair_io_debounce_ms) {
-                    pair_io_low_acc_ms += 10;
-                }
-                if (pair_io_low_acc_ms >= pair_io_debounce_ms && !pair_io_latched) {
+            app_key_scan(10);
+            if (app_key_is_pressed(KEY_ID_PAIR)) {
+                if (!pair_io_pending) {
                     pair_io_pending = 1;
-                    pair_io_latched = 1;
                     APP_BAT_LOG("PAIR_IO low\r\n");
                 }
             } else {
-                pair_io_low_acc_ms = 0;
-                pair_io_latched = 0;
                 pair_io_pending = 0;
             }
 
@@ -106,7 +106,6 @@ void app_bat_passthrough_run(void)
                     app_mode = APP_MODE_PASSTHROUGH;
                     pair_io_pending = 0;
                     pair_cmd_pending = 0;
-                    pair_io_low_acc_ms = 0;
                 } else if (pairing_running && (now - pair_start_tick > pair_total_timeout_ms)) {
                     app_bat_pairing_stop(&pair_flag);
                     bat_protocol_send_pair_resp(pair_rsp_addr, 0x01);
@@ -115,7 +114,6 @@ void app_bat_passthrough_run(void)
                     app_mode = APP_MODE_PASSTHROUGH;
                     pair_io_pending = 0;
                     pair_cmd_pending = 0;
-                    pair_io_low_acc_ms = 0;
                 }
             } else if (bat_protocol_take_soc(&soc_pkt)) {
                 if (!last_soc_valid || soc_pkt.soc != last_soc) {
@@ -132,6 +130,96 @@ void app_bat_passthrough_run(void)
         if ((now - last_tick_100ms) >= 100) {
             last_tick_100ms = now;
             RF_Service_Handler(&hrf);
+        }
+
+        if ((now - last_tick_200ms) >= 200) {
+            uint8_t *rec_data_p;
+            uint8_t len;
+            last_tick_200ms = now;
+
+            if (RF_rxQueue_Recv(&rec_data_p, &len, NULL) == 1 &&
+                len == sizeof(Bat_Soc_t)) {
+                uint16_t crc = crc16_modbus(rec_data_p, len - 2);
+                Bat_Soc_t bat_soc_tmp;
+                memcpy(&bat_soc_tmp, rec_data_p, sizeof(Bat_Soc_t));
+
+                if (crc == bat_soc_tmp.crc16) {
+                    APP_BAT_LOG("rf soc=%d%%\r\n", bat_soc_tmp.soc);
+                } else {
+                    APP_BAT_LOG("rf soc crc err\r\n");
+                }
+            }
+        }
+    }
+}
+
+void app_bat_host_run(void)
+{
+    uint8_t pair_flag = 0;
+    uint8_t host_ready = 0;
+    uint32_t last_tick_10ms = 0;
+    uint32_t last_tick_100ms = 0;
+    uint32_t last_tick_200ms = 0;
+
+    RF_Handler_Init();
+    {
+        const key_config_t key_cfg[] = {
+            {KEY_ID_PAIR, Port_Pin(0, 3), 1000, false},
+        };
+        app_key_init(key_cfg, sizeof(key_cfg) / sizeof(key_cfg[0]));
+    }
+    APP_BAT_LOG("Battery passthrough host start\r\n");
+
+    while (1) {
+        uint32_t now = Get_SysTick_ms();
+
+        if ((now - last_tick_10ms) >= 10) {
+            key_event_t evt;
+            last_tick_10ms = now;
+            app_key_scan(10);
+            evt = app_key_get_event(KEY_ID_PAIR);
+            if (evt == KEY_EVT_DOWN && pair_flag == 0) {
+                pair_flag = 1;
+                host_ready = 0;
+                APP_BAT_LOG("Host pairing start\r\n");
+            }
+            if (pair_flag) {
+                Host_Pairing_Task(&pair_flag);
+                if (pair_flag == 0) {
+                    APP_BAT_LOG("Host pairing done\r\n");
+                    app_addr_apply_to_rf();
+                    HAL_RF_SetRxMode(&hrf);
+                    host_ready = 1;
+                }
+            } else if (!host_ready) {
+                app_addr_apply_to_rf();
+                HAL_RF_SetRxMode(&hrf);
+                host_ready = 1;
+            }
+        }
+
+        if ((now - last_tick_100ms) >= 100) {
+            last_tick_100ms = now;
+            RF_Service_Handler(&hrf);
+        }
+
+        if ((now - last_tick_200ms) >= 200) {
+            uint8_t *rec_data_p;
+            uint8_t len;
+            last_tick_200ms = now;
+
+            if (RF_rxQueue_Recv(&rec_data_p, &len, NULL) == 1 &&
+                len == sizeof(Bat_Soc_t)) {
+                uint16_t crc = crc16_modbus(rec_data_p, len - 2);
+                Bat_Soc_t bat_soc_tmp;
+                memcpy(&bat_soc_tmp, rec_data_p, sizeof(Bat_Soc_t));
+
+                if (crc == bat_soc_tmp.crc16) {
+                    APP_BAT_LOG("rf soc=%d%%\r\n", bat_soc_tmp.soc);
+                } else {
+                    APP_BAT_LOG("rf soc crc err\r\n");
+                }
+            }
         }
     }
 }

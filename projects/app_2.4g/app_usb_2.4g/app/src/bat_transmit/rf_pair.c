@@ -184,8 +184,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
             //监听Ping
             uint8_t pipe0_addr[5];
             HAL_RF_GetRxAddress(&hrf, 0, pipe0_addr);
-            for(int i=0;i<5;i++) uart_printf("%02X ", pipe0_addr[i]);
-            uart_printf("\n");
+            
             if (RF_rxQueue_Recv(&recv_ping_pkt, &len, NULL) == 1) {
                 if (len == sizeof(pair_verify_pkt) &&
                     recv_ping_pkt->cmd == CMD_PAIR_VERIFY_PING &&
