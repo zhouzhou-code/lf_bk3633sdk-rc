@@ -59,7 +59,14 @@
 #include "app_key_scan.h"
 #include "rf_addr_mgr.h"
 
-#include "gpio_leakage_test.h"
+// #ifdef uart_printf
+// #undef  uart_printf   
+// #endif
+
+// #define uart_printf     uart0_printf
+
+// #undef uart_printf
+// #define uart_printf uart0_printf
 
 extern void  xvr_reg_initial_24(void);
 uint8_t uart_rx_en;
@@ -330,17 +337,19 @@ void app_key_event_handler(key_id_t id, key_event_t event)
 int main(void)
 {
     
+
     icu_init();
     //wdt_disable();
     intc_init();
     
     #if(UART_PRINTF_ENABLE)
-    #if(!USB_DRIVER)
-    uart_init(115200);
-    #endif
+        #if(!USB_DRIVER)
+        uart_init(115200);
+        #endif
     uart_init(115200);
     uart2_init(115200);//
     #endif
+    uart0_printf("main start uart0~~~~~\r\n");
     uart2_printf("main start2~~~~~\r\n");
     uart0_printf("main start uart0~~~~~\r\n");
     uart_printf("main start uart1~~~~~\r\n");
@@ -555,54 +564,6 @@ int main(void)
     //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
     Timer_Handler_Init();
 
-    // Slave_Pairing_Task(&pair_flag); //启动从机配对模式
-    // while(1)
-    // {
-    //     Slave_Pairing_Task(&pair_flag); //非阻塞配对任务调用
-    //     //delay_ms(10);
-    //     //RF_Service_Handler(&hrf);  
-    // }
-    /* 非阻塞host */
-    // RF_Handler_Init();//初始化RF句柄及队列
-    // while(1)
-    // {
-    //     Host_Pairing_Task(&pair_flag); //非阻塞配对任务调用
-    // }
-
-
-    /* 引脚漏电测试 */
-    gpio_set_all_lowpower(1);  // 全部上拉，测量电流 大板子:5.06mA
-    //gpio_set_all_lowpower(2);  // 全部下拉，测量电流 大板子:5.31mA
-    //gpio_set_all_lowpower(0);  // 全部浮空，测量电流 大板子:5.05mA
-
-    //gpio_binary_test(0, 15, GPIO_PULL_HIGH);   // 测试 GPIO 0-15 5.07mA
-    //gpio_binary_test(16, 31, GPIO_PULL_HIGH);  // 测试 GPIO 16-31 5.32mA
-
-
-    // RF_Handler_Init();//初始化RF句柄及队列
-    // __HAL_RF_PowerDown();
-
-    //14,15,20,21
-    // gpio_config(Port_Pin(1,4), GPIO_OUTPUT, GPIO_PULL_NONE);
-    // gpio_config(Port_Pin(1,5), GPIO_OUTPUT, GPIO_PULL_NONE);
-    // gpio_config(Port_Pin(2,0), GPIO_OUTPUT, GPIO_PULL_NONE);
-    // gpio_config(Port_Pin(2,1), GPIO_OUTPUT, GPIO_PULL_NONE);
-
-    // gpio_set(Port_Pin(1,4),0);
-    // gpio_set(Port_Pin(1,5),0);
-    // gpio_set(Port_Pin(2,0),0);
-    // gpio_set(Port_Pin(2,1),0);
-
-    //cpu_24_reduce_voltage_sleep(); //进入低电压睡眠
-
-    while(1){
-        //全部上拉，低功耗570uA；全部下拉低功耗接近900uA
-        app_enter_sleep_with_wakeup_by_timer(10000); //进入睡眠10秒
-        delay_ms(5000);
-    };
-
-
-
     /*----------------------------测试按键功能--------------------------------------*/
      const key_config_t my_keys[] = {
         {KEY_ID_LEFT,   Port_Pin(0, 2), 2000, false}, // Left Key: 3s Long Press
@@ -614,9 +575,26 @@ int main(void)
     uart_printf("Key Test Start...\r\n");
     RF_Handler_Init();//初始化RF句柄及队列
     
+    //set_power(0xf);
+    HAL_RF_SetTxPower(&hrf, 0xf);
+    //打印addXVR_Reg0x24，addXVR_Reg0x4
+    uart_printf("addXVR_Reg0x24=0x%08X, addXVR_Reg0x4=0x%08X\r\n", addXVR_Reg0x24, addXVR_Reg0x4);
+    //HAL_RF_SetRxMode(&hrf);
+
     #define is_host 0
 
     while(1) {
+
+        // while(1){
+        //     uint8_t dest_addr[5] = {0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
+        //     uint8_t test_data[32] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14};
+        //     //发包测试 
+        //     RF_txQueue_Send(dest_addr,test_data, 8);
+        //     RF_Service_Handler(&hrf);
+        //     delay_ms(10);
+        // }
+
+
         static uint32_t last_scan_time = 0;
         if (Get_SysTick_ms() - last_scan_time >= 10) {
             last_scan_time = Get_SysTick_ms();
@@ -629,6 +607,7 @@ int main(void)
             #endif
         }
     }
+
 
     /*------------------------------------测试队列性能------------------------------------*/
     // Key Test Init

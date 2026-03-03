@@ -608,12 +608,13 @@ HAL_StatusTypeDef HAL_RF_GetRxAddress(RF_HandleTypeDef *hrf, uint8_t pipe, uint8
   */
 HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
 {
+     
     if(__HAL_RF_Get_TRxMode_Bit() == 0){ //已经是发送模式
         __HAL_RF_PowerUp();
         __HAL_RF_CHIP_EN(); //使能返回
         return HAL_RF_STATE_READY; 
     }
-    
+    uart_printf("Tx:%d\n",Get_SysTick_ms());
     hrf->Params.Mode = MODE_TX;
 
     __HAL_RF_PowerUp();
@@ -635,11 +636,14 @@ HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
   */
 HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
 {
+    
+
     if(__HAL_RF_Get_TRxMode_Bit() ==1){ //已经是接收模式
-        __HAL_RF_PowerUp();
-        __HAL_RF_CHIP_EN(); //使能返回
+        // __HAL_RF_PowerUp();
+        // __HAL_RF_CHIP_EN(); //使能返回
         return HAL_RF_STATE_READY; 
     }
+    uart_printf("Rx:%d\n",Get_SysTick_ms());
 
     hrf->Params.Mode = MODE_RX;
     __HAL_RF_PowerUp();

@@ -11,8 +11,8 @@
  */
 #ifndef USER_CONFIG_H_
 #define USER_CONFIG_H_
-#include "uart2.h"
-// #include "uart.h"
+// 注意：不要在这里包含uart头文件，避免循环包含
+// uart头文件应该在.c文件中包含
 #include "my_drv_uart.h"
 
 
@@ -41,11 +41,13 @@
 #define RF_DRIVER          1
 
 
+// 强制重定向uart_printf到uart0，无论之前是否定义
+// #ifdef uart_printf
+// #undef uart_printf
+// #endif
+// #define uart_printf     uart0_printf
 
-
-
-#define uart_printf              uart2_printf
-//  #define uart_printf                uart0_printf
+#define uart_printf     uart2_printf
 
 #ifndef NULL
 #define NULL (void*)0

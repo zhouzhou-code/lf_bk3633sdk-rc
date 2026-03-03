@@ -11,8 +11,8 @@
 #ifndef _MY_DRV_UART_H_
 #define _MY_DRV_UART_H_
 
-#include <stdbool.h>          
-#include <stdint.h>           
+#include <stdbool.h>
+#include <stdint.h>
 #include "user_config.h"
 #include "my_queue.h" 
 

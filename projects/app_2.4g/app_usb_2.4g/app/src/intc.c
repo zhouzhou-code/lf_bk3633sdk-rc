@@ -14,7 +14,14 @@
 #include "test_my_rf_fun.h"
 #include "rf_handler.h"
 
+// #ifdef uart_printf
+// #undef  uart_printf   
+// #endif
 
+// #define uart_printf     uart0_printf
+
+// #undef uart_printf
+// #define uart_printf uart0_printf
 
 #if(ADC_DRIVER)
 #include "adc.h"

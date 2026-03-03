@@ -146,6 +146,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
 
         case SLAVE_PAIR_SEND_REQ:
             uart_printf("Slave: Send REQ\n");
+
             // 确保地址正确
             uint8_t def_addr[5];
             rf_addr_mgr_get_default_addr(def_addr);

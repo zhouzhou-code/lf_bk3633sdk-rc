@@ -16,7 +16,6 @@
 
 #include <stdbool.h>          // standard boolean definitions
 #include <stdint.h>           // standard integer functions
-#include "uart.h"
 #include "my_queue.h"
 
 #define BASEADDR_UART2                                      0x00806a00
