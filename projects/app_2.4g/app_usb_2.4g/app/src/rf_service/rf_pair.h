@@ -80,14 +80,14 @@ typedef struct {
 typedef struct {
     host_pair_state_t state;
     uint8_t is_running;
-    
+
     uint32_t start_wait;        // 阶段超时
     uint32_t global_start_tick; // 总超时
     uint32_t last_ping_tick;    // Ping 频率控制
-    
+
     pair_resp_pkt resp_pkt;     // 缓存发送RESP包
     uint32_t txds_snapshot;     // 发送计数快照
-    
+
     uint32_t verify_cnt;               // ping-pong成功计数
     uint32_t verify_target_count;      // 目标ping-pong次数，小于slave的目标ping-pong次数
 } HostPairCtrl_t;

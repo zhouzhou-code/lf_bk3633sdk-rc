@@ -225,7 +225,7 @@ static uint8_t is_lsb_conflict(uint8_t target_lsb, uint8_t ignore_pipe) {
 /**
  * @brief 将当前地址配置保存到 Flash
  */
-void save_ctx_to_flash(void) {
+void rf_addr_mgr_save_to_flash(void) {
     PairInfo_t info;
     memset(&info, 0, sizeof(info));
     info.magic = FLASH_MAGIC_NUM;
@@ -253,7 +253,7 @@ void save_ctx_to_flash(void) {
 /**
  * @brief 地址管理模块初始化
  */
-void app_addr_init(void)
+void rf_addr_mgr_init(void)
 {
     PairInfo_t info;
     memset(&addr_manager, 0, sizeof(addr_manager));
@@ -291,7 +291,7 @@ void app_addr_init(void)
         
     } else {
         uart_printf("[Addr] Invalid Flash. Reset to Default.\r\n");
-        app_addr_clear_all(); // 初始化为默认
+        rf_addr_mgr_clear_all_pairs(); // 初始化为默认
     }
     
     addr_manager.backup_valid = 0;
@@ -301,7 +301,7 @@ void app_addr_init(void)
  * @brief 获取默认配对地址ADDR_DEFAULT_PAIR
  * @param buf 输出缓冲区
  */
-void app_addr_get_default(uint8_t *buf)
+void rf_addr_mgr_get_default_addr(uint8_t *buf)
 {
     if (buf) 
         memcpy(buf, ADDR_DEFAULT_PAIR, ADDR_LEN);
@@ -312,7 +312,7 @@ void app_addr_get_default(uint8_t *buf)
  * @param pipe_id 通道号 0-5
  * @return uint8_t 已配对，0 未配对
  */
-uint8_t app_addr_is_pipe_paired(uint8_t pipe_id)
+uint8_t rf_addr_mgr_is_pipe_paired(uint8_t pipe_id)
 {
     if (pipe_id >= 6) 
         return 0;
@@ -324,7 +324,7 @@ uint8_t app_addr_is_pipe_paired(uint8_t pipe_id)
  * @param pipe_id 通道号 0-5
  * @param buf 输出缓冲区
  */
-void app_addr_get_pipe_addr(uint8_t pipe_id, uint8_t *buf)
+void rf_addr_mgr_get_pipe_addr(uint8_t pipe_id, uint8_t *buf)
 {
     if (pipe_id >= 6 || !buf) return;
     
@@ -337,7 +337,7 @@ void app_addr_get_pipe_addr(uint8_t pipe_id, uint8_t *buf)
     }
 }
 
-uint8_t app_addr_set_pipe0_addr(const uint8_t *addr)
+uint8_t rf_addr_mgr_set_pipe0_addr(const uint8_t *addr)
 {
     if (!addr) {
         return 0;
@@ -354,7 +354,7 @@ uint8_t app_addr_set_pipe0_addr(const uint8_t *addr)
  * @param out_addr 输出生成的地址，可为 NULL
  * @return true 成功，false 失败
  */
-uint8_t app_addr_genatate_for_pair(uint8_t pipe_id, uint8_t *out_addr)
+uint8_t rf_addr_mgr_generate_pair_addr(uint8_t pipe_id, uint8_t *out_addr)
 {
     if (pipe_id >= 6) return 0;
     
@@ -382,7 +382,7 @@ uint8_t app_addr_genatate_for_pair(uint8_t pipe_id, uint8_t *out_addr)
         if (!(addr_manager.valid_mask & (1 << 1))) {
             uart_printf("[Addr] Pipe 1 invalid, auto-generating Pipe 1 base...\r\n");
             //递归调用自己先生成Pipe1的地址
-            app_addr_genatate_for_pair(1, NULL); 
+            rf_addr_mgr_generate_pair_addr(1, NULL); 
         }
         
         // 复制Pipe1的高4字节到Pipe2-5
@@ -415,7 +415,7 @@ uint8_t app_addr_genatate_for_pair(uint8_t pipe_id, uint8_t *out_addr)
 /**
  * @brief 清除所有配对信息
  */
-void app_addr_clear_all(void)
+void rf_addr_mgr_clear_all_pairs(void)
 {
     uart_printf("[Addr] Clearing all pairing info...\r\n");
     Flash_Erase_Force(FLASH_PAIR_ADDR);
@@ -429,7 +429,7 @@ void app_addr_clear_all(void)
 /**
  * @brief 将当前地址配置应用到 RF 硬件
  */
-void app_addr_apply_to_rf(void)
+void rf_addr_mgr_apply_to_hardware(void)
 {
     // 应用Pipe0-5 (HAL层会自动只取 LSB)
     for(int i=0; i<6; i++) {
@@ -441,7 +441,7 @@ void app_addr_apply_to_rf(void)
  * @brief 发送前准备，备份当前临时切换Pipe0地址
  * @param tx_addr 目标发送地址
  */
-void app_addr_tx_prepare(const uint8_t *tx_addr)
+void rf_addr_mgr_backup_and_set_tx_addr(const uint8_t *tx_addr)
 {
     uint8_t cur_pipe0[ADDR_LEN];
 
@@ -465,7 +465,7 @@ void app_addr_tx_prepare(const uint8_t *tx_addr)
 /**
  * @brief 发送后恢复 Pipe0 地址
  */
-void app_addr_tx_restore(void)
+void rf_addr_mgr_restore_pipe0_addr(void)
 {
     if (addr_manager.backup_valid) {
         // 恢复 Pipe0 地址

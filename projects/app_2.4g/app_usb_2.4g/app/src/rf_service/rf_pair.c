@@ -97,6 +97,15 @@ void Slave_Pairing_Task(uint8_t* flag) {
 
     if (!(*flag)) {
         if (g_slave_ctrl.state != SLAVE_PAIR_IDLE) {
+            // 清理退出：重新从 Flash 加载配置并应用到硬件
+            // Flash 中保存的是上次配对成功的地址（或默认地址）
+            rf_addr_mgr_init();
+            rf_addr_mgr_apply_to_hardware();
+
+            // 清空队列
+            RF_txQueue_Clear();
+            RF_rxQueue_clear();
+
             g_slave_ctrl.state = SLAVE_PAIR_IDLE;
             uart_printf("Slave: Pairing Stopped.\n");
         }
@@ -110,7 +119,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
         g_slave_ctrl.state = SLAVE_PAIR_IDLE;
         g_slave_ctrl.verify_target_count = 5;
         
-        app_addr_get_default(def_addr);
+        rf_addr_mgr_get_default_addr(def_addr);
         HAL_RF_SetTxAddress(&hrf, def_addr, 5);
         HAL_RF_SetRxAddress(&hrf, 0, def_addr, 5);
         HAL_RF_SetTxMode(&hrf);
@@ -139,7 +148,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
             uart_printf("Slave: Send REQ\n");
             // 确保地址正确
             uint8_t def_addr[5];
-            app_addr_get_default(def_addr);
+            rf_addr_mgr_get_default_addr(def_addr);
             HAL_RF_SetTxAddress(&hrf, def_addr, 5);
             HAL_RF_SetRxAddress(&hrf, 0, def_addr, 5);
             RF_txQueue_Send(def_addr,(uint8_t*)&req_pkt, sizeof(req_pkt));
@@ -158,7 +167,8 @@ void Slave_Pairing_Task(uint8_t* flag) {
                     for(int i=0;i<5;i++) uart_printf("%02X ", g_slave_ctrl.resp_pkt.new_addr[i]);
                     uart_printf("\n");
 
-                    // 立即切换地址
+                    // 立即切换地址前，清空队列
+                    RF_txQueue_Clear();
                     RF_rxQueue_clear();
                     HAL_RF_SetTxAddress(&hrf, g_slave_ctrl.resp_pkt.new_addr, 5);
                     HAL_RF_SetRxAddress(&hrf, 0, g_slave_ctrl.resp_pkt.new_addr, 5);
@@ -181,9 +191,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
             //监听Ping
             uint8_t pipe0_addr[5];
             HAL_RF_GetRxAddress(&hrf, 0, pipe0_addr);
-            uart_printf("ping,mode=%d,Pipe0 Addr:", __HAL_RF_Get_TRxMode_Bit());
-            for(int i=0;i<5;i++) uart_printf("%02X ", pipe0_addr[i]);
-            uart_printf("\n");
+            
             if (RF_rxQueue_Recv(&recv_ping_pkt, &len, NULL) == 1) {
                 if (len == sizeof(pair_verify_pkt) &&
                     recv_ping_pkt->cmd == CMD_PAIR_VERIFY_PING &&
@@ -225,8 +233,8 @@ void Slave_Pairing_Task(uint8_t* flag) {
         case SLAVE_PAIR_DONE:
             uart_printf("Slave: Pairing Process Success Completed.\n");
             printf_txrx_addr();
-            app_addr_set_pipe0_addr(g_slave_ctrl.resp_pkt.new_addr);
-            save_ctx_to_flash();
+            rf_addr_mgr_set_pipe0_addr(g_slave_ctrl.resp_pkt.new_addr);
+            rf_addr_mgr_save_to_flash();
             *flag = 0;
             break;
     }
@@ -276,6 +284,15 @@ void Host_Pairing_Task(uint8_t* flag) {
     //stop直接返回
     if (!(*flag)) {
         if (g_host_ctrl.state != HOST_PAIR_IDLE) {
+            // 清理退出：重新从 Flash 加载配置并应用到硬件
+            // Flash 中保存的是上次配对成功的地址（或默认地址）
+            rf_addr_mgr_init();
+            rf_addr_mgr_apply_to_hardware();
+
+            // 清空队列
+            RF_txQueue_Clear();
+            RF_rxQueue_clear();
+
             g_host_ctrl.state = HOST_PAIR_IDLE;
             uart_printf("Host: Pairing Stopped.\n");
         }
@@ -290,7 +307,7 @@ void Host_Pairing_Task(uint8_t* flag) {
         g_host_ctrl.state = HOST_PAIR_IDLE;
         g_host_ctrl.verify_target_count = 10;
         //设置默认地址
-        app_addr_get_default(def_addr);
+        rf_addr_mgr_get_default_addr(def_addr);
         HAL_RF_SetTxAddress(&hrf, def_addr, 5);
         HAL_RF_SetRxAddress(&hrf, 0, def_addr, 5);
         HAL_RF_SetRxMode(&hrf);
@@ -303,7 +320,7 @@ void Host_Pairing_Task(uint8_t* flag) {
     pair_verify_pkt ping_pkt = {CMD_PAIR_VERIFY_PING, host_magic_number};
     uint8_t len;
     
-    app_addr_get_default(def_addr);
+    rf_addr_mgr_get_default_addr(def_addr);
     RF_Service_Handler(&hrf);
     
     switch (g_host_ctrl.state) {
@@ -328,10 +345,10 @@ void Host_Pairing_Task(uint8_t* flag) {
                         uart_printf("Host: Unknown Device ID. Ignore.\n");
                         break;
                     }
-                    
+
                     // 调用地址管理模块生成新地址 (生成+查重)
                     uint8_t new_addr[5];
-                    if (!app_addr_genatate_for_pair(target_pipe, new_addr)) {
+                    if (!rf_addr_mgr_generate_pair_addr(target_pipe, new_addr)) {
                         uart_printf("Host: Addr Alloc Failed!\n");
                         break;
                     }
@@ -379,7 +396,9 @@ void Host_Pairing_Task(uint8_t* flag) {
         case HOST_PAIR_WAIT_TX_DONE:{
             if (rf_int_count_txds >= g_host_ctrl.txds_snapshot) {
                 uart_printf("Host: Burst Done. Switch Addr.\n");
+                // 切换地址前清空队列
                 RF_txQueue_Clear();
+                RF_rxQueue_clear();
                 //切换新地址
                 HAL_RF_SetTxAddress(&hrf, g_host_ctrl.resp_pkt.new_addr, 5);
                 HAL_RF_SetRxAddress(&hrf, 0, g_host_ctrl.resp_pkt.new_addr, 5);
@@ -440,7 +459,7 @@ void Host_Pairing_Task(uint8_t* flag) {
         case HOST_PAIR_DONE:{
             uart_printf("Host: Pairing Process Success Completed.\n");
             printf_txrx_addr();
-            save_ctx_to_flash();
+            rf_addr_mgr_save_to_flash();
             *flag = 0;//配对完成后，将flag设置为0，结束流程
             break;
         }

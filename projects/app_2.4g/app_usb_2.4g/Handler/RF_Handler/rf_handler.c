@@ -42,7 +42,7 @@ void txds_callback(RF_HandleTypeDef *hrf)
     rf_int_count_txds++;
 
     // 发送完成后恢复Pipe0地址
-    app_addr_tx_restore();
+    rf_addr_mgr_restore_pipe0_addr();
 
     // 切换到RX模式
     HAL_RF_SetRxMode(hrf);
@@ -54,7 +54,7 @@ void maxrt_callback(RF_HandleTypeDef *hrf)
     rf_int_count_maxrt++;
 
     // 发送失败后也要恢复Pipe0地址
-    app_addr_tx_restore();
+    rf_addr_mgr_restore_pipe0_addr();
 
     // 切换到RX模式
     HAL_RF_SetRxMode(hrf);
@@ -157,9 +157,9 @@ void RF_Handler_Init(void)
     HAL_RF_Init(&hrf, &Init_default_S);
     HAL_RF_TimeManager_register(&hrf, Get_SysTick_ms);
 
-    // 强制应用 app_addr_manage 的地址配置
+    // 强制应用 rf_addr_mgr 的地址配置
     // 这将覆盖 Init_default_S 中的硬编码地址
-    app_addr_apply_to_rf();
+    rf_addr_mgr_apply_to_hardware();
 
     /* 默认初始化为发送模式 */
     HAL_RF_SetTxMode(&hrf);
@@ -257,8 +257,8 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
             HAL_RF_SetTxMode(hrf);
         }
 
-        // 使用 app_addr_manage 接口进行发送准备 自动备份Pipe0
-        app_addr_tx_prepare(tx_item.dest_addr);
+        // 使用 rf_addr_mgr 接口进行发送准备 自动备份Pipe0
+        rf_addr_mgr_backup_and_set_tx_addr(tx_item.dest_addr);
         
         // 尝试调用发送函数
         // 如果返回 BUSY，说明它内部运行了超时检测逻辑但还没超时

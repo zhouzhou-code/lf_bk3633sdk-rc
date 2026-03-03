@@ -346,7 +346,7 @@ int main(void)
 
     
     flash_init();
-    app_addr_init();
+    rf_addr_mgr_init();
   //  xvr_reg_initial_24();
   //  gpio_set_neg(0x04);
 
@@ -578,7 +578,7 @@ int main(void)
     uart_printf("Key Test Start...\r\n");
     RF_Handler_Init();//初始化RF句柄及队列
     
-    #define is_host 1
+    #define is_host 0
 
     while(1) {
         static uint32_t last_scan_time = 0;
