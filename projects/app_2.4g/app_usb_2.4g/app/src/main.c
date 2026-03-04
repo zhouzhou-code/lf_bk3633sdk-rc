@@ -52,7 +52,7 @@
 #include "addr_pool.h"
 #include "gpio_init.h"
 #include "app_sleep.h"
-#include "app_key_scan.h"
+#include "key_scan.h"
 #include "rf_addr_mgr.h"
 
 

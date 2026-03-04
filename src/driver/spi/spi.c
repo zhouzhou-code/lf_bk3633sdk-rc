@@ -43,13 +43,13 @@ unsigned char    *p_spi_rxdata;
 void spi_init(uint8_t mode,uint8_t freq_div,uint8_t bit_wdth)
 {
     // SPI clock enable
-    SET_SPI_POWER_UP;     
-    
+    SET_SPI_POWER_UP;
+
     // Enable GPIO P0.4, P0.5, P0.6, P0.7 peripheral function for spi
-    gpio_config(0x04,SC_FUN,PULL_NONE);
-    gpio_config(0x05,SC_FUN,PULL_NONE);
-    gpio_config(0x06,SC_FUN,PULL_NONE);
-    gpio_config(0x07,SC_FUN,PULL_NONE);
+    gpio_config(Port_Pin(0, 4), GPIO_SC_FUN, GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0, 5), GPIO_SC_FUN, GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0, 6), GPIO_SC_FUN, GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0, 7), GPIO_SC_FUN, GPIO_PULL_NONE);
 
     SPI_REG0X0_CFG = (0x01UL << POS_SPI_REG0X0_SPIEN)                   
                     | (CKPHA_CLK1 << POS_SPI_REG0X0_CKPHA)
@@ -214,7 +214,6 @@ void spi_read( uint8_t *rbuf, uint32_t r_size)
     }    
 }
 
-
 void spi_send(uint16_t w_size)
 {
     
@@ -285,11 +284,11 @@ void spi_waitbusying(void)
 
 uint8_t spi_send_state_get(void)
 {
-#if(SPI_DRIVER) 
-    return spi_param.spi_state;
-#else
-    return 1;
-#endif
+    #if(SPI_DRIVER) 
+        return spi_param.spi_state;
+    #else
+        return 1;
+    #endif
 }
 
 void spi_dma_write(uint8_t *buffer,uint16_t buffer_len,spi_write_cb result_callback)
@@ -387,10 +386,10 @@ void spi_slave_init(void)
     SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_SPI);
 
     // Enable GPIO P0.4, P0.5, P0.6, P0.7 peripheral function for spi
-    gpio_config(0x04,SC_FUN,PULL_NONE);
-    gpio_config(0x05,SC_FUN,PULL_NONE);
-    gpio_config(0x06,SC_FUN,PULL_NONE);
-    gpio_config(0x07,SC_FUN,PULL_NONE);
+    gpio_config(Port_Pin(0, 4), GPIO_SC_FUN, GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0, 5), GPIO_SC_FUN, GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0, 6), GPIO_SC_FUN, GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0, 7), GPIO_SC_FUN, GPIO_PULL_NONE);
 
   //  gpio_set_monitor(0x04);
   //  gpio_set_monitor(0x05);
@@ -539,20 +538,18 @@ void spi_slave_test(void)
     //SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_SPI);
 
     //spi_slave_start();
-    gpio_config(0x32,OUTPUT,PULL_NONE);
+    gpio_config(Port_Pin(3, 2), GPIO_OUTPUT, GPIO_PULL_NONE);
 
-    gpio_config(0x31,OUTPUT,PULL_NONE);
-    gpio_set_neg(0x32);
-    gpio_set_neg(0x32);
-    gpio_set_neg(0x32);
-    gpio_set_neg(0x32);
+    gpio_config(Port_Pin(3, 1), GPIO_OUTPUT, GPIO_PULL_NONE);
+    gpio_toggle(Port_Pin(3, 2));
+    gpio_toggle(Port_Pin(3, 2));
+    gpio_toggle(Port_Pin(3, 2));
+    gpio_toggle(Port_Pin(3, 2));
     while(1)
     {
         spi_slave_done_data();
     }
 }
-
-
 
 
 

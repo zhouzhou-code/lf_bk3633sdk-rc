@@ -6,7 +6,8 @@
       "WebFetch(domain:www.openampproject.org)",
       "WebFetch(domain:www.cnx-software.com)",
       "WebFetch(domain:docs.zephyrproject.org)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(mv:*)"
     ]
   }
 }

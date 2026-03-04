@@ -1,4 +1,4 @@
-#include "app_key_scan.h"
+#include "key_scan.h"
 #include <string.h>
 
 // 配置参数（以毫秒为单位）

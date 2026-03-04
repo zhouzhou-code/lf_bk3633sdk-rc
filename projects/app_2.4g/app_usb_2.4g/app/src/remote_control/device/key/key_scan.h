@@ -1,5 +1,5 @@
-#ifndef _APP_KEY_SCAN_H_
-#define _APP_KEY_SCAN_H_
+#ifndef _KEY_SCAN_H_
+#define _KEY_SCAN_H_
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -186,4 +186,4 @@ bool app_key_is_pressed(key_id_t key);
  */
 bool app_key_check_combo(uint32_t key_mask);
 
-#endif // _APP_KEY_SCAN_H_
+#endif // _KEY_SCAN_H_

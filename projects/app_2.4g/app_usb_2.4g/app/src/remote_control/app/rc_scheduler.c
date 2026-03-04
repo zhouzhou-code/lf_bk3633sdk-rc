@@ -2,7 +2,7 @@
 #include "rf_handler.h"
 #include "rf_protocol.h"
 #include "timer_handler.h"
-#include "app_key_scan.h"
+#include "key_scan.h"
 #include "my_queue.h"
 #include <string.h>
 
@@ -14,7 +14,7 @@ extern my_queue_t rf_txQueue;
 extern my_queue_t rf_rxQueue;
 extern RF_HandleTypeDef hrf;
 
-// 初始化RC调度�?
+// 初始化RC调度�?
 void RC_Scheduler_Init(RC_Scheduler_t *sched)
 {
     memset(sched, 0, sizeof(RC_Scheduler_t));
@@ -46,7 +46,7 @@ void RC_Scheduler_SetBATPeriod(RC_Scheduler_t *sched, uint16_t period_ms)
     sched->bat_period_ms = period_ms;
 }
 
-// 发送电控命�?
+// 发送电控命�?
 void RC_Scheduler_SendESCCmd(RC_Scheduler_t *sched, uint16_t throttle)
 {
     uint8_t cmd_buf[32];
@@ -54,7 +54,7 @@ void RC_Scheduler_SendESCCmd(RC_Scheduler_t *sched, uint16_t throttle)
     // 构造电控命令包
     RF_BuildESCCmd(cmd_buf, throttle, sched->tx_seq++);
 
-    // 添加到发送队�?
+    // 添加到发送队�?
     RF_txQueue_Send(sched->esc_addr, cmd_buf, sizeof(ESC_Pkt_t));
 
     // 记录发送时间和超时
@@ -62,7 +62,7 @@ void RC_Scheduler_SendESCCmd(RC_Scheduler_t *sched, uint16_t throttle)
     sched->rx_timeout_ms = 10;  // 等待10ms
 }
 
-// 发送电池查�?
+// 发送电池查�?
 void RC_Scheduler_SendBATQuery(RC_Scheduler_t *sched)
 {
     uint8_t query_buf[32];
@@ -70,7 +70,7 @@ void RC_Scheduler_SendBATQuery(RC_Scheduler_t *sched)
     // 构造电池查询包
     RF_BuildBATQuery(query_buf, sched->tx_seq++);
 
-    // 添加到发送队�?
+    // 添加到发送队�?
     RF_txQueue_Send(sched->bat_addr, query_buf, sizeof(BAT_Pkt_t));
 
     // 记录发送时间和超时
@@ -84,7 +84,7 @@ void RC_Scheduler_ProcessRxData(RC_Scheduler_t *sched)
     uint8_t *rec_data;
     uint8_t len, pipes;
 
-    // 从接收队列取出数�?
+    // 从接收队列取出数�?
     if(RF_rxQueue_Recv(&rec_data, &len, &pipes) == 1) {
         // 尝试解析电控响应
         ESC_Pkt_t esc_resp;
@@ -104,7 +104,7 @@ void RC_Scheduler_ProcessRxData(RC_Scheduler_t *sched)
             // uart_printf("Battery SOC: %d%%\r\n", soc);
         }
 
-        // 收到回复，清除等待标�?
+        // 收到回复，清除等待标�?
         sched->rx_timeout_ms = 0;
     }
 }
@@ -166,14 +166,14 @@ uint8_t RC_Scheduler_CanSleep(RC_Scheduler_t *sched)
         sched->rx_timeout_ms = 0;
     }
 
-    // 检查发送队列是否为�?
+    // 检查发送队列是否为�?
     if(!queue_is_empty(&rf_txQueue)) {
         return 0;  // 发送队列不为空，不能sleep
     }
 
-    // TODO: 添加其他sleep条件检�?
-    // 例如�?
-    // - 按键是否有操�?
+    // TODO: 添加其他sleep条件检�?
+    // 例如�?
+    // - 按键是否有操�?
     // - 霍尔是否稳定
     // - 其他业务逻辑
 

@@ -338,7 +338,7 @@
               <MiscControls>--gnu</MiscControls>
               <Define>CFG_CPU_BK3633</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\src\ip\ble\ll\api;..\..\..\src\ip\ble\ll\import\reg;..\..\..\src\ip\ble\ll\src;..\..\..\src\ip\bt\api;..\..\..\src\ip\bt\import\reg;..\..\..\src\ip\bt\src;..\..\..\src\ip\em\api;..\..\..\src\ip\hci\api;..\..\..\src\ip\sch\api;..\..\..\src\ip\sch\import;..\..\..\src\modules\aes\api;..\..\..\src\modules\common\api;..\..\..\src\modules\dbg\api;..\..\..\src\modules\ecc_p256\api;..\..\..\src\modules\h4tl\api;..\..\..\src\modules\ke\api;..\..\..\src\plf\nvds\api;..\..\..\src\driver\rf;..\..\..\src\plf\rwip\api;..\..\..\src\plf\rwip\import\reg;..\..\..\src\plf\refip\import\reg;..\..\..\src\plf\refip\src\arch;..\..\..\src\plf\refip\src\arch\boot\rvds;..\..\..\src\plf\refip\src\arch\compiler\rvds;..\..\..\src\plf\refip\src\arch\ll\rvds;..\..\..\src\driver\flash;..\..\..\src\driver\led;..\..\..\src\driver\reg;..\..\..\src\driver\syscntl;..\..\..\src\driver\timer;..\..\..\Src\header;..\..\..\Src\header\header_file;..\..\..\Src\plf\refip\src\driver;..\..\..\Src\ip\ble\hl\api;..\..\..\Src\ip\ble\hl\inc;..\..\..\Src\ip\ble\hl\src\gap\gapc;..\..\..\Src\ip\ble\hl\src\gap\gapm;..\..\..\Src\ip\ble\hl\src\gatt;..\..\..\Src\ip\ble\hl\src\gatt\attc;..\..\..\Src\ip\ble\hl\src\gatt\attm;..\..\..\Src\ip\ble\hl\src\gatt\atts;..\..\..\Src\ip\ble\hl\src\gatt\gattc;..\..\..\Src\ip\ble\hl\src\gatt\gattm;..\..\..\Src\ip\ble\hl\src\l2c\l2cc;..\..\..\Src\ip\ble\hl\src\l2c\l2cm;..\..\..\Src\app\api;..\..\..\Src\profiles\dis\diss\api;..\..\..\Src\profiles\FEE0\api;..\..\..\Src\profiles\bas\bass\api;..\..\..\Src\profiles\FCC0_128\api;..\..\..\Src\driver\spi;..\..\..\Src\driver\icu;..\..\..\Src\driver\wdt;..\..\..\Src\driver\adc;..\..\..\Src\profiles\ancs\ancsc\api;..\..\..\Src\profiles\oad\api;..\..\..\Src\profiles\ancs\ancsc;.\system;.\app\api;..\..\..\src\driver\uart2;..\..\..\src\driver\aon_rtc;..\..\..\src\plf\prf;..\..\..\Src\driver\intc;..\..\..\src\driver\dma;..\..\..\src\driver\i2c;..\..\..\src\device\lcd;..\..\..\src\device\spi_flash;..\..\..\src\driver\usb;..\..\..\src\driver\usb\include;..\..\..\src\driver\usb\include\class;..\..\..\src\driver\usb\src\cd;..\..\..\src\driver\usb\src\drivers\comm;..\..\..\src\driver\usb\src\drivers\msd;..\..\..\src\driver\usb\src\examples;..\..\..\src\driver\usb\src\functions\trans_fn;..\..\..\src\driver\usb\src\systems\none;..\..\..\src\driver\usb\src\systems\none\afs;..\..\..\src\driver\usb\src\test;..\..\..\src\driver\usb\src\test\msd;.\app\src\2.4;..\..\..\src\driver\sensor;..\..\..\src\driver\timer;..\..\..\src\driver\flash;..\..\..\src\driver\usb_driver;..\..\..\src\driver\usb_driver\usb;.\driver_restruct\common;.\driver_restruct\Driver_RF;.\driver_restruct\Driver_Uart2;.\Handler\RF_Handler;.\Handler\Timer_Handler;.\driver_restruct\common\queue;.\app\src\bat_transmit;.\driver_restruct\Driver_GPIO;.\driver_restruct\Driver_Uart;.\app\src\remote_control;.\app\src\rf_service</IncludePath>
+              <IncludePath>..\..\..\src\ip\ble\ll\api;..\..\..\src\ip\ble\ll\import\reg;..\..\..\src\ip\ble\ll\src;..\..\..\src\ip\bt\api;..\..\..\src\ip\bt\import\reg;..\..\..\src\ip\bt\src;..\..\..\src\ip\em\api;..\..\..\src\ip\hci\api;..\..\..\src\ip\sch\api;..\..\..\src\ip\sch\import;..\..\..\src\modules\aes\api;..\..\..\src\modules\common\api;..\..\..\src\modules\dbg\api;..\..\..\src\modules\ecc_p256\api;..\..\..\src\modules\h4tl\api;..\..\..\src\modules\ke\api;..\..\..\src\plf\nvds\api;..\..\..\src\driver\rf;..\..\..\src\plf\rwip\api;..\..\..\src\plf\rwip\import\reg;..\..\..\src\plf\refip\import\reg;..\..\..\src\plf\refip\src\arch;..\..\..\src\plf\refip\src\arch\boot\rvds;..\..\..\src\plf\refip\src\arch\compiler\rvds;..\..\..\src\plf\refip\src\arch\ll\rvds;..\..\..\src\driver\flash;..\..\..\src\driver\led;..\..\..\src\driver\reg;..\..\..\src\driver\syscntl;..\..\..\src\driver\timer;..\..\..\Src\header;..\..\..\Src\header\header_file;..\..\..\Src\plf\refip\src\driver;..\..\..\Src\ip\ble\hl\api;..\..\..\Src\ip\ble\hl\inc;..\..\..\Src\ip\ble\hl\src\gap\gapc;..\..\..\Src\ip\ble\hl\src\gap\gapm;..\..\..\Src\ip\ble\hl\src\gatt;..\..\..\Src\ip\ble\hl\src\gatt\attc;..\..\..\Src\ip\ble\hl\src\gatt\attm;..\..\..\Src\ip\ble\hl\src\gatt\atts;..\..\..\Src\ip\ble\hl\src\gatt\gattc;..\..\..\Src\ip\ble\hl\src\gatt\gattm;..\..\..\Src\ip\ble\hl\src\l2c\l2cc;..\..\..\Src\ip\ble\hl\src\l2c\l2cm;..\..\..\Src\app\api;..\..\..\Src\profiles\dis\diss\api;..\..\..\Src\profiles\FEE0\api;..\..\..\Src\profiles\bas\bass\api;..\..\..\Src\profiles\FCC0_128\api;..\..\..\Src\driver\spi;..\..\..\Src\driver\icu;..\..\..\Src\driver\wdt;..\..\..\Src\driver\adc;..\..\..\Src\profiles\ancs\ancsc\api;..\..\..\Src\profiles\oad\api;..\..\..\Src\profiles\ancs\ancsc;.\system;.\app\api;..\..\..\src\driver\uart2;..\..\..\src\driver\aon_rtc;..\..\..\src\plf\prf;..\..\..\Src\driver\intc;..\..\..\src\driver\dma;..\..\..\src\driver\i2c;..\..\..\src\device\lcd;..\..\..\src\device\spi_flash;..\..\..\src\driver\usb;..\..\..\src\driver\usb\include;..\..\..\src\driver\usb\include\class;..\..\..\src\driver\usb\src\cd;..\..\..\src\driver\usb\src\drivers\comm;..\..\..\src\driver\usb\src\drivers\msd;..\..\..\src\driver\usb\src\examples;..\..\..\src\driver\usb\src\functions\trans_fn;..\..\..\src\driver\usb\src\systems\none;..\..\..\src\driver\usb\src\systems\none\afs;..\..\..\src\driver\usb\src\test;..\..\..\src\driver\usb\src\test\msd;.\app\src\2.4;..\..\..\src\driver\sensor;..\..\..\src\driver\timer;..\..\..\src\driver\flash;..\..\..\src\driver\usb_driver;..\..\..\src\driver\usb_driver\usb;.\driver_restruct\common;.\driver_restruct\common\debug;.\driver_restruct\common\queue;.\driver_restruct\Driver_RF;.\driver_restruct\Driver_GPIO;.\driver_restruct\Driver_Uart;.\driver_restruct\Driver_Uart2;.\Handler\RF_Handler;.\Handler\Timer_Handler;.\app\src\bat_transmit;.\app\src\rf_service;.\app\src\remote_control;.\app\src\remote_control\app;.\app\src\remote_control\device\hall;.\app\src\remote_control\device\key;.\driver_restruct\Driver_GPIO</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -410,57 +410,72 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Application/remote_control</GroupName>
+          <GroupName>Application/remote_control/app</GroupName>
           <Files>
-            <File>
-              <FileName>app_hall_update.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\app\src\remote_control\app_hall_update.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_hall_update.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\app_hall_update.h</FilePath>
-            </File>
-            <File>
-              <FileName>app_key_scan.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\app\src\remote_control\app_key_scan.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_key_scan.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\app_key_scan.h</FilePath>
-            </File>
-            <File>
-              <FileName>app_shutdown.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\app\src\remote_control\app_shutdown.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_shutdown.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\app_shutdown.h</FilePath>
-            </File>
-            <File>
-              <FileName>app_sleep.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\app\src\remote_control\app_sleep.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_sleep.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\app_sleep.h</FilePath>
-            </File>
             <File>
               <FileName>rc_scheduler.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\app\src\remote_control\rc_scheduler.c</FilePath>
+              <FilePath>.\app\src\remote_control\app\rc_scheduler.c</FilePath>
             </File>
             <File>
               <FileName>rc_scheduler.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\rc_scheduler.h</FilePath>
+              <FilePath>.\app\src\remote_control\app\rc_scheduler.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_sleep.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\app\app_sleep.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_sleep.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\app\app_sleep.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_shutdown.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\app\app_shutdown.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_shutdown.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\app\app_shutdown.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Application/remote_control/device</GroupName>
+          <Files>
+            <File>
+              <FileName>hall.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\device\hall\hall.c</FilePath>
+            </File>
+            <File>
+              <FileName>hall.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\device\hall\hall.h</FilePath>
+            </File>
+            <File>
+              <FileName>key_scan.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\device\key\key_scan.c</FilePath>
+            </File>
+            <File>
+              <FileName>key_scan.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\device\key\key_scan.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Application/remote_control/config</GroupName>
+          <Files>
+            <File>
+              <FileName>pinmap_v1.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\pinmap_v1.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1120,7 +1135,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Driver/Common</GroupName>
+          <GroupName>Middleware/Driver/Common</GroupName>
           <Files>
             <File>
               <FileName>my_queue.c</FileName>
@@ -1145,7 +1160,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Driver/Peripherals_Driver</GroupName>
+          <GroupName>SDK/Driver/Peripherals_Driver</GroupName>
           <Files>
             <File>
               <FileName>flash.c</FileName>
@@ -1403,7 +1418,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Driver/usb_Driver</GroupName>
+          <GroupName>SDK/Driver/usb_Driver</GroupName>
           <Files>
             <File>
               <FileName>driver_usb.c</FileName>
