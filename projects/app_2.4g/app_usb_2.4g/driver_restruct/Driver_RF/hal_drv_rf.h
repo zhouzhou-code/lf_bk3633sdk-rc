@@ -18,8 +18,10 @@
 #define __HAL_RF_Set_TxMode_Bit()      (TRX_CONFIG &= ~(1<<0) ) //写0为发送模式
 #define __HAL_RF_Get_TRxMode_Bit()     ((TRX_CONFIG & (1<<0)))  //0:Tx 1:Rx
 
-#define __HAL_RF_PowerUp()             (TRX_CONFIG |= (1<<1) )   
-#define __HAL_RF_PowerDown()           (TRX_CONFIG &= ~(1<<1) )  
+#define __HAL_RF_PowerUp()             (TRX_CONFIG |= (1<<1) )   //第一位写1
+#define __HAL_RF_PowerDown()           (TRX_CONFIG &= ~(1<<1) )  //第一位清零
+#define __HAL_RF_GetPowerState()       ((TRX_CONFIG & (1<<1)) ? 1 : 0)  //返回1表示上电状态,0下电状态
+
 #define __HAL_RF_Set_CRCO_1Byte()       (TRX_CONFIG &= ~(1<<2) )  
 #define __HAL_RF_Set_CRCO_2Byte()       (TRX_CONFIG |= (1<<2) )  
 #define __HAL_RF_EN_CRC()               (TRX_CONFIG |= (1<<3) )
@@ -33,6 +35,8 @@
 
 #define __HAL_RF_CHIP_EN()                 (TRX_CE = 0x01)
 #define __HAL_RF_CHIP_DIS()                (TRX_CE = 0x00)
+#define __HAL_RF_GET_CHIP_EN_STATE()       (TRX_CE & 0x01) //返回1表示使能状态,0为禁用状态
+
 /* 命令码*/
 #define __HAL_RF_CMD_FLUSH_TXFIFO()               (TRX_CMD = 0xA0)
 #define __HAL_RF_CMD_FLUSH_RXFIFO()               (TRX_CMD = 0x80)

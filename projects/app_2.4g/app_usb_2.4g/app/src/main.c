@@ -572,7 +572,7 @@ int main(void)
     uart_printf("addXVR_Reg0x24=0x%08X, addXVR_Reg0x4=0x%08X\r\n", addXVR_Reg0x24, addXVR_Reg0x4);
     //HAL_RF_SetRxMode(&hrf);
 
-    #define is_host 0
+    #define is_host 1
 
     while(1) {
 
@@ -584,7 +584,6 @@ int main(void)
         //     RF_Service_Handler(&hrf);
         //     delay_ms(10);
         // }
-
 
         static uint32_t last_scan_time = 0;
         if (Get_SysTick_ms() - last_scan_time >= 10) {
