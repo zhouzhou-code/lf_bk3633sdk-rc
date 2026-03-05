@@ -116,14 +116,15 @@ void app_bat_passthrough_run(void)
                     pair_cmd_pending = 0;
                 }
             } else if (bat_protocol_take_soc(&soc_pkt)) {
-                if (!last_soc_valid || soc_pkt.soc != last_soc) {
-                    uint8_t dest_addr[5];
-                    app_addr_get_pipe_addr(0, dest_addr);
-                    RF_txQueue_Send(dest_addr, (uint8_t *)&soc_pkt, sizeof(Bat_Soc_t));
-                    last_soc = soc_pkt.soc;
-                    last_soc_valid = 1;
-                    APP_BAT_LOG("soc=%d%%\r\n", soc_pkt.soc);
-                }
+                // 无条件处理：只要解析到SOC数据就打印和发送
+                uint8_t dest_addr[5];
+                app_addr_get_pipe_addr(0, dest_addr);
+                RF_txQueue_Send(dest_addr, (uint8_t *)&soc_pkt, sizeof(Bat_Soc_t));
+                APP_BAT_LOG("soc=%d%%\r\n", soc_pkt.soc);
+
+                // 更新记录（保留用于可能的其他用途）
+                last_soc = soc_pkt.soc;
+                last_soc_valid = 1;
             }
         }
 

@@ -114,7 +114,12 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
                 bat_protocol_push_soc(p_dynamic_info);
             }
         } else if (cmd_byte == PAIR_CMD) {
-            if (data_len == 1 && temp_parse_buf[6] == 0x00) {
+            // 支持两种格式：
+            // 1. data_len=0: AA 55 AA 00 00 [校验和] [CRC16]
+            // 2. data_len=1: AA 55 AA 00 01 [校验和] 00 [CRC16]
+            if (data_len == 0) {
+                bat_protocol_push_pair_cmd(addr_byte);
+            } else if (data_len == 1 && temp_parse_buf[6] == 0x00) {
                 bat_protocol_push_pair_cmd(addr_byte);
             }
         }
