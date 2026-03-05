@@ -4,6 +4,10 @@
 #include "timer_handler.h"
 #include "key_scan.h"
 #include "my_queue.h"
+#include "user_config.h"
+#if ENABLE_LED_DISPLAY
+// #include "lcd_kmg.h"
+#endif
 #include <string.h>
 
 __attribute__((weak)) void app_hall_update(void);
@@ -13,6 +17,12 @@ __attribute__((weak)) uint16_t app_hall_get_throttle(void);
 extern my_queue_t rf_txQueue;
 extern my_queue_t rf_rxQueue;
 extern RF_HandleTypeDef hrf;
+
+#if ENABLE_LED_DISPLAY
+static uint16_t rc_last_speed = 0;
+static uint8_t rc_last_soc = 0;
+static uint8_t rc_ui_dirty = 1;
+#endif
 
 // 初始化RC调度�?
 void RC_Scheduler_Init(RC_Scheduler_t *sched)
@@ -93,6 +103,12 @@ void RC_Scheduler_ProcessRxData(RC_Scheduler_t *sched)
             uint16_t speed = esc_resp.data;
             // TODO: 更新速度显示
             // uart_printf("ESC speed: %d\r\n", speed);
+#if ENABLE_LED_DISPLAY
+            if (rc_last_speed != speed) {
+                rc_last_speed = speed;
+                rc_ui_dirty = 1;
+            }
+#endif
         }
 
         // 尝试解析电池响应
@@ -102,6 +118,12 @@ void RC_Scheduler_ProcessRxData(RC_Scheduler_t *sched)
             uint8_t soc = bat_resp.data;
             // TODO: 更新电池显示
             // uart_printf("Battery SOC: %d%%\r\n", soc);
+#if ENABLE_LED_DISPLAY
+            if (rc_last_soc != soc) {
+                rc_last_soc = soc;
+                rc_ui_dirty = 1;
+            }
+#endif
         }
 
         // 收到回复，清除等待标�?
@@ -125,6 +147,17 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
         app_key_scan(10);
         last_key_time = now;
     }
+
+#if ENABLE_LED_DISPLAY
+    {
+        static uint32_t last_ui_time = 0;
+        if (rc_ui_dirty && (uint32_t)(now - last_ui_time) >= 50U) {
+            update_ui(0, rc_last_soc, rc_last_speed);
+            rc_ui_dirty = 0;
+            last_ui_time = now;
+        }
+    }
+#endif
 
     if (sched->rx_timeout_ms == 0) {
         if (sched->esc_period_ms != 0U &&

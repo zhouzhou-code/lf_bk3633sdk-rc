@@ -160,6 +160,32 @@ void spi_write(uint8_t *wbuf, uint32_t w_size)
     SPI_REG0X1_CN |= (1<<POS_SPI_REG0X1_TX_EN) |(1<<POS_SPI_REG0X1_TX_FINISH_INT_EN); 
 }
 
+void spi_write_async(uint8_t *wbuf, uint16_t w_size, spi_write_cb cb)
+{
+    if (w_size == 0)
+        return;
+    if (w_size > 64)
+        w_size = 64;
+
+    spi_param.write_complete_cb = cb;
+    spi_param.read_complete_cb = NULL;
+
+    spi_waitbusying();
+    SPI_REG0X1_CN = 0;
+    SPI_REG0X2_STAT |= (1 << POS_SPI_REG0X2_TX_FINISH_INT);
+    SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_SPI);
+
+    SPI_REG0X1_CN = ((uint32_t)w_size << POS_SPI_REG0X1_TX_TRANS_LEN);
+
+    while ((SPI_REG0X2_STAT & (1 << POS_SPI_REG0X2_TXFIFO_WR_READY)) == 0)
+        ;
+
+    while (w_size--)
+        SPI_REG0X3_DAT = *wbuf++;
+
+    SPI_REG0X1_CN |= (1 << POS_SPI_REG0X1_TX_EN) | (1 << POS_SPI_REG0X1_TX_FINISH_INT_EN);
+}
+
 void spi_read( uint8_t *rbuf, uint32_t r_size)
 {
     uint16_t tempdata;
@@ -244,33 +270,43 @@ void spi_receiv(uint16_t r_size)
 }
 void spi_isr(void)
 {
-    SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_SPI);
-    spi_param.spi_state=1;
+    // Don't mark the transfer done on any SPI interrupt. Only TX/RX finish
+    // interrupts indicate the configured transaction length completed.
+    uint32_t stat = SPI_REG0X2_STAT;
 
-    if(SPI_REG0X2_STAT&(1<<POS_SPI_REG0X2_TX_FINISH_INT))
+    if(stat & (1<<POS_SPI_REG0X2_TXFIFO_INT))
     {
-        
+        SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_TXFIFO_INT);
+    }
+
+    if(stat & (1<<POS_SPI_REG0X2_TX_FINISH_INT))
+    {
         SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_TX_FINISH_INT);
-        
+        spi_param.spi_state=1;
+        SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_SPI);
         if(spi_param.write_complete_cb!=NULL)
             spi_param.write_complete_cb();
+        stat = SPI_REG0X2_STAT;
     }
-    if(SPI_REG0X2_STAT&(1<<POS_SPI_REG0X2_RX_FINISH_INT))
+
+    if(stat & (1<<POS_SPI_REG0X2_RX_FINISH_INT))
     {
         SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RX_FINISH_INT);
+        spi_param.spi_state=1;
+        SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_SPI);
         //if(spi_param.read_complete_cb!=NULL)
         //    spi_param.read_complete_cb();
-        
+        stat = SPI_REG0X2_STAT;
     }
-    if(SPI_REG0X2_STAT&(1<<POS_SPI_REG0X2_RXOVF))
+
+    if(stat & (1<<POS_SPI_REG0X2_RXOVF))
     {
         SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RXOVF);
     }
-    if(SPI_REG0X2_STAT&(1<<POS_SPI_REG0X2_RXFIFO_INT))
+    if(stat & (1<<POS_SPI_REG0X2_RXFIFO_INT))
     {
         SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RXFIFO_INT);
     }
-    
 }
 void spi_waitbusying(void)
 {

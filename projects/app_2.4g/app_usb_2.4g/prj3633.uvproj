@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_proj.xsd">
 
   <SchemaVersion>1.1</SchemaVersion>
@@ -35,7 +35,7 @@
           <bCustSvd>0</bCustSvd>
           <UseEnv>0</UseEnv>
           <BinPath></BinPath>
-          <IncludePath></IncludePath>
+          <IncludePath>.\app\src\remote_control;.\app\src\remote_control\device\oled</IncludePath>
           <LibPath></LibPath>
           <RegisterFilePath></RegisterFilePath>
           <DBRegisterFilePath></DBRegisterFilePath>
@@ -379,7 +379,7 @@
               <MiscControls>--gnu</MiscControls>
               <Define>CFG_CPU_BK3633</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\src\ip\ble\ll\api;..\..\..\src\ip\ble\ll\import\reg;..\..\..\src\ip\ble\ll\src;..\..\..\src\ip\bt\api;..\..\..\src\ip\bt\import\reg;..\..\..\src\ip\bt\src;..\..\..\src\ip\em\api;..\..\..\src\ip\hci\api;..\..\..\src\ip\sch\api;..\..\..\src\ip\sch\import;..\..\..\src\modules\aes\api;..\..\..\src\modules\common\api;..\..\..\src\modules\dbg\api;..\..\..\src\modules\ecc_p256\api;..\..\..\src\modules\h4tl\api;..\..\..\src\modules\ke\api;..\..\..\src\plf\nvds\api;..\..\..\src\driver\rf;..\..\..\src\plf\rwip\api;..\..\..\src\plf\rwip\import\reg;..\..\..\src\plf\refip\import\reg;..\..\..\src\plf\refip\src\arch;..\..\..\src\plf\refip\src\arch\boot\rvds;..\..\..\src\plf\refip\src\arch\compiler\rvds;..\..\..\src\plf\refip\src\arch\ll\rvds;..\..\..\src\driver\flash;..\..\..\src\driver\led;..\..\..\src\driver\reg;..\..\..\src\driver\syscntl;..\..\..\src\driver\timer;..\..\..\src\driver\uart;..\..\..\src\driver\uart2;..\..\..\Src\header;..\..\..\Src\header\header_file;..\..\..\Src\plf\refip\src\driver;..\..\..\Src\ip\ble\hl\api;..\..\..\Src\ip\ble\hl\inc;..\..\..\Src\ip\ble\hl\src\gap\gapc;..\..\..\Src\ip\ble\hl\src\gap\gapm;..\..\..\Src\ip\ble\hl\src\gatt;..\..\..\Src\ip\ble\hl\src\gatt\attc;..\..\..\Src\ip\ble\hl\src\gatt\attm;..\..\..\Src\ip\ble\hl\src\gatt\atts;..\..\..\Src\ip\ble\hl\src\gatt\gattc;..\..\..\Src\ip\ble\hl\src\gatt\gattm;..\..\..\Src\ip\ble\hl\src\l2c\l2cc;..\..\..\Src\ip\ble\hl\src\l2c\l2cm;..\..\..\Src\app\api;..\..\..\Src\profiles\dis\diss\api;..\..\..\Src\profiles\FEE0\api;..\..\..\Src\profiles\bas\bass\api;..\..\..\Src\profiles\FCC0_128\api;..\..\..\Src\driver\gpio;..\..\..\Src\driver\spi;..\..\..\Src\driver\icu;..\..\..\Src\driver\wdt;..\..\..\Src\driver\adc;..\..\..\Src\profiles\ancs\ancsc\api;..\..\..\Src\profiles\oad\api;..\..\..\Src\profiles\ancs\ancsc;.\system;.\app\api;..\..\..\src\driver\uart2;..\..\..\src\driver\aon_rtc;..\..\..\src\plf\prf;..\..\..\Src\driver\intc;..\..\..\src\driver\dma;..\..\..\src\driver\i2c;..\..\..\src\device\lcd;..\..\..\src\device\spi_flash;..\..\..\src\driver\usb;..\..\..\src\driver\usb\include;..\..\..\src\driver\usb\include\class;..\..\..\src\driver\usb\src\cd;..\..\..\src\driver\usb\src\drivers\comm;..\..\..\src\driver\usb\src\drivers\msd;..\..\..\src\driver\usb\src\examples;..\..\..\src\driver\usb\src\functions\trans_fn;..\..\..\src\driver\usb\src\systems\none;..\..\..\src\driver\usb\src\systems\none\afs;..\..\..\src\driver\usb\src\test;..\..\..\src\driver\usb\src\test\msd;.\app\src\2.4;..\..\..\src\driver\sensor;..\..\..\src\driver\timer;..\..\..\src\driver\flash;..\..\..\src\driver\usb_driver;..\..\..\src\driver\usb_driver\usb</IncludePath>
+              <IncludePath>..\..\..\src\ip\ble\ll\api;..\..\..\src\ip\ble\ll\import\reg;..\..\..\src\ip\ble\ll\src;..\..\..\src\ip\bt\api;..\..\..\src\ip\bt\import\reg;..\..\..\src\ip\bt\src;..\..\..\src\ip\em\api;..\..\..\src\ip\hci\api;..\..\..\src\ip\sch\api;..\..\..\src\ip\sch\import;..\..\..\src\modules\aes\api;..\..\..\src\modules\common\api;..\..\..\src\modules\dbg\api;..\..\..\src\modules\ecc_p256\api;..\..\..\src\modules\h4tl\api;..\..\..\src\modules\ke\api;..\..\..\src\plf\nvds\api;..\..\..\src\driver\rf;..\..\..\src\plf\rwip\api;..\..\..\src\plf\rwip\import\reg;..\..\..\src\plf\refip\import\reg;..\..\..\src\plf\refip\src\arch;..\..\..\src\plf\refip\src\arch\boot\rvds;..\..\..\src\plf\refip\src\arch\compiler\rvds;..\..\..\src\plf\refip\src\arch\ll\rvds;..\..\..\src\driver\flash;..\..\..\src\driver\led;..\..\..\src\driver\reg;..\..\..\src\driver\syscntl;..\..\..\src\driver\timer;..\..\..\src\driver\uart;..\..\..\src\driver\uart2;..\..\..\Src\header;..\..\..\Src\header\header_file;..\..\..\Src\plf\refip\src\driver;..\..\..\Src\ip\ble\hl\api;..\..\..\Src\ip\ble\hl\inc;..\..\..\Src\ip\ble\hl\src\gap\gapc;..\..\..\Src\ip\ble\hl\src\gap\gapm;..\..\..\Src\ip\ble\hl\src\gatt;..\..\..\Src\ip\ble\hl\src\gatt\attc;..\..\..\Src\ip\ble\hl\src\gatt\attm;..\..\..\Src\ip\ble\hl\src\gatt\atts;..\..\..\Src\ip\ble\hl\src\gatt\gattc;..\..\..\Src\ip\ble\hl\src\gatt\gattm;..\..\..\Src\ip\ble\hl\src\l2c\l2cc;..\..\..\Src\ip\ble\hl\src\l2c\l2cm;..\..\..\Src\app\api;..\..\..\Src\profiles\dis\diss\api;..\..\..\Src\profiles\FEE0\api;..\..\..\Src\profiles\bas\bass\api;..\..\..\Src\profiles\FCC0_128\api;..\..\..\Src\driver\gpio;..\..\..\Src\driver\spi;..\..\..\Src\driver\icu;..\..\..\Src\driver\wdt;..\..\..\Src\driver\adc;..\..\..\Src\profiles\ancs\ancsc\api;..\..\..\Src\profiles\oad\api;..\..\..\Src\profiles\ancs\ancsc;.\system;.\app\api;..\..\..\src\driver\aon_rtc;..\..\..\src\plf\prf;..\..\..\Src\driver\intc;..\..\..\src\driver\dma;..\..\..\src\driver\i2c;..\..\..\src\device\lcd;..\..\..\src\device\spi_flash;..\..\..\src\driver\usb;..\..\..\src\driver\usb\include;..\..\..\src\driver\usb\include\class;..\..\..\src\driver\usb\src\cd;..\..\..\src\driver\usb\src\drivers\comm;..\..\..\src\driver\usb\src\drivers\msd;..\..\..\src\driver\usb\src\examples;..\..\..\src\driver\usb\src\functions\trans_fn;..\..\..\src\driver\usb\src\systems\none;..\..\..\src\driver\usb\src\systems\none\afs;..\..\..\src\driver\usb\src\test;..\..\..\src\driver\usb\src\test\msd;.\app\src\2.4;..\..\..\src\driver\sensor;..\..\..\src\driver\usb_driver;..\..\..\src\driver\usb_driver\usb;.\app\src\remote_control;.\app\src\remote_control\device\oled</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -397,7 +397,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath></IncludePath>
+              <IncludePath>.\app\src\remote_control;.\app\src\remote_control\device\oled</IncludePath>
             </VariousControls>
           </Aads>
           <LDads>
@@ -462,6 +462,36 @@
               <FileName>aes.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\app\src\aes.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>remote_control_oled</GroupName>
+          <Files>
+            <File>
+              <FileName>lcd_init.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\device\oled\lcd_init.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_kmg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\device\oled\lcd_kmg.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_init.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\device\oled\lcd_init.h</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_kmg.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\device\oled\lcd_kmg.h</FilePath>
+            </File>
+            <File>
+              <FileName>oled_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\device\oled\oled_config.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -620,3 +650,6 @@
   </Targets>
 
 </Project>
+
+
+

@@ -31,6 +31,8 @@
 #include "wdt.h"
 #include "spi.h"
 #include "adc.h"
+#include "lcd_init.h"
+#include "lcd_kmg.h"
 
 
 #include "aon_rtc.h"
@@ -55,6 +57,8 @@
 #include "key_scan.h"
 #include "rf_addr_mgr.h"
 
+#include "lcd_init.h"
+#include "lcd_kmg.h"
 
 extern void  xvr_reg_initial_24(void);
 
@@ -115,8 +119,185 @@ uint8_t key[16]={0xED, 0x8D, 0x9C, 0x50, 0xD1, 0x55, 0xAA, 0x1E, 0x4D, 0x8F,
     0xF5, 0x81, 0x13, 0x32, 0x4F, 0x04, };
 uint8_t encrypted_data[16]={0x37, 0x37, 0x79, 0x52, 0x26, 0x2E, 0x35, 0x08,
     0xAA, 0x12, 0x32, 0x2D, 0x99, 0xB3, 0xEC, 0x36 };
-
 #endif
+
+static USB_Test(){
+#ifdef __USB_TEST__
+    uint8_t ms_buf[16];
+    // send media key ,no id,the another endpoint
+    gpio_config(0x10,0,0);
+     ms_buf[0]= 0x00;
+     ms_buf[1]= 0x00;
+     ms_buf[2] = 0;
+     ms_buf[3] = 0;
+     ms_buf[4] = 0;
+     ms_buf[5] = 0;
+     ms_buf[6] = 0;
+     ms_buf[7] = 0;
+     ms_buf[8] = 0;
+     ms_buf[9] = 0;
+
+    while(1)
+    {
+        if(gpio_get_input(0x10)==0)
+        {
+            if(ms_buf[0]== 0)
+            {
+                ms_buf[0]= 0x02;
+                AplUsb_StartTx(USB_ENDPID_Hid_MKEY, ms_buf, 2);
+                uart_printf("send R \r\n");
+            }
+        }
+        else
+        {
+            if(ms_buf[0]== 0x02)
+            {
+            ms_buf[0]= 0x00;
+            AplUsb_StartTx(USB_ENDPID_Hid_MKEY, ms_buf, 2);
+            uart_printf("release \r\n");
+            }
+        }
+        Delay_ms(100);
+    }
+    // send keyboard
+    gpio_config(0x10,0,0);
+    ms_buf[0]= 0x02;
+    ms_buf[1]= 0x00;
+    ms_buf[2] = 0;
+    ms_buf[3] = 0;
+    ms_buf[4] = 0;
+    ms_buf[5] = 0;
+    ms_buf[6] = 0;
+    ms_buf[7] = 0;
+    ms_buf[8] = 0;
+    ms_buf[9] = 0;
+
+    while(1)
+    {
+        if(gpio_get_input(0x10)==0)
+        {
+            if(ms_buf[1]== 0)
+            {
+                ms_buf[1]= 0x02;
+                AplUsb_StartTx(USB_ENDPID_Hid_MSE, ms_buf, 9);
+                uart_printf("send R \r\n");
+            }
+        }
+        else
+        {
+            if(ms_buf[1]== 0x02)
+            {
+                ms_buf[1]= 0x00;
+                AplUsb_StartTx(USB_ENDPID_Hid_MSE, ms_buf, 9);
+                uart_printf("release \r\n");
+            }
+        }
+        Delay_ms(100);
+    }
+      // send mouse
+    gpio_config(0x10,0,0);
+    ms_buf[0]= 0x01;
+    ms_buf[1]= 0x00;
+    ms_buf[2] = 0;
+    ms_buf[3] = 0;
+    ms_buf[4] = 0;
+    ms_buf[5] = 0;
+    ms_buf[6] = 0;
+    ms_buf[7] = 0;
+    ms_buf[8] = 0;
+    ms_buf[9] = 0;
+
+    while(1)
+    {
+        if(gpio_get_input(0x10)==0)
+        {
+            static int16_t deltaX,deltaY;
+            //if(ms_buf[1]== 0)
+            {
+                static uint8_t dcount = 100;
+                dcount++;
+                if(dcount>=100)
+                {
+                    dcount = 0;
+                    if ((deltaX == 0) && (deltaY == 4))
+                    {
+                        deltaX=4;
+                        deltaY = 0;
+                    }
+                    else if ((deltaX == 4) && (deltaY == 0))
+                    {
+                        deltaX = 0;
+                        deltaY = -4;
+                    }
+                    else if ((deltaX == 0) && (deltaY== -4))
+                    {
+                        deltaX = -4;
+                        deltaY = 0;
+                    }
+                    else if((deltaX == -4) && (deltaY == 0))
+                    {
+                        deltaX = 0;
+                        deltaY = 4;
+                    }
+                    else
+                    {
+                        deltaX = 4;
+                        deltaY = 0;
+                    }
+                }
+                ms_buf[1]= 0x02;
+                ms_buf[2] = deltaX;
+                ms_buf[3] = ((deltaY<<4)&0xf0)|((deltaX>>8)&0x0f);
+                ms_buf[4] = deltaY>>4;
+                AplUsb_StartTx(USB_ENDPID_Hid_MSE, ms_buf, 6);
+                uart_printf("send R \r\n");
+                Delay_ms(8);
+            }
+        }
+        else
+        {
+            if(ms_buf[1]== 0x02)
+            {
+                ms_buf[1]= 0x00;
+                AplUsb_StartTx(USB_ENDPID_Hid_MSE, ms_buf, 6);
+                uart_printf("release \r\n");
+            }
+        }
+        Delay_ms(100);
+    }
+#endif
+
+}
+
+static AES_Test(){
+#ifdef __AES_TEST__
+    gpio_config(KEY_RIGHT,INPUT, PULL_HIGH);
+    gpio_config(KEY_LEFT,INPUT, PULL_HIGH);
+    gpio_config(KEY_MIDDLE,INPUT, PULL_HIGH);
+    gpio_config(KEY_PAIR,INPUT, PULL_HIGH);
+    while(1)
+    {
+        app_aes_test(key,value,encrypted_data);
+        app_gpio_sleep();
+        cpu_reduce_voltage_sleep();
+        uart_printf("wake up\r\n");
+
+        Delay_ms(1000);
+    }
+    while(1)
+    {
+        if(aes_ok)
+        {
+            aes_ok = 0;
+            uart_printf("data=");
+            for(i=0;i<16;i++)
+                uart_printf("%x,",encrypted_data[i]);
+            uart_printf("\r\n");
+            while(1);
+        }
+    }
+#endif
+}
 #if(USB_DRIVER)
 
 extern void DelayNops_usb(volatile unsigned long nops);
@@ -148,11 +329,6 @@ void Hid_RxCbk(void*ptr,int sz){
     for(i=0;i<sz;i++)
         uart_printf("%x,",dat[i]);
     uart_printf("\r\n");
-/*    if(((char*)ptr)[0]==0x10){
-        uart_printf("recieved a hid data\r\n");
-    }
-    AplUsb_StartTx(USB_ENDPID_Hid_DBG_IN, ptr, sz);*/
-//    print("Ep3 Rx Data",ptr,sz);
 }
 
 //volatile uint8_t b_isDataing = FALSE;
@@ -311,15 +487,27 @@ int main(void)
     aon_rtc_init();
     uart_printf("init aon_rtc\r\n");
     #endif
+
     #if(SPI_DRIVER)
     spi_init(0,0,0);
     uart_printf("init spi\r\n");
+    #endif
+
+    #if(ENABLE_LED_DISPLAY)
+    uart_printf("init lcd display\r\n");
+    OLED_Init(); //初始化
+    uart_printf("init lcd end\r\n");
+    LCD_Fill(0, 0, LCD_W, LCD_H, BLACK); //清屏
+    uart_printf("fill lcd\r\n");
+    LCD_ShowString_Hor(10, 10, "OK!", WHITE, BLACK, 16);  // 测试
+    uart_printf("show string\r\n");
     #endif
 
     #if(ADC_DRIVER)
     adc_init(1,1);
     uart_printf("init adc\r\n");
     #endif
+
     #if(USB_DRIVER)
     usb_init(usb_mod_enable,usb_mod_ie_enable);
     AplUsb_SetRxCbk(USB_ENDPID_Hid_DBG_OUT, (void*)Ep2_RxCbk);
@@ -332,178 +520,9 @@ int main(void)
     GLOBAL_INT_START();
     uart_printf("GLOBAL_INT_START\r\n");
 
-    #ifdef __USB_TEST__
-    uint8_t ms_buf[16];
-    // send media key ,no id,the another endpoint
-    gpio_config(0x10,0,0);
-     ms_buf[0]= 0x00;
-     ms_buf[1]= 0x00;
-     ms_buf[2] = 0;
-     ms_buf[3] = 0;
-     ms_buf[4] = 0;
-     ms_buf[5] = 0;
-     ms_buf[6] = 0;
-     ms_buf[7] = 0;
-     ms_buf[8] = 0;
-     ms_buf[9] = 0;
-
-    while(1)
-    {
-        if(gpio_get_input(0x10)==0)
-        {
-            if(ms_buf[0]== 0)
-            {
-                ms_buf[0]= 0x02;
-                AplUsb_StartTx(USB_ENDPID_Hid_MKEY, ms_buf, 2);
-                uart_printf("send R \r\n");
-            }
-        }
-        else
-        {
-            if(ms_buf[0]== 0x02)
-            {
-            ms_buf[0]= 0x00;
-            AplUsb_StartTx(USB_ENDPID_Hid_MKEY, ms_buf, 2);
-            uart_printf("release \r\n");
-            }
-        }
-        Delay_ms(100);
-    }
-    // send keyboard
-    gpio_config(0x10,0,0);
-    ms_buf[0]= 0x02;
-    ms_buf[1]= 0x00;
-    ms_buf[2] = 0;
-    ms_buf[3] = 0;
-    ms_buf[4] = 0;
-    ms_buf[5] = 0;
-    ms_buf[6] = 0;
-    ms_buf[7] = 0;
-    ms_buf[8] = 0;
-    ms_buf[9] = 0;
-
-    while(1)
-    {
-        if(gpio_get_input(0x10)==0)
-        {
-            if(ms_buf[1]== 0)
-            {
-                ms_buf[1]= 0x02;
-                AplUsb_StartTx(USB_ENDPID_Hid_MSE, ms_buf, 9);
-                uart_printf("send R \r\n");
-            }
-        }
-        else
-        {
-            if(ms_buf[1]== 0x02)
-            {
-                ms_buf[1]= 0x00;
-                AplUsb_StartTx(USB_ENDPID_Hid_MSE, ms_buf, 9);
-                uart_printf("release \r\n");
-            }
-        }
-        Delay_ms(100);
-    }
-      // send mouse
-    gpio_config(0x10,0,0);
-    ms_buf[0]= 0x01;
-    ms_buf[1]= 0x00;
-    ms_buf[2] = 0;
-    ms_buf[3] = 0;
-    ms_buf[4] = 0;
-    ms_buf[5] = 0;
-    ms_buf[6] = 0;
-    ms_buf[7] = 0;
-    ms_buf[8] = 0;
-    ms_buf[9] = 0;
-
-    while(1)
-    {
-        if(gpio_get_input(0x10)==0)
-        {
-            static int16_t deltaX,deltaY;
-            //if(ms_buf[1]== 0)
-            {
-                static uint8_t dcount = 100;
-                dcount++;
-                if(dcount>=100)
-                {
-                    dcount = 0;
-                    if ((deltaX == 0) && (deltaY == 4))
-                    {
-                        deltaX=4;
-                        deltaY = 0;
-                    }
-                    else if ((deltaX == 4) && (deltaY == 0))
-                    {
-                        deltaX = 0;
-                        deltaY = -4;
-                    }
-                    else if ((deltaX == 0) && (deltaY== -4))
-                    {
-                        deltaX = -4;
-                        deltaY = 0;
-                    }
-                    else if((deltaX == -4) && (deltaY == 0))
-                    {
-                        deltaX = 0;
-                        deltaY = 4;
-                    }
-                    else
-                    {
-                        deltaX = 4;
-                        deltaY = 0;
-                    }
-                }
-                ms_buf[1]= 0x02;
-                ms_buf[2] = deltaX;
-                ms_buf[3] = ((deltaY<<4)&0xf0)|((deltaX>>8)&0x0f);
-                ms_buf[4] = deltaY>>4;
-                AplUsb_StartTx(USB_ENDPID_Hid_MSE, ms_buf, 6);
-                uart_printf("send R \r\n");
-                Delay_ms(8);
-            }
-        }
-        else
-        {
-            if(ms_buf[1]== 0x02)
-            {
-                ms_buf[1]= 0x00;
-                AplUsb_StartTx(USB_ENDPID_Hid_MSE, ms_buf, 6);
-                uart_printf("release \r\n");
-            }
-        }
-        Delay_ms(100);
-    }
-    #endif
-    #ifdef __AES_TEST__
-    // aes test
-    gpio_config(KEY_RIGHT,INPUT, PULL_HIGH);
-    gpio_config(KEY_LEFT,INPUT, PULL_HIGH);
-    gpio_config(KEY_MIDDLE,INPUT, PULL_HIGH);
-    gpio_config(KEY_PAIR,INPUT, PULL_HIGH);
-    while(1)
-    {
-        app_aes_test(key,value,encrypted_data);
-        app_gpio_sleep();
-        cpu_reduce_voltage_sleep();
-        uart_printf("wake up\r\n");
-
-        Delay_ms(1000);
-    }
-    while(1)
-    {
-        if(aes_ok)
-        {
-            aes_ok = 0;
-            uart_printf("data=");
-            for(i=0;i<16;i++)
-                uart_printf("%x,",encrypted_data[i]);
-            uart_printf("\r\n");
-            while(1);
-        }
-    }
-    #endif
+    
+    USB_Test();
+    AES_Test();
 
     //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
     Timer_Handler_Init();
@@ -909,6 +928,8 @@ int main(void)
         stack_integrity_check();
     }
 }
+
+
 
 
 

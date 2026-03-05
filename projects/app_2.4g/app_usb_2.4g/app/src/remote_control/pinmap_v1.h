@@ -11,27 +11,31 @@
 #include "drv_gpio.h"
 
 /* ============================================================================
- * 按键输入模块 (Keys Input Module)
- * 配置：GPIO输入模式，内部上拉，按下时读到低电平
- * ============================================================================ */
-#define KEY_LEFT        Port_Pin(0, 0)  // P00 - 左键
-#define KEY_RIGHT       Port_Pin(0, 1)  // P01 - 右键
-#define KEY_MIDDLE      Port_Pin(0, 2)  // P02 - 中键/滚轮按键
-#define KEY_PAIR        Port_Pin(3, 1)  // P31 - 配对键
-
-/* ============================================================================
- * LED指示灯模块 (LED Indicator Module)
- * 配置：GPIO输出模式，高电平点亮
- * ============================================================================ */
-#define LED1            Port_Pin(0, 3)  // P03 - 指示灯1
-#define LED2            Port_Pin(0, 4)  // P04 - 指示灯2
-
-/* ============================================================================
  * 调试串口模块 (Debug UART Module)
  * 协议：UART0，波特率115200
  * ============================================================================ */
-#define UART0_TX        Port_Pin(0, 5)  // P05 - 串口0发送
-#define UART0_RX        Port_Pin(0, 6)  // P06 - 串口0接收
+#define UART0_TX        Port_Pin(0, 0)  // P00 - 串口0发送
+#define UART0_RX        Port_Pin(0, 1)  // P01 - 串口0接收
+
+/* ============================================================================
+ * 按键输入模块 (Keys Input Module)
+ * 配置：GPIO输入模式，内部上拉，按下时读到低电平
+ * ============================================================================ */
+#define KEY_LEFT        Port_Pin(0, 2)  // P02 - 左键
+#define KEY_RIGHT       Port_Pin(0, 3)  // P03 - 右键
+#define KEY_MIDDLE      Port_Pin(3, 0)  // P30 - 中键/滚轮按键
+#define KEY_PAIR        Port_Pin(3, 1)  // P31 - 配对键
+
+/* ============================================================================
+ * LCD显示屏模块 (LCD Display Module)
+ * 协议：SPI (4线SPI + DCX控制)
+ * 支持：OLED/TFT小屏幕，如SSD1306, ST7735, ST7789等
+ * ============================================================================ */
+#define LCD_SPI_SCK     Port_Pin(0, 4)  // P04 - SPI时钟
+#define LCD_SPI_MOSI    Port_Pin(0, 5)  // P05 - SPI主机输出
+#define LCD_SPI_CS      Port_Pin(0, 6)  // P06 - SPI片选(NSS)
+#define LCD_DCX         Port_Pin(0, 7)  // P07 - 数据/命令选择
+#define LCD_RST         Port_Pin(0, 3)  // P03 - LCD复位引脚
 
 /* ============================================================================
  * 霍尔传感器模块 (Hall Sensor Module)
@@ -46,27 +50,22 @@
  * 电池电压检测模块 (Battery Voltage Monitor Module)
  * 配置：ADC输入，通过分压电阻检测电池电压
  * ============================================================================ */
-#define ADC_VBAT        Port_Pin(1, 3)  // P13 - 电池电压检测
+#define ADC_VBAT        Port_Pin(3, 6)  // P36 - 电池电压检测(ADC Channel 6)
 
 /* ============================================================================
- * LCD显示屏模块 (LCD Display Module)
- * 协议：SPI (4线SPI + DC/RST控制)
- * 支持：OLED/TFT小屏幕，如SSD1306, ST7735等
+ * LED指示灯模块 (LED Indicator Module)
+ * 配置：GPIO输出模式，高电平点亮
  * ============================================================================ */
-#define LCD_SPI_CLK     Port_Pin(2, 0)  // P20 - SPI时钟
-#define LCD_SPI_MOSI    Port_Pin(2, 1)  // P21 - SPI主机输出
-#define LCD_SPI_CS      Port_Pin(2, 2)  // P22 - SPI片选
-#define LCD_DC          Port_Pin(2, 3)  // P23 - 数据/命令选择
-#define LCD_RST         Port_Pin(2, 4)  // P24 - LCD复位
+#define LED1            Port_Pin(1, 4)  // P14 - 指示灯1
+#define LED2            Port_Pin(1, 5)  // P15 - 指示灯2
 
 /* ============================================================================
  * 保留/未使用引脚 (Reserved/Unused Pins)
  * 这些引脚在当前硬件版本中未使用，可用于未来扩展
  * ============================================================================ */
-// Port 0: P07
-// Port 1: P14, P15, P16, P17
-// Port 2: P25, P26, P27
-// Port 3: P30, P32, P33, P34
+// Port 1: P13, P16, P17
+// Port 2: P21, P22, P23, P24, P26, P27
+// Port 3: P32, P33, P34, P35, P37
 
 /* ============================================================================
  * 引脚初始化宏 (Pin Initialization Macros)
@@ -118,10 +117,10 @@
  */
 #define PINMAP_INIT_LCD() \
     do { \
-        gpio_config(LCD_SPI_CLK,  GPIO_SC_FUN, GPIO_PULL_NONE); \
+        gpio_config(LCD_SPI_SCK,  GPIO_SC_FUN, GPIO_PULL_NONE); \
         gpio_config(LCD_SPI_MOSI, GPIO_SC_FUN, GPIO_PULL_NONE); \
         gpio_config(LCD_SPI_CS,   GPIO_OUTPUT, GPIO_PULL_NONE); \
-        gpio_config(LCD_DC,       GPIO_OUTPUT, GPIO_PULL_NONE); \
+        gpio_config(LCD_DCX,      GPIO_OUTPUT, GPIO_PULL_NONE); \
         gpio_config(LCD_RST,      GPIO_OUTPUT, GPIO_PULL_NONE); \
         gpio_set(LCD_SPI_CS, 1);  /* CS默认高电平 */ \
         gpio_set(LCD_RST, 1);     /* RST默认高电平 */ \
@@ -129,10 +128,11 @@
 
 /**
  * @brief 初始化ADC电池检测引脚
+ * @note ADC引脚需要配置为浮空模式(FLOAT)，并确保硬件上有10nF电容到地
  */
 #define PINMAP_INIT_ADC_VBAT() \
     do { \
-        gpio_config(ADC_VBAT, GPIO_INPUT, GPIO_PULL_NONE); \
+        gpio_config(ADC_VBAT, GPIO_FLOAT, GPIO_PULL_NONE); \
     } while(0)
 
 /* ============================================================================
