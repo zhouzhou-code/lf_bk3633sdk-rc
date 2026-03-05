@@ -8,6 +8,10 @@ void app_enter_deep_sleep_with_wakeup_by_rtc(uint32_t sleep_ms);
 void app_enter_sleep_with_wakeup_by_timer(uint32_t sleep_ms);
 
 
+
+
+
+
 // 15. 三数之和
 // 给你一个整数数组 nums ，判断是否存在三元组 [nums[i], nums[j], nums[k]] 
 //满足 i != j、i != k 且 j != k ，同时还满足 nums[i] + nums[j] + nums[k] == 0 。返回所有和为 0 且不重复的三元组
@@ -32,19 +36,57 @@ void app_enter_sleep_with_wakeup_by_timer(uint32_t sleep_ms);
 // public:
 //     vector<vector<int>> threeSum(vector<int>& nums) {
 //         sort(nums.begin(), nums.end());
-
-//         //排序之后的数一定是左边是负数，右边是正数，如果遍历到正数了，就不用往后面找了
+//         vector<vector<int>> result;
+       
 //         for (int i = 0; i < nums.size(); i++) {
 
+//             //当前元素与前一个元素相同，跳过，去重逻辑
+//             if(nums[i] == nums[i-1]&& i > 0) {
+//                 continue;
+//             }
+//              //排序之后的数一定是左边是负数，右边是正数，如果遍历到正数了，就不用往后面找了
 //             if(nums[i] > 0) {
 //                 break;
 //             }
+
 //             //在后面的nums.size()-i-1个元素中寻找两个数，使得它们的和等于-nums[i]
 //             int left = i + 1;
 //             int right = nums.size() - 1;
 
+//             // 边界处理：确保剩余元素足够组成三元组
+//             if (left >= right) break;
+
+//             // 如果当前最小的两个数加起来都太大
+//             if (nums[left] + nums[left + 1] > -nums[i]) continue; 
+//             // 如果当前最大的两个数加起来都太小
+//             if (nums[right - 1] + nums[right] < -nums[i]) continue;
+
+//             while(left < right) {
+//                 int sum = nums[left] + nums[right];
+                
+//                 //和比目标大
+//                 if(sum > -nums[i]) {
+//                     right--;
+//                 } else if(sum < -nums[i]) { //和比目标小
+//                     left++;
+//                 } else {  //和等于目标，则继续找下一组，注意去重判断
+//                     result.push_back({nums[i], nums[left], nums[right]}); //找到一个！
+                    
+//                     while(left < right && nums[left] == nums[left + 1]) {
+//                         left++;
+//                     }
+//                     while(left < right && nums[right] == nums[right - 1]) {
+//                         right--;
+//                     }
+//                     left++;
+//                     right--;
+                   
+//                 }
+//             }
+
 //         }
 
+//         return result;
 //     }
 // };
 

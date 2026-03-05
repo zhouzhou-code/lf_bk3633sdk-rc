@@ -272,11 +272,16 @@ void LCD_WR_Bus_16_Part(uint8_t* dat)
 void LCD_WR_REG(uint8_t reg)
 {
 #if (SPI_DRIVER)
+    uart_printf("in LCD_WR_REG\r\n");
     // Send 1-byte command (D/C low).
-    s_lcd_u8 = reg;
+    s_lcd_u8 = reg; 
+    uart_printf("LCD_TX_Begin(LCD_TX_CMD)\r\n");
     LCD_TX_Begin(LCD_TX_CMD);
+    uart_printf("Calling LCD_TX_Write_DMA_Async\r\n");
     LCD_TX_Write_DMA_Async(&s_lcd_u8, 1, NULL);
+    uart_printf("call LCD_TX_End\r\n");
     LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
+    uart_printf("Calling LCD_TX_WaitDone\r\n");
     LCD_TX_WaitDone();
 
     // Keep default state as DATA (matches old behavior).
@@ -2665,12 +2670,15 @@ void OLED_Init(void)
   LCD_DC_Set();
 
   LCD_RES_Set();
+  uart_printf("before delayms:%d\r\n",Get_SysTick_ms());
   delay_ms(200);
+  uart_printf("after delayms:%d\r\n",Get_SysTick_ms());
   LCD_RES_Clr();
   delay_ms(800);
   LCD_RES_Set();
   delay_ms(800);
 
+  uart_printf("now in LCD_WR_REG:0xC0");
   LCD_WR_REG(0xC0);
   LCD_WR_DATA8(0x5A);
   LCD_WR_DATA8(0x5A);
@@ -2679,6 +2687,7 @@ void OLED_Init(void)
   LCD_WR_DATA8(0x5A);
   LCD_WR_REG(0xD0);
   LCD_WR_DATA8(0x10);
+  uart_printf("now in LCD_WR_REG:0xB1");
 
   // B1h 16bit Pixel Format Switch: Last Para:); LCD_WR_DATA8(0x00->GBRG-3553,); LCD_WR_DATA8(0x10->RGB-565;
   LCD_WR_REG(0xB1);
@@ -4856,6 +4865,8 @@ void OLED_Init(void)
   // RAMWR (2Ch): Memory Write Start
   LCD_WR_REG(0x2c);
   LCD_WR_REG(0x2c);
+
+  uart_printf("LCD initialization complete\r\n");
 }
 
 

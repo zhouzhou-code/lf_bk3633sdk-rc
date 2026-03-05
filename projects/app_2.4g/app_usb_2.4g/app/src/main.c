@@ -477,6 +477,10 @@ int main(void)
     uart_printf("init rf_addr_mgr\r\n");
 
     xvr_reg_initial();
+    //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
+    Timer_Handler_Init(); //放在靠前的位置先初始化，其他模块有用到定时器的功能
+    uart_printf("Timer_Handler_Init done\r\n");
+    
     #ifdef __USB_TEST__
     mcu_clk_switch(MCU_CLK_64M);
     #else
@@ -491,16 +495,6 @@ int main(void)
     #if(SPI_DRIVER)
     spi_init(0,0,0);
     uart_printf("init spi\r\n");
-    #endif
-
-    #if(ENABLE_LED_DISPLAY)
-    uart_printf("init lcd display\r\n");
-    OLED_Init(); //初始化
-    uart_printf("init lcd end\r\n");
-    LCD_Fill(0, 0, LCD_W, LCD_H, BLACK); //清屏
-    uart_printf("fill lcd\r\n");
-    LCD_ShowString_Hor(10, 10, "OK!", WHITE, BLACK, 16);  // 测试
-    uart_printf("show string\r\n");
     #endif
 
     #if(ADC_DRIVER)
@@ -524,9 +518,18 @@ int main(void)
     USB_Test();
     AES_Test();
 
-    //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
-    Timer_Handler_Init();
-    uart_printf("Timer_Handler_Init done\r\n");
+     #if(ENABLE_LED_DISPLAY)
+    uart_printf("init lcd display\r\n");
+    OLED_Init(); //初始化
+    uart_printf("init lcd end\r\n");
+    LCD_Fill(0, 0, LCD_W, LCD_H, BLACK); //清屏
+    uart_printf("fill lcd\r\n");
+    LCD_ShowString_Hor(10, 10, "OK!", WHITE, BLACK, 16);  // 测试
+    uart_printf("show string\r\n");
+    #endif
+
+    
+    
 
     /*----------------------------测试按键功能--------------------------------------*/
      const key_config_t my_keys[] = {
