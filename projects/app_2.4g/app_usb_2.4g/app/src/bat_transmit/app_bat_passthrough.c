@@ -48,7 +48,7 @@ void app_bat_passthrough_run(void)
     RF_Handler_Init();
     {
         const key_config_t key_cfg[] = {
-            {KEY_ID_PAIR, Port_Pin(0, 3), 1000, false},
+            {KEY_ID_PAIR, Port_Pin(0, 3), 1000, true},  // 高电平有效
         };
         app_key_init(key_cfg, sizeof(key_cfg) / sizeof(key_cfg[0]));
     }
@@ -69,19 +69,26 @@ void app_bat_passthrough_run(void)
             last_tick_10ms = now;
 
             app_key_scan(10);
-            if (app_key_is_pressed(KEY_ID_PAIR)) {
-                if (!pair_io_pending) {
-                    pair_io_pending = 1;
-                    APP_BAT_LOG("PAIR_IO low\r\n");
+
+            // 只在非配对模式下检测和打印 PAIR_IO 状态变化
+            if (app_mode != APP_MODE_PAIRING) {
+                if (app_key_is_pressed(KEY_ID_PAIR)) {
+                    if (!pair_io_pending) {
+                        pair_io_pending = 1;
+                        APP_BAT_LOG("PAIR_IO high\r\n");  // 高电平触发
+                    }
+                } else {
+                    if (pair_io_pending) {
+                        APP_BAT_LOG("PAIR_IO low\r\n");
+                    }
+                    pair_io_pending = 0;
                 }
-            } else {
-                pair_io_pending = 0;
             }
 
             if (bat_protocol_take_pair_cmd(&cmd_addr)) {
                 pair_cmd_pending = 1;
                 pair_rsp_addr = cmd_addr;
-                APP_BAT_LOG("PAIR_CMD received, addr=0x%02X\r\n", pair_rsp_addr);
+                APP_BAT_LOG("uart received PAIR_CMD, addr=0x%02X\r\n", pair_rsp_addr);
             }
 
             if (app_mode == APP_MODE_PASSTHROUGH &&
@@ -101,18 +108,20 @@ void app_bat_passthrough_run(void)
                 if (pairing_running && pair_flag == 0) {
                     app_bat_pairing_stop(&pair_flag);
                     bat_protocol_send_pair_resp(pair_rsp_addr, 0x00);
-                    APP_BAT_LOG("Pair result=SUCCESS\r\n");
+                    //APP_BAT_LOG("Pair result=SUCCESS\r\n");
                     pairing_running = 0;
                     app_mode = APP_MODE_PASSTHROUGH;
-                    pair_io_pending = 0;
+                    // 退出配对时同步 pair_io_pending 状态，避免误报状态变化
+                    pair_io_pending = app_key_is_pressed(KEY_ID_PAIR) ? 1 : 0;
                     pair_cmd_pending = 0;
                 } else if (pairing_running && (now - pair_start_tick > pair_total_timeout_ms)) {
                     app_bat_pairing_stop(&pair_flag);
                     bat_protocol_send_pair_resp(pair_rsp_addr, 0x01);
-                    APP_BAT_LOG("Pair result=FAIL\r\n");
+                    //APP_BAT_LOG("Pair result=FAIL\r\n");
                     pairing_running = 0;
                     app_mode = APP_MODE_PASSTHROUGH;
-                    pair_io_pending = 0;
+                    // 退出配对时同步 pair_io_pending 状态，避免误报状态变化
+                    pair_io_pending = app_key_is_pressed(KEY_ID_PAIR) ? 1 : 0;
                     pair_cmd_pending = 0;
                 }
             } else if (bat_protocol_take_soc(&soc_pkt)) {
@@ -165,7 +174,7 @@ void app_bat_host_run(void)
     RF_Handler_Init();
     {
         const key_config_t key_cfg[] = {
-            {KEY_ID_PAIR, Port_Pin(0, 3), 1000, false},
+            {KEY_ID_PAIR, Port_Pin(0, 3), 1000, true},  // 高电平有效
         };
         app_key_init(key_cfg, sizeof(key_cfg) / sizeof(key_cfg[0]));
     }
