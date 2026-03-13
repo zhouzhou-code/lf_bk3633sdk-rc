@@ -58,7 +58,8 @@ void app_throttle_update(uint16_t *throttle_value, uint8_t *throttle_changed_fla
     //上次油门值记录
     static uint16_t last_throttle_value = 0;
 
-    uint16_t now_value = hall_sensor_read_throttle(&hall);
+    hall_sensor_update(&hall);
+    uint16_t now_value = hall.data.throttle;
     *throttle_value = now_value;
     // 判断油门是否变化
     if(now_value != last_throttle_value) {

@@ -106,3 +106,20 @@ void debug_print_hex(void *msg, void *dat, int len)
 
     uart_printf("\r\n}\r\n");
 }
+
+// ============================================================================
+// VOFA+ JustFloat协议
+// ============================================================================
+
+static const uint8_t vofa_tail[4] = {0x00, 0x00, 0x80, 0x7f};
+
+/**
+ * @brief 发送VOFA+ JustFloat帧
+ * @param data float数组指针
+ * @param ch_count 通道数量
+ */
+void vofa_senddata(float *data, uint8_t ch_count)
+{
+    uart_send((void *)data, ch_count * sizeof(float));
+    uart_send((void *)vofa_tail, 4);
+}

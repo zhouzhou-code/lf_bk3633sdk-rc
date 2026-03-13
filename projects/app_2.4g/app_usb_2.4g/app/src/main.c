@@ -462,52 +462,56 @@ void hall_test_example(void)
     uint16_t filter_buf[8] = {0};
     
    hall_hw_config_t hw_config = {
-        .adc_channel = 1,
+        .adc_channel = 2,
         .en_ctrl = {
-            .gpio = Port_Pin(1,0),
+            .gpio = Port_Pin(1,2),
             .active_level = 0,
         },
         .power_ctrl = {
             .gpio = Port_Pin(1,0),
-            .active_level = 0,
+            .active_level = 1,
         },
     };
 
     hall_map_config_t map_config = {
         .adc_min = 96,
-        .adc_max = 919,
-        .deadzone_low = 10,
-        .deadzone_high = 10,
+        .adc_max = 912,
+        .deadzone_low = 5,
+        .deadzone_high = 5,
         .throttle_min = 0,
         .throttle_max = 100,
-        .map_type = HALL_MAP_LINEAR,
+        .map_type = HALL_MAP_EXPONENTIAL,
         .reverse = true,
     };
 
-    hall_sensor_init(&hall, &hw_config, &map_config, filter_buf, sizeof(filter_buf));
+    hall_sensor_init(&hall, &hw_config, &map_config, filter_buf, sizeof(filter_buf)/sizeof(uint16_t));
     uart_printf("app_throttle_init done\r\n");
-    uint16_t throttle_value = 0,flag=0;
+    uint16_t throttle_value = 0,flag=0,throttle_value_filter=0;
     delay_ms(100);
-
+    float arg1=0;
     while(1){
         //app_throttle_update(&throttle_value, &flag);
         //throttle_value=hall_sensor_read_throttle(&hall);
-          throttle_value=hall_sensor_read_raw(&hall);
+        //throttle_value=hall_sensor_read_raw(&hall);
+        //throttle_value_filter=hall_filter_update(&hall.filter, throttle_value);
+        // throttle_value_filter=hall_sensor_read_filtered(&hall);
 
-          uart_printf("Throttle Value: %d, Changed: %d\r\n", throttle_value, flag);
-          delay_ms(5);
-        // hall_sensor_disable(&hall);
-        // delay_ms(1000);
-        // hall_sensor_enable(&hall);
-        // delay_ms(1000);
-        //delay_ms(100);
-        // uart_printf(":gpio=%d,level=%d\r\n",hall.hw.power_ctrl.gpio, hall.hw.power_ctrl.active_level);
-        // hall_hw_disable(&(hall.hw));
-        // gpio_set(Port_Pin(1,0), 1);
-        // uart_printf("gpio+set:gpio=%d,level=%d\r\n", Port_Pin(1,0), 1);
+        hall_sensor_update(&hall); 
 
-        // delay_ms(100);
-        // //hall_hw_enable(&hall.hw);
+        // float data[2];
+        // data[0] = arg1++;
+        // data[1] = arg1++;
+        // vofa_senddata(data, 2);
+
+        float data[3];
+        data[0] = hall.data.raw;
+        data[1] = hall.data.filtered;
+        data[2] = hall.data.throttle;
+        vofa_senddata(data, 3);
+
+        //uart_printf("Throttle: %d, Throttle filtered: %d\r\n", throttle_value, throttle_value_filter);
+        delay_ms(5);
+
     }
     
     
@@ -526,8 +530,8 @@ int main(void)
         #if(!USB_DRIVER)
         #endif
 
-        uart2_init(115200);
-        uart_init(115200);
+        uart2_init(1000000);
+        uart_init(1000000);
     #endif
     uart_printf("init uarts\r\n");
 
@@ -607,7 +611,7 @@ int main(void)
     RC_Scheduler_Init(&sched);
     RC_Scheduler_Task(&sched);
     /*----------------------------测试按键功能--------------------------------------*/
-     const key_config_t my_keys[] = {
+    const key_config_t my_keys[] = {
         {KEY_ID_LEFT,   Port_Pin(0, 2), 2000, false}, // Left Key: 3s Long Press
         {KEY_ID_RIGHT,  Port_Pin(3, 1), 1000, false}, // Right Key: Default 1s
     };

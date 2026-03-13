@@ -34,7 +34,7 @@ void hall_hw_init(const hall_hw_config_t *config)
     gpio_config(config->power_ctrl.gpio, GPIO_OUTPUT, GPIO_PULL_NONE);
 
     // 初始状态：使能、上电
-    //gpio_set(config->en_ctrl.gpio, config->en_ctrl.active_level);      // 使能（有效电平）
+    gpio_set(config->en_ctrl.gpio, config->en_ctrl.active_level);      // 使能（有效电平）
     gpio_set(config->power_ctrl.gpio, config->power_ctrl.active_level); // 上电（有效电平）
 
     // 初始化ADC
@@ -43,15 +43,15 @@ void hall_hw_init(const hall_hw_config_t *config)
 
 void hall_hw_enable(const hall_hw_config_t *config)
 {
-    //gpio_set(config->en_ctrl.gpio, config->en_ctrl.active_level);  // 使能（有效电平）
-    gpio_set(config->power_ctrl.gpio, config->power_ctrl.active_level);
+    gpio_set(config->en_ctrl.gpio, config->en_ctrl.active_level);  // 使能（有效电平）
+    //gpio_set(config->power_ctrl.gpio, config->power_ctrl.active_level);
     delay_us(5);
 }
 
 void hall_hw_disable(const hall_hw_config_t *config)
 {
-    //gpio_set(config->en_ctrl.gpio, !config->en_ctrl.active_level);  // 失能（非有效电平）
-    gpio_set(config->power_ctrl.gpio, !config->power_ctrl.active_level);
+    gpio_set(config->en_ctrl.gpio, !config->en_ctrl.active_level);  // 失能（非有效电平）
+    //gpio_set(config->power_ctrl.gpio, !config->power_ctrl.active_level);
     //uart_printf("hall_hw_disable:gpio=%d,level=%d\r\n", config->power_ctrl.gpio, !config->power_ctrl.active_level);
     delay_us(5);
 }
@@ -338,27 +338,13 @@ void hall_sensor_config_map(hall_sensor_t *sensor, const hall_map_config_t *map)
     sensor->map = *map;
 }
 
-uint16_t hall_sensor_read_raw(hall_sensor_t *sensor)
+void hall_sensor_update(hall_sensor_t *sensor)
 {
-    if (!sensor->enabled) return 0;
+    if (!sensor->enabled) return;
 
-    return hall_hw_read_adc(&sensor->hw);
-}
-
-uint16_t hall_sensor_read_filtered(hall_sensor_t *sensor)
-{
-    if (!sensor->enabled) return 0;
-
-    uint16_t raw = hall_sensor_read_raw(sensor);
-    return hall_filter_update(&sensor->filter, raw);
-}
-
-uint16_t hall_sensor_read_throttle(hall_sensor_t *sensor)
-{
-    if (!sensor->enabled) return 0;
-
-    uint16_t filtered = hall_sensor_read_filtered(sensor);
-    return hall_map_adc_to_throttle(&sensor->map, filtered);
+    sensor->data.raw      = hall_hw_read_adc(&sensor->hw);
+    sensor->data.filtered = hall_filter_update(&sensor->filter, sensor->data.raw);
+    sensor->data.throttle = hall_map_adc_to_throttle(&sensor->map, sensor->data.filtered);
 }
 
 void hall_sensor_reset(hall_sensor_t *sensor)

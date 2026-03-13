@@ -73,6 +73,13 @@ typedef struct {
     hall_filter_t     filter;   // 滤波器
     hall_map_config_t map;      // 映射配置
     bool              enabled;  // 已使能标志位
+    // 采样数据（调用hall_sensor_update后更新）
+    struct data{
+        uint16_t      raw;      // 原始ADC值
+        uint16_t      filtered; // 滤波后ADC值
+        uint16_t      throttle; // 映射后油门值
+    } data;
+    
 } hall_sensor_t;
 
 // ============================================================================
@@ -158,25 +165,11 @@ void hall_sensor_init(hall_sensor_t *sensor,
 void hall_sensor_config_map(hall_sensor_t *sensor, const hall_map_config_t *map);
 
 /**
- * @brief 读取原始ADC值
+ * @brief 采样一次，更新 raw / filtered / throttle 三个成员
  * @param sensor 传感器对象指针
- * @return 原始ADC值
+ * @note 调用后通过 sensor->raw / sensor->filtered / sensor->throttle 访问数据
  */
-uint16_t hall_sensor_read_raw(hall_sensor_t *sensor);
-
-/**
- * @brief 读取滤波后的ADC值
- * @param sensor 传感器对象指针
- * @return 滤波后的ADC值
- */
-uint16_t hall_sensor_read_filtered(hall_sensor_t *sensor);
-
-/**
- * @brief 读取油门值（经过滤波和映射）
- * @param sensor 传感器对象指针
- * @return 油门值（0-throttle_max）
- */
-uint16_t hall_sensor_read_throttle(hall_sensor_t *sensor);
+void hall_sensor_update(hall_sensor_t *sensor);
 
 /**
  * @brief 重置传感器（清空滤波器）
