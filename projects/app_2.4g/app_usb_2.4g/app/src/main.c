@@ -596,7 +596,7 @@ int main(void)
     uart_printf("show string\r\n");
     #endif
 
-    hall_test_example();
+    //hall_test_example();
 
     // hall_init();
     // while(1){

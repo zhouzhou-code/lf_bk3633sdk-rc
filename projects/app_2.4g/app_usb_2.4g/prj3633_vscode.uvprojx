@@ -513,6 +513,16 @@
               <FileType>5</FileType>
               <FilePath>.\app\src\remote_control\app\app_throttle.h</FilePath>
             </File>
+            <File>
+              <FileName>rc_protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\app\rc_protocol.c</FilePath>
+            </File>
+            <File>
+              <FileName>rc_protocol.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\app\rc_protocol.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
