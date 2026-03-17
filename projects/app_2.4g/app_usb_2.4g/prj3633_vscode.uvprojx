@@ -523,6 +523,11 @@
               <FileType>5</FileType>
               <FilePath>.\app\src\remote_control\app\rc_protocol.h</FilePath>
             </File>
+            <File>
+              <FileName>test_slave.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\app\test_slave.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

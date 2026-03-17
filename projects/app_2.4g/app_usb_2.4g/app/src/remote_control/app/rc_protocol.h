@@ -98,6 +98,28 @@ int8_t proto_parse_status(const uint8_t *buf, uint8_t len,
 /* CRC16-CCITT (poly=0x1021, init=0xFFFF) */
 uint16_t proto_crc16(const uint8_t *data, uint8_t len);
 
+/* ======================== 从机侧接口 ======================== */
+
+/*
+ * 解析遥控下行控制帧 (从机使用)
+ * @param buf     接收帧数据
+ * @param len     帧长度
+ * @param seq     [out] 遥控发送的seq
+ * @param ctrl    [out] 控制数据
+ * @return        0=成功, -1=校验失败
+ */
+int8_t proto_parse_ctrl(const uint8_t *buf, uint8_t len,
+                        uint8_t *seq, rc_ctrl_t *ctrl);
+
+/*
+ * 打包上行状态帧 (从机装入ACK payload)
+ * @param buf     输出缓冲区
+ * @param ack_seq 确认的seq (收到的遥控seq)
+ * @param status  状态数据
+ * @return        帧总字节数
+ */
+uint8_t proto_pack_status(uint8_t *buf, uint8_t ack_seq, const mc_status_t *status);
+
 /* ======================== 发送确认跟踪 ======================== */
 
 /*

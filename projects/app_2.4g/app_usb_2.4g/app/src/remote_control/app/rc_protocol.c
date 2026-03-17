@@ -93,7 +93,52 @@ int8_t proto_parse_status(const uint8_t *buf, uint8_t len,
     return 0;
 }
 
-/* ======================== 发送确认跟踪 ======================== */
+/* ======================== 从机侧接口 ======================== */
+
+/* 解析遥控下行控制帧 (从机使用) */
+int8_t proto_parse_ctrl(const uint8_t *buf, uint8_t len,
+                        uint8_t *seq, rc_ctrl_t *ctrl)
+{
+    uint8_t plen = sizeof(rc_ctrl_t);
+    uint8_t expect = 2 + 1 + 1 + 1 + plen + 2 + 1;
+
+    if (len < expect)                                       return -1;
+    if (buf[0] != PROTO_HEAD_0 || buf[1] != PROTO_HEAD_1)  return -1;
+    if (buf[3] != CMD_RC_CTRL)                              return -1;
+    if (buf[2] != plen)                                     return -1;
+    if (buf[expect - 1] != PROTO_TAIL)                      return -1;
+
+    uint16_t crc_calc = proto_crc16(&buf[2], 1 + 1 + 1 + plen);
+    uint16_t crc_recv = buf[5 + plen] | ((uint16_t)buf[5 + plen + 1] << 8);
+    if (crc_calc != crc_recv)                               return -1;
+
+    *seq = buf[4];
+    memcpy(ctrl, &buf[5], plen);
+    return 0;
+}
+
+/* 打包上行状态帧 (从机装入ACK payload) */
+uint8_t proto_pack_status(uint8_t *buf, uint8_t ack_seq, const mc_status_t *status)
+{
+    uint8_t idx = 0;
+    uint8_t plen = sizeof(mc_status_t);
+
+    buf[idx++] = PROTO_HEAD_0;
+    buf[idx++] = PROTO_HEAD_1;
+    buf[idx++] = plen;
+    buf[idx++] = CMD_MC_STATUS;
+    buf[idx++] = ack_seq;
+
+    memcpy(&buf[idx], status, plen);
+    idx += plen;
+
+    uint16_t crc = proto_crc16(&buf[2], 1 + 1 + 1 + plen);
+    buf[idx++] = (uint8_t)(crc & 0xFF);
+    buf[idx++] = (uint8_t)(crc >> 8);
+
+    buf[idx++] = PROTO_TAIL;
+    return idx;
+}
 
 void tracker_init(proto_tracker_t *t)
 {

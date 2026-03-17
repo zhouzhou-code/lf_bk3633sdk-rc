@@ -3,10 +3,10 @@
  * @file rc_scheduler.c
  * @brief Remote Control Task Scheduler
  *
- * 调度流程:
- *   50ms油门更新 → 检测变化 → 打包控制帧 → 入RF发送队列
- *   20ms RF服务  → 发送队列中的帧 → 收到ACK → 解析电控状态
- *   收到ACK后更新tracker，确认油门送达则停止重发
+ * 职责划分:
+ *   1. 调度层: 管理各任务时序
+ *   2. 通信层: RF收发/协议打包解析/seq跟踪
+ *   3. 控制层: 油门/按键/档位逻辑
  *
  ****************************************************************************************
  */
@@ -19,51 +19,91 @@
 #include "rf_handler.h"
 #include "timer_handler.h"
 #include "user_config.h"
+#include "debug.h"
 #include <string.h>
+#include "hal_drv_rf.h"
 
-/* RF活动后的保护窗口(ms)，等待发送完成+接收ACK */
-#define RF_GUARD_WINDOW_MS  8
+extern RF_HandleTypeDef hrf;
 
-/* ======================== 内部函数 ======================== */
+/* RF发送后的保护窗口(ms) */
+#define RF_GUARD_WINDOW_MS  2
 
-/*
- * 打包控制帧并入RF发送队列
- * 每次调用seq自增，油门变化时标记pending
+/* ======================== 通信层(static) ======================== */
+
+static uint8_t         s_esc_addr[5];       /* 电控地址 */
+static rc_ctrl_t       s_ctrl;              /* 当前控制数据 */
+static proto_tracker_t s_tracker;           /* seq跟踪器 */
+static mc_status_t     s_mc_status;         /* 电控状态 */
+static uint8_t         s_mc_online;         /* 电控在线标志 */
+
+/**
+ * @brief 打包并发送控制帧
  */
-static void send_ctrl_frame(RC_Scheduler_t *sched)
+static void comm_send_ctrl_frame(void)
 {
     uint8_t tx_buf[32];
-    uint8_t seq = tracker_next_seq(&sched->tracker);
-    uint8_t len = proto_pack_ctrl(tx_buf, seq, &sched->ctrl);
+    uint8_t seq = tracker_next_seq(&s_tracker);
+    uint8_t len = proto_pack_ctrl(tx_buf, seq, &s_ctrl);
 
-    RF_txQueue_Send(sched->esc_addr, tx_buf, len);
+    RF_Send(s_esc_addr, tx_buf, len);
 }
 
-/*
- * 处理RF接收队列: 解析电控ACK payload
- * 成功解析后更新mc_status和tracker确认状态
+/**
+ * @brief 处理接收队列，解析ACK payload
  */
-static void process_rx_queue(RC_Scheduler_t *sched)
+static void comm_process_rx(void)
 {
     const uint8_t *rx_data;
     uint8_t rx_len, pipes;
 
     while (RF_rxQueue_Recv(&rx_data, &rx_len, &pipes)) {
-        uint8_t ack_seq;
-        mc_status_t status;
+        if (rx_len < 4) continue;
 
-        if (proto_parse_status(rx_data, rx_len, &ack_seq, &status) == 0) {
-            /* 解析成功: 更新电控状态 */
-            sched->mc_status = status;
-            sched->mc_online = 1;
+        uint8_t cmd = rx_data[3];
 
-            /* 更新确认跟踪 */
-            tracker_on_ack(&sched->tracker, ack_seq);
+        switch (cmd) {
+        case CMD_MC_STATUS: {
+            uint8_t ack_seq;
+            mc_status_t status;
+            if (proto_parse_status(rx_data, rx_len, &ack_seq, &status) == 0) {
+                s_mc_status = status;
+                s_mc_online = 1;
+                tracker_on_ack(&s_tracker, ack_seq);
+            }
+            break;
+        }
+        default:
+            break;
         }
     }
 }
 
-/* ======================== 公开接口 ======================== */
+/* ======================== 控制层 ======================== */
+
+/**
+ * @brief 更新控制数据并判断是否需要发送
+ * @note 油门死区判断已在app_throttle内部完成
+ */
+static void control_update_and_send(void)
+{
+    /* 更新油门值 */
+    uint8_t throttle_val, throttle_changed;
+    app_throttle_update(&throttle_val, &throttle_changed);
+    s_ctrl.throttle = throttle_val;
+
+    /* 油门变化 → 标记pending */
+    if (throttle_changed) {
+        tracker_mark_pending(&s_tracker);
+        uart_printf("Throttle changed:%d\r\n", throttle_val);
+    }
+
+    /* pending期间持续发送，直到收到ACK确认 */
+    if (tracker_is_pending(&s_tracker)) {
+        comm_send_ctrl_frame();
+    }
+}
+
+/* ======================== 调度层 ======================== */
 
 void RC_Scheduler_Init(RC_Scheduler_t *sched)
 {
@@ -72,17 +112,18 @@ void RC_Scheduler_Init(RC_Scheduler_t *sched)
     /* 锁定电源 */
     app_board_power_on();
 
-    /* 初始化各模块 */
+    /* 初始化硬件 */
+    RF_Handler_Init();
     app_throttle_init();
     app_key_init();
 
-    /* 初始化协议跟踪器 */
-    tracker_init(&sched->tracker);
-
-    /* 默认控制数据 */
-    sched->ctrl.gear = 1;
-    sched->ctrl.mode = MODE_ASSIST;
-    sched->ctrl.throttle = 0;
+    /* 初始化通信层 */
+    tracker_init(&s_tracker);
+    HAL_RF_GetRxAddress(&hrf, 0, s_esc_addr);
+    s_ctrl.gear = 1;
+    s_ctrl.mode = MODE_ASSIST;
+    s_ctrl.throttle = 0;
+    s_mc_online = 0;
 
     sched->initialized = 1;
     uart_printf("RC_Scheduler_Init done\r\n");
@@ -93,9 +134,10 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
     if (!sched->initialized) return;
 
     uart_printf("enter RC_Scheduler_Task\r\n");
+    debug_print_rf_registers();
 
-    uint32_t ts[8] = {0};              /* 各任务时间戳 */
-    uint32_t rf_guard_deadline = 0;    /* RF保护窗口截止时间 */
+    uint32_t ts[8] = {0};
+    uint32_t rf_guard_deadline = 0;
 
     while (1) {
         uint32_t now = Get_SysTick_ms();
@@ -106,44 +148,23 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
             app_key_scan();
         }
 
-        /* ========== 20ms: RF服务 + 解析ACK ========== */
+        /* ========== 20ms: 通信层处理RX队列 ========== */
         if (now - ts[1] >= 20) {
             ts[1] = now;
-
-            /* 先处理接收队列(上一轮的ACK) */
-            process_rx_queue(sched);
-
-            /* RF收发服务 */
-            RF_Service_Handler(&hrf);
+            comm_process_rx();
         }
 
-        /* ========== 50ms: 油门更新 + 发送控制帧 ========== */
+        /* ========== 50ms: 控制层更新 + 通信层发送 ========== */
         if (now - ts[2] >= 50) {
             ts[2] = now;
-
-            uint16_t throttle_val;
-            uint8_t  changed;
-            app_throttle_update(&throttle_val, &changed);
-
-            sched->ctrl.throttle = (uint8_t)throttle_val;
-
-            if (changed) {
-                sched->throttle_changed = 1;
-                tracker_mark_pending(&sched->tracker);
-            }
-
-            /*
-             * 发送条件:
-             *   1. 油门待确认(pending) → 必须持续发送直到ACK确认
-             *   2. 正常周期发送 → 即使油门没变也定期发(保持链路)
-             */
-            send_ctrl_frame(sched);
+            control_update_and_send();
+            rf_guard_deadline = now + RF_GUARD_WINDOW_MS;
         }
 
         /* ========== 100ms: LCD刷新 ========== */
         if (now - ts[3] >= 100) {
             ts[3] = now;
-            /* TODO: app_lcd_refresh(&sched->mc_status); */
+            /* TODO: app_lcd_refresh(&s_mc_status); */
         }
 
         /* ========== 200ms: 关机检测 ========== */
@@ -166,20 +187,11 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
         }
 
         /* ========== 睡眠判断 ========== */
-        /*
-         * 条件: RF保护窗口已过（发送完成 + 等待ACK的时间）
-         * 窗口内继续处理接收队列
-         */
-        if (now >= rf_guard_deadline) {
-            app_enter_sleep_with_wakeup_by_timer(20, 1);
-        } else {
-            process_rx_queue(sched);
-        }
+        delay_ms(2);
+        app_enter_sleep_with_wakeup_by_timer(20, 1);
     }
 }
 
 void RC_Scheduler_SetESCAddr(RC_Scheduler_t *sched, uint8_t *addr)
 {
-    memcpy(sched->esc_addr, addr, 5);
 }
-

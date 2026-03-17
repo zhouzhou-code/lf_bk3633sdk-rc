@@ -670,7 +670,7 @@ HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
 void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
 {
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
-         RF_LOG("in RX_DR\r\n");
+        RF_LOG("in RX_DR\r\n");
         /* 读取数据到hrf队列 */
         
         //fifo是三层结构，每一层32字节，一次读一层，三层 都没数据则fifo为空
@@ -695,7 +695,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
 
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS_MASK)){
-         RF_LOG("in TX_DS\r\n");
+        RF_LOG("in TX_DS\r\n");
         hrf->TxState = TX_Tramsmit_SUCCESS;
 
         if(hrf->Params.IRQ.TxDS.user_cb != NULL){
@@ -707,7 +707,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
 
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
-         RF_LOG("in MAX_RT\r\n");
+        //RF_LOG("in MAX_RT\r\n");
         hrf->TxState = TX_Tramsmit_FAIL;
         if(hrf->Params.IRQ.MaxRT.user_cb != NULL){
             hrf->Params.IRQ.MaxRT.user_cb(hrf);

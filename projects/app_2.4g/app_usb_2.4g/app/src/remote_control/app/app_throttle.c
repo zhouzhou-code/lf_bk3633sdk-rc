@@ -14,21 +14,22 @@
 hall_sensor_t hall;
 static uint16_t filter_buf[8];
 
-// 当前油门值
+// 油门发送死区
+#define THROTTLE_SEND_DEADZONE  5
 
 /**
  * @brief 油门模块初始化
  */
 void app_throttle_init(void) {
     hall_hw_config_t hw_config = {
-        .adc_channel = 1,
+        .adc_channel = 2,
         .en_ctrl = {
-            .gpio = HALL_PWR_EN,
+            .gpio = Port_Pin(1,2),
             .active_level = 0,
         },
         .power_ctrl = {
-            .gpio = HALL_PWR_EN,
-            .active_level = 0,
+            .gpio = Port_Pin(1,0),
+            .active_level = 1,
         },
     };
 
@@ -52,22 +53,24 @@ void app_throttle_init(void) {
  * @brief 油门值更新
  * @param throttle_value 输出参数: 指向油门值的指针
  * @param throttle_changed_flag 输出参数: 指向油门变化标志的指针
+ * @note 变化判断: 比较当前值和上次发送值，超过THROTTLE_SEND_DEADZONE才标记为变化
+ *       这样可以避免油门慢慢变化时（每次变化小于死区）导致的漏发问题
  */
-void app_throttle_update(uint16_t *throttle_value, uint8_t *throttle_changed_flag) {
+void app_throttle_update(uint8_t *throttle_value, uint8_t *throttle_changed_flag) {
 
-    //上次油门值记录
-    static uint16_t last_throttle_value = 0;
+    // 上次发送的油门值（用于死区判断）
+    static uint16_t last_sent_throttle = 0;
 
     hall_sensor_update(&hall);
     uint16_t now_value = hall.data.throttle;
     *throttle_value = now_value;
-    // 判断油门是否变化
-    if(now_value != last_throttle_value) {
+
+    // 判断油门是否需要发送: 比较当前值和上次发送值
+    int diff = abs((int)now_value - (int)last_sent_throttle);
+    if (diff >= THROTTLE_SEND_DEADZONE) {
         *throttle_changed_flag = 1;
+        last_sent_throttle = now_value;  // 记录本次发送值
     } else {
         *throttle_changed_flag = 0;
     }
-    //更新上次油门值
-    last_throttle_value = now_value;
-    
 }

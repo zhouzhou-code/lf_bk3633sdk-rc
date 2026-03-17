@@ -23,6 +23,7 @@ volatile uint32_t rf_int_count_maxrt = 0;
 //接收中断回调函数,数据push到接收队列
 void rxdr_callback(RF_HandleTypeDef *hrf)
 {
+    uart_printf("rxdr!");
     if(hrf->RxBuff_valid == 1) {
         hrf->RxBuff_valid = 0;
 
@@ -42,10 +43,10 @@ void txds_callback(RF_HandleTypeDef *hrf)
     rf_int_count_txds++;
 
     // 发送完成后恢复Pipe0地址
-    rf_addr_mgr_restore_pipe0_addr();
+    // rf_addr_mgr_restore_pipe0_addr();
 
-    // 切换到RX模式
-    HAL_RF_SetRxMode(hrf);
+    // // 切换到RX模式
+    // HAL_RF_SetRxMode(hrf);
 }
 
 //达到最大重传中断回调函数
@@ -54,10 +55,10 @@ void maxrt_callback(RF_HandleTypeDef *hrf)
     rf_int_count_maxrt++;
 
     // 发送失败后也要恢复Pipe0地址
-    rf_addr_mgr_restore_pipe0_addr();
+    // rf_addr_mgr_restore_pipe0_addr();
 
-    // 切换到RX模式
-    HAL_RF_SetRxMode(hrf);
+    // // 切换到RX模式
+    // HAL_RF_SetRxMode(hrf);
 }
 
 //初始化默认参数配置结构体
@@ -159,7 +160,7 @@ void RF_Handler_Init(void)
 
     // 强制应用 rf_addr_mgr 的地址配置
     // 这将覆盖 Init_default_S 中的硬编码地址
-    rf_addr_mgr_apply_to_hardware();
+    //rf_addr_mgr_apply_to_hardware();
 
     /* 默认初始化为发送模式 */
     HAL_RF_SetTxMode(&hrf);
@@ -277,4 +278,32 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
             HAL_RF_SetRxMode(hrf);
         }
     }
+}
+
+
+/**
+ * @brief  直接发送数据(不经过队列)，用于ACK payload模式下的单帧发送
+ * @param  dest_addr: 目标地址指针,5字节
+ * @param  data: 要发送的数据
+ * @param  len: 数据长度
+ * @return HAL_OK=成功, 其他=失败(BUSY等)
+ */
+int8_t RF_Send(uint8_t *dest_addr, const uint8_t *data, uint8_t len)
+{
+    if(len > max_rf_payload_len) {
+        len = max_rf_payload_len; //限制最大长度
+    }
+
+    // 确保TX模式
+    if(__HAL_RF_Get_TRxMode_Bit() == 1) {
+        HAL_RF_SetTxMode(&hrf);
+    }
+
+    // 使用 rf_addr_mgr 接口设置目标地址，自动备份Pipe0
+    //rf_addr_mgr_backup_and_set_tx_addr(dest_addr);
+    HAL_RF_SetTxAddress(&hrf, dest_addr, 5);
+    HAL_RF_SetRxAddress(&hrf, 0, dest_addr, 5);
+
+    // 直接发送，不经过队列
+    return HAL_RF_Transmit_IT(&hrf, (uint8_t*)data, len);
 }

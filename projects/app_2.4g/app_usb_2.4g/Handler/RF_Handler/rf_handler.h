@@ -47,5 +47,6 @@ void RF_txQueue_Clear(void);
 uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pipes);
 uint8_t RF_rxQueue_clear(void);
 void RF_Service_Handler(RF_HandleTypeDef *hrf);
+int8_t RF_Send(uint8_t *dest_addr, const uint8_t *data, uint8_t len);
 
 #endif /* __RF_HANDLER_H */
