@@ -26,12 +26,12 @@
 extern RF_HandleTypeDef hrf;
 
 /* RF发送后的保护窗口(ms) */
-#define RF_GUARD_WINDOW_MS  2
+#define RF_GUARD_WINDOW_MS  1
 
 /* ======================== 通信层(static) ======================== */
 
 static uint8_t         s_esc_addr[5];       /* 电控地址 */
-static rc_ctrl_t       s_ctrl;              /* 当前控制数据 */
+static rc_ctrl_t       s_ctrl;              /* 当前下发数据 */
 static proto_tracker_t s_tracker;           /* seq跟踪器 */
 static mc_status_t     s_mc_status;         /* 电控状态 */
 static uint8_t         s_mc_online;         /* 电控在线标志 */
@@ -67,6 +67,7 @@ static void comm_process_rx(void)
             mc_status_t status;
             if (proto_parse_status(rx_data, rx_len, &ack_seq, &status) == 0) {
                 s_mc_status = status;
+                uart_printf("speed: %d meter=%d\r\n", s_mc_status.speed, s_mc_status.mileage);
                 s_mc_online = 1;
                 tracker_on_ack(&s_tracker, ack_seq);
             }
@@ -78,7 +79,7 @@ static void comm_process_rx(void)
     }
 }
 
-/* ======================== 控制层 ======================== */
+/* ========================控制层======================== */
 
 /**
  * @brief 更新控制数据并判断是否需要发送
@@ -154,11 +155,20 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
             comm_process_rx();
         }
 
-        /* ========== 50ms: 控制层更新 + 通信层发送 ========== */
+        /* ========== 50ms: 油门更新+RF发送 ========== */
         if (now - ts[2] >= 50) {
             ts[2] = now;
+            static uint8_t hb_cnt;
+            hb_cnt++;
+
+            /* 每次都更新油门数据 */
             control_update_and_send();
-            rf_guard_deadline = now + RF_GUARD_WINDOW_MS;
+            /* 500ms心跳: 无论油门是否变化，强制发一帧 */
+            if (hb_cnt >= 10) {
+                hb_cnt = 0;
+                comm_send_ctrl_frame();  // 心跳=强制发当前业务数据
+            }
+
         }
 
         /* ========== 100ms: LCD刷新 ========== */
@@ -171,13 +181,6 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
         if (now - ts[4] >= 200) {
             ts[4] = now;
             app_board_shutdown(sched->shutdown_flag);
-        }
-
-        /* ========== 500ms: 心跳/链路检测 ========== */
-        if (now - ts[5] >= 500) {
-            ts[5] = now;
-            /* TODO: app_heartbeat_send(); */
-            /* TODO: app_check_link(); */
         }
 
         /* ========== 700ms: 电池状态查询 ========== */

@@ -15,7 +15,7 @@ hall_sensor_t hall;
 static uint16_t filter_buf[8];
 
 // 油门发送死区
-#define THROTTLE_SEND_DEADZONE  5
+#define THROTTLE_SEND_DEADZONE  3
 
 /**
  * @brief 油门模块初始化

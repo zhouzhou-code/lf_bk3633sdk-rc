@@ -490,18 +490,8 @@ void hall_test_example(void)
     delay_ms(100);
     float arg1=0;
     while(1){
-        //app_throttle_update(&throttle_value, &flag);
-        //throttle_value=hall_sensor_read_throttle(&hall);
-        //throttle_value=hall_sensor_read_raw(&hall);
-        //throttle_value_filter=hall_filter_update(&hall.filter, throttle_value);
-        // throttle_value_filter=hall_sensor_read_filtered(&hall);
 
         hall_sensor_update(&hall); 
-
-        // float data[2];
-        // data[0] = arg1++;
-        // data[1] = arg1++;
-        // vofa_senddata(data, 2);
 
         float data[3];
         data[0] = hall.data.raw;
@@ -522,7 +512,6 @@ int main(void)
 {
     
     icu_init(); //不能用串口打印，还没初始化
-
     //wdt_disable();
     intc_init(); //不能用串口打印，还没初始化！
     
