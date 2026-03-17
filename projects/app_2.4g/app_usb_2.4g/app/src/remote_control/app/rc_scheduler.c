@@ -17,6 +17,8 @@
 #include "app_key.h"
 #include "app_throttle.h"
 #include "rf_handler.h"
+#include "rf_pair.h"
+#include "rf_config.h"
 #include "timer_handler.h"
 #include "user_config.h"
 #include "debug.h"
@@ -35,6 +37,7 @@ static rc_ctrl_t       s_ctrl;              /* 当前下发数据 */
 static proto_tracker_t s_tracker;           /* seq跟踪器 */
 static mc_status_t     s_mc_status;         /* 电控状态 */
 static uint8_t         s_mc_online;         /* 电控在线标志 */
+static uint8_t         s_pair_flag;         /* 配对标志 */
 
 /**
  * @brief 打包并发送控制帧
@@ -43,7 +46,7 @@ static void comm_send_ctrl_frame(void)
 {
     uint8_t tx_buf[32];
     uint8_t seq = tracker_next_seq(&s_tracker);
-    uint8_t len = proto_pack_ctrl(tx_buf, seq, &s_ctrl);
+    uint8_t len = proto_pack_ctrl(tx_buf, DEV_REMOTE, DEV_ESC, seq, &s_ctrl);
 
     RF_Send(s_esc_addr, tx_buf, len);
 }
@@ -57,15 +60,17 @@ static void comm_process_rx(void)
     uint8_t rx_len, pipes;
 
     while (RF_rxQueue_Recv(&rx_data, &rx_len, &pipes)) {
-        if (rx_len < 4) continue;
+        if (rx_len < 6) continue;
 
-        uint8_t cmd = rx_data[3];
+        uint8_t cmd = rx_data[5];
 
         switch (cmd) {
         case CMD_MC_STATUS: {
-            uint8_t ack_seq;
+            uint8_t src_dev, dst_dev, ack_seq;
             mc_status_t status;
-            if (proto_parse_status(rx_data, rx_len, &ack_seq, &status) == 0) {
+            if (proto_parse_status(rx_data, rx_len, &src_dev, &dst_dev, &ack_seq, &status) == 0) {
+                /* 校验设备类型 */
+                if (dst_dev != DEV_REMOTE) break;
                 s_mc_status = status;
                 uart_printf("speed: %d meter=%d\r\n", s_mc_status.speed, s_mc_status.mileage);
                 s_mc_online = 1;
@@ -113,6 +118,9 @@ void RC_Scheduler_Init(RC_Scheduler_t *sched)
     /* 锁定电源 */
     app_board_power_on();
 
+    /* 从Flash读取RF配置 */
+    rf_config_load_from_flash();
+
     /* 初始化硬件 */
     RF_Handler_Init();
     app_throttle_init();
@@ -120,11 +128,23 @@ void RC_Scheduler_Init(RC_Scheduler_t *sched)
 
     /* 初始化通信层 */
     tracker_init(&s_tracker);
-    HAL_RF_GetRxAddress(&hrf, 0, s_esc_addr);
     s_ctrl.gear = 1;
     s_ctrl.mode = MODE_ASSIST;
     s_ctrl.throttle = 0;
     s_mc_online = 0;
+    s_pair_flag = 0;
+
+    /* 从Flash加载电控地址，如果已配对则应用 */
+    if (rf_config_read_device_addr(DEV_TYPE_ESC, s_esc_addr)) {
+        HAL_RF_SetTxAddress(&hrf, s_esc_addr, 5);
+        HAL_RF_SetRxAddress(&hrf, 0, s_esc_addr, 5);
+        uart_printf("ESC addr loaded: %02X %02X %02X %02X %02X\r\n",
+                    s_esc_addr[0], s_esc_addr[1], s_esc_addr[2], s_esc_addr[3], s_esc_addr[4]);
+    } else {
+        /* 未配对，使用默认地址 */
+        HAL_RF_GetRxAddress(&hrf, 0, s_esc_addr);
+        uart_printf("ESC not paired, using default addr\r\n");
+    }
 
     sched->initialized = 1;
     uart_printf("RC_Scheduler_Init done\r\n");
@@ -139,6 +159,7 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
 
     uint32_t ts[8] = {0};
     uint32_t rf_guard_deadline = 0;
+    static uint8_t sleep_flag;
 
     while (1) {
         uint32_t now = Get_SysTick_ms();
@@ -147,30 +168,61 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
         if (now - ts[0] >= 10) {
             ts[0] = now;
             app_key_scan();
+
+            /* 检测配对触发 */
+            if (app_key_get_pair_flag()) {
+                app_key_clear_pair_flag();
+                s_pair_flag = 1;
+                uart_printf("Pairing triggered by key\r\n");
+            }
         }
 
-        /* ========== 20ms: 通信层处理RX队列 ========== */
-        if (now - ts[1] >= 20) {
-            ts[1] = now;
-            comm_process_rx();
-        }
+        /* ========== 配对模式 ========== */
+        if (s_pair_flag) {
+            Host_Pairing_Task(&s_pair_flag);
 
-        /* ========== 50ms: 油门更新+RF发送 ========== */
-        if (now - ts[2] >= 50) {
-            ts[2] = now;
-            static uint8_t hb_cnt;
-            hb_cnt++;
+            /* 配对结束（无论成功失败），重新从Flash加载并初始化 */
+            if (!s_pair_flag) {
+                rf_config_load_from_flash();
+                RF_Handler_Init_ToNormal();
+                tracker_init(&s_tracker);
 
-            /* 每次都更新油门数据 */
-            control_update_and_send();
-            /* 500ms心跳: 无论油门是否变化，强制发一帧 */
-            if (hb_cnt >= 10) {
-                hb_cnt = 0;
-                comm_send_ctrl_frame();  // 心跳=强制发当前业务数据
+                /* 重新加载电控地址 */
+                if (rf_config_read_device_addr(DEV_TYPE_ESC, s_esc_addr)) {
+                    HAL_RF_SetTxAddress(&hrf, s_esc_addr, 5);
+                    HAL_RF_SetRxAddress(&hrf, 0, s_esc_addr, 5);
+                    uart_printf("ESC addr: %02X %02X %02X %02X %02X\r\n",
+                                s_esc_addr[0], s_esc_addr[1], s_esc_addr[2], s_esc_addr[3], s_esc_addr[4]);
+                } else {
+                    HAL_RF_GetRxAddress(&hrf, 0, s_esc_addr);
+                    uart_printf("ESC not paired, using default addr\r\n");
+                }
+            }
+            /* 配对期间跳过RF业务逻辑 */
+            delay_ms(10);
+        }else{
+
+            /* ========== 50ms: 油门更新+RF发送+处理ACK ========== */
+            if (now - ts[2] >= 50) {
+                ts[2] = now;
+                static uint8_t hb_cnt;
+                hb_cnt++;
+
+                /* 更新油门数据,并判断是否发送 */
+                control_update_and_send();
+                /* 500ms心跳: 无论油门是否变化，强制发一帧 */
+                if (hb_cnt >= 10) {
+                    hb_cnt = 0;
+                    comm_send_ctrl_frame();  // 心跳=强制发当前业务数据
+                }
+
+                /* 发送后处理ACK payload */
+                comm_process_rx();
             }
 
         }
 
+        
         /* ========== 100ms: LCD刷新 ========== */
         if (now - ts[3] >= 100) {
             ts[3] = now;
@@ -183,15 +235,15 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
             app_board_shutdown(sched->shutdown_flag);
         }
 
-        /* ========== 700ms: 电池状态查询 ========== */
-        if (now - ts[6] >= 700) {
+        /* ========== 5000ms: 电池状态查询 ========== */
+        if (now - ts[6] >= 5000) {
             ts[6] = now;
             /* TODO: app_bat_status_process(); */
         }
 
         /* ========== 睡眠判断 ========== */
         delay_ms(2);
-        app_enter_sleep_with_wakeup_by_timer(20, 1);
+        app_enter_sleep_with_wakeup_by_timer(20, sleep_flag);
     }
 }
 

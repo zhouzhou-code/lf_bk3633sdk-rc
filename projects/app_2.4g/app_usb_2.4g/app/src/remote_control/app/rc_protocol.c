@@ -27,12 +27,13 @@ uint16_t proto_crc16(const uint8_t *data, uint8_t len)
 
 /*
  * 下行控制帧:
- * [A5 5A] [LEN] [CMD_RC_CTRL] [SEQ] [rc_ctrl_t] [CRC16_L CRC16_H] [BB]
- *  idx: 0  1     2             3      4           4+plen   +1        +2
+ * [A5 5A] [LEN] [SRC_DEV] [DST_DEV] [CMD_RC_CTRL] [SEQ] [rc_ctrl_t] [CRC16_L CRC16_H] [BB]
+ *  idx: 0  1     2         3          4              5     6           6+plen   +1        +2
  *
- * CRC计算范围: buf[2] ~ buf[4+plen-1], 即 LEN+CMD+SEQ+PAYLOAD
+ * CRC计算范围: buf[2] ~ buf[6+plen-1], 即 LEN+SRC+DST+CMD+SEQ+PAYLOAD
  */
-uint8_t proto_pack_ctrl(uint8_t *buf, uint8_t seq, const rc_ctrl_t *ctrl)
+uint8_t proto_pack_ctrl(uint8_t *buf, uint8_t src_dev, uint8_t dst_dev,
+                        uint8_t seq, const rc_ctrl_t *ctrl)
 {
     uint8_t idx = 0;
     uint8_t plen = sizeof(rc_ctrl_t);
@@ -41,55 +42,60 @@ uint8_t proto_pack_ctrl(uint8_t *buf, uint8_t seq, const rc_ctrl_t *ctrl)
     buf[idx++] = PROTO_HEAD_0;      /* [0] */
     buf[idx++] = PROTO_HEAD_1;      /* [1] */
 
-    /* LEN + CMD + SEQ */
+    /* LEN + SRC + DST + CMD + SEQ */
     buf[idx++] = plen;              /* [2] payload长度 */
-    buf[idx++] = CMD_RC_CTRL;       /* [3] 命令码 */
-    buf[idx++] = seq;               /* [4] 序列号 */
+    buf[idx++] = src_dev;           /* [3] 源设备 */
+    buf[idx++] = dst_dev;           /* [4] 目标设备 */
+    buf[idx++] = CMD_RC_CTRL;       /* [5] 命令码 */
+    buf[idx++] = seq;               /* [6] 序列号 */
 
     /* PAYLOAD */
-    memcpy(&buf[idx], ctrl, plen);  /* [5 ~ 5+plen-1] */
+    memcpy(&buf[idx], ctrl, plen);  /* [7 ~ 7+plen-1] */
     idx += plen;
 
     /* CRC16 (小端: 低字节在前) */
-    uint16_t crc = proto_crc16(&buf[2], 1 + 1 + 1 + plen); /* LEN+CMD+SEQ+PAYLOAD */
+    uint16_t crc = proto_crc16(&buf[2], 1 + 1 + 1 + 1 + 1 + plen); /* LEN+SRC+DST+CMD+SEQ+PAYLOAD */
     buf[idx++] = (uint8_t)(crc & 0xFF);
     buf[idx++] = (uint8_t)(crc >> 8);
 
     /* 帧尾 */
     buf[idx++] = PROTO_TAIL;
 
-    return idx; /* 总帧长 = 2+1+1+1+plen+2+1 */
+    return idx; /* 总帧长 = 2+1+1+1+1+1+plen+2+1 */
 }
 
 /* ======================== 解析 ======================== */
 
 /*
  * 上行状态帧 (ACK payload):
- * [A5 5A] [LEN] [CMD_MC_STATUS] [ACK_SEQ] [mc_status_t] [CRC16_L CRC16_H] [BB]
+ * [A5 5A] [LEN] [SRC_DEV] [DST_DEV] [CMD_MC_STATUS] [ACK_SEQ] [mc_status_t] [CRC16_L CRC16_H] [BB]
  *
  * 校验顺序: 长度 → 帧头 → 命令码 → payload长度 → 帧尾 → CRC → 提取数据
  */
 int8_t proto_parse_status(const uint8_t *buf, uint8_t len,
+                          uint8_t *src_dev, uint8_t *dst_dev,
                           uint8_t *ack_seq, mc_status_t *status)
 {
     uint8_t plen = sizeof(mc_status_t);
-    /* 期望帧长: head(2)+len(1)+cmd(1)+seq(1)+payload+crc(2)+tail(1) */
-    uint8_t expect_len = 2 + 1 + 1 + 1 + plen + 2 + 1;
+    /* 期望帧长: head(2)+len(1)+src(1)+dst(1)+cmd(1)+seq(1)+payload+crc(2)+tail(1) */
+    uint8_t expect_len = 2 + 1 + 1 + 1 + 1 + 1 + plen + 2 + 1;
 
     if (len < expect_len)                                   return -1;
     if (buf[0] != PROTO_HEAD_0 || buf[1] != PROTO_HEAD_1)  return -1;
-    if (buf[3] != CMD_MC_STATUS)                            return -1;
+    if (buf[5] != CMD_MC_STATUS)                            return -1;
     if (buf[2] != plen)                                     return -1;
     if (buf[expect_len - 1] != PROTO_TAIL)                  return -1;
 
     /* CRC校验 */
-    uint16_t crc_calc = proto_crc16(&buf[2], 1 + 1 + 1 + plen);
-    uint16_t crc_recv = buf[5 + plen] | ((uint16_t)buf[5 + plen + 1] << 8);
+    uint16_t crc_calc = proto_crc16(&buf[2], 1 + 1 + 1 + 1 + 1 + plen);
+    uint16_t crc_recv = buf[7 + plen] | ((uint16_t)buf[7 + plen + 1] << 8);
     if (crc_calc != crc_recv)                               return -1;
 
     /* 提取数据 */
-    *ack_seq = buf[4];
-    memcpy(status, &buf[5], plen);
+    *src_dev = buf[3];
+    *dst_dev = buf[4];
+    *ack_seq = buf[6];
+    memcpy(status, &buf[7], plen);
     return 0;
 }
 
@@ -97,28 +103,32 @@ int8_t proto_parse_status(const uint8_t *buf, uint8_t len,
 
 /* 解析遥控下行控制帧 (从机使用) */
 int8_t proto_parse_ctrl(const uint8_t *buf, uint8_t len,
+                        uint8_t *src_dev, uint8_t *dst_dev,
                         uint8_t *seq, rc_ctrl_t *ctrl)
 {
     uint8_t plen = sizeof(rc_ctrl_t);
-    uint8_t expect = 2 + 1 + 1 + 1 + plen + 2 + 1;
+    uint8_t expect = 2 + 1 + 1 + 1 + 1 + 1 + plen + 2 + 1;
 
     if (len < expect)                                       return -1;
     if (buf[0] != PROTO_HEAD_0 || buf[1] != PROTO_HEAD_1)  return -1;
-    if (buf[3] != CMD_RC_CTRL)                              return -1;
+    if (buf[5] != CMD_RC_CTRL)                              return -1;
     if (buf[2] != plen)                                     return -1;
     if (buf[expect - 1] != PROTO_TAIL)                      return -1;
 
-    uint16_t crc_calc = proto_crc16(&buf[2], 1 + 1 + 1 + plen);
-    uint16_t crc_recv = buf[5 + plen] | ((uint16_t)buf[5 + plen + 1] << 8);
+    uint16_t crc_calc = proto_crc16(&buf[2], 1 + 1 + 1 + 1 + 1 + plen);
+    uint16_t crc_recv = buf[7 + plen] | ((uint16_t)buf[7 + plen + 1] << 8);
     if (crc_calc != crc_recv)                               return -1;
 
-    *seq = buf[4];
-    memcpy(ctrl, &buf[5], plen);
+    *src_dev = buf[3];
+    *dst_dev = buf[4];
+    *seq = buf[6];
+    memcpy(ctrl, &buf[7], plen);
     return 0;
 }
 
 /* 打包上行状态帧 (从机装入ACK payload) */
-uint8_t proto_pack_status(uint8_t *buf, uint8_t ack_seq, const mc_status_t *status)
+uint8_t proto_pack_status(uint8_t *buf, uint8_t src_dev, uint8_t dst_dev,
+                          uint8_t ack_seq, const mc_status_t *status)
 {
     uint8_t idx = 0;
     uint8_t plen = sizeof(mc_status_t);
@@ -126,13 +136,15 @@ uint8_t proto_pack_status(uint8_t *buf, uint8_t ack_seq, const mc_status_t *stat
     buf[idx++] = PROTO_HEAD_0;
     buf[idx++] = PROTO_HEAD_1;
     buf[idx++] = plen;
+    buf[idx++] = src_dev;
+    buf[idx++] = dst_dev;
     buf[idx++] = CMD_MC_STATUS;
     buf[idx++] = ack_seq;
 
     memcpy(&buf[idx], status, plen);
     idx += plen;
 
-    uint16_t crc = proto_crc16(&buf[2], 1 + 1 + 1 + plen);
+    uint16_t crc = proto_crc16(&buf[2], 1 + 1 + 1 + 1 + 1 + plen);
     buf[idx++] = (uint8_t)(crc & 0xFF);
     buf[idx++] = (uint8_t)(crc >> 8);
 

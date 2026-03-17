@@ -53,11 +53,11 @@
 #include "timer_handler.h"
 #include "bat_protocol.h"
 #include "rf_pair.h"
+#include "rf_config.h"
 #include "addr_pool.h"
 #include "gpio_init.h"
 #include "app_sleep.h"
 #include "key_scan.h"
-#include "rf_addr_mgr.h"
 
 #include "lcd_init.h"
 #include "lcd_kmg.h"
@@ -532,7 +532,7 @@ int main(void)
     flash_init();
     uart_printf("init flash:%d\r\n", Get_SysTick_ms());
 
-    rf_addr_mgr_init();
+    //rf_addr_mgr_init();
     uart_printf("init rf_addr_mgr:%d\r\n", Get_SysTick_ms());
 
     
@@ -586,8 +586,6 @@ int main(void)
     #endif
 
 
-  
-
     #define slave 0
 
     #if slave
@@ -599,55 +597,6 @@ int main(void)
     RC_Scheduler_Task(&sched);
     #endif
 
-    uint8_t pipe0_addr[5] = {0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
-    RF_Handler_Init();//初始化RF句柄及队列
-    //  debug_printf_all_registers();
-     HAL_RF_SetTxMode(&hrf);//设置为发送模式
-     uint32_t txcount=0;
-     uint32_t txcount1=0;
-     uint8_t test_send_data0[5];
-    for(int i=0;i<5;i++) test_send_data0[i]=i;
-    #if 0
-    while(1) //发送
-    {
-        txcount++;
-        test_send_data0[0]=txcount;
-        HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
-        //HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
-        //RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
-        RF_Send(pipe0_addr, test_send_data0, sizeof(test_send_data0));
-
-        uint8_t* rec_data;
-        uint8_t  out_len;
-        uint8_t  pipes;
-        if(RF_rxQueue_Recv(&rec_data, &out_len, &pipes)!=0){
-            //uart_printf("len=%d, pipe=%d,data0=%d \r\n", out_len, pipes,rec_data[0]);
-            uart_printf("%d %d %d\r\n",rec_data[0],rf_int_count_rxdr,rf_rxQueue.overwrite_cnt);
-        }
-
-        delay_ms(100);
-        //RF_Service_Handler(&hrf);    
-    }
-    #else
-    HAL_RF_SetRxMode(&hrf);//设置为接收模式
-    HAL_RF_SetRxAddress(&hrf, 0, pipe0_addr, 5);//设置pipe0地址
-    uint32_t rx_cnt=0;
-    //printf_all_registers();
-    while(1)//接收                                                
-    {
-        uint8_t* rec_data;
-        uint8_t  out_len;
-        uint8_t  pipes;
-        if(RF_rxQueue_Recv(&rec_data, &out_len, &pipes)!=0){
-            rx_cnt++;
-            //uart_printf("len=%d, pipe=%d,data0=%d \r\n", out_len, pipes,rec_data[0]);
-            uart_printf("%d %d %d %d\r\n",rec_data[0], rx_cnt,rf_int_count_rxdr,rf_rxQueue.overwrite_cnt);
-            HAL_RF_Attach_PL2ACK(&hrf,0,rec_data,out_len);
-        }
-        delay_ms(15);
-    }
-    #endif
-
     /*----------------------------测试按键功能--------------------------------------*/
     const key_config_t my_keys[] = {
         {KEY_ID_LEFT,   Port_Pin(0, 2), 2000, false}, // Left Key: 3s Long Press
@@ -655,22 +604,13 @@ int main(void)
     };
     key_init(my_keys, sizeof(my_keys)/sizeof(key_config_t));
     key_register_callback(app_key_event_handler);
-    
+
     uart_printf("Key Test Start...\r\n");
+    rf_config_load_from_flash();  // 加载RF配置
     RF_Handler_Init();//初始化RF句柄及队列
     
     #define is_host 1
     while(1) {
-
-        while(1){  
-            uint8_t dest_addr[5] = {0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
-            uint8_t test_data[32] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14};
-            //发包测试 
-            RF_txQueue_Send(dest_addr,test_data, 16);
-            RF_Service_Handler(&hrf);
-            delay_ms(10);
-        }
-
         static uint32_t last_scan_time = 0;
         if (Get_SysTick_ms() - last_scan_time >= 10) {
             last_scan_time = Get_SysTick_ms();
@@ -683,10 +623,6 @@ int main(void)
             #endif
         }
     }
-
-
-
-    
 
 
 

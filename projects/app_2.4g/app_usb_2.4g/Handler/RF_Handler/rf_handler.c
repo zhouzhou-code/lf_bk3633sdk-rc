@@ -37,32 +37,121 @@ void rxdr_callback(RF_HandleTypeDef *hrf)
     }
     rf_int_count_rxdr++;
 }
-//发送完成中断回调函数
-void txds_callback(RF_HandleTypeDef *hrf)
+//发送完成中断回调函数 - 业务模式(ACK Payload)
+void txds_callback_normal(RF_HandleTypeDef *hrf)
 {
     rf_int_count_txds++;
-
-    // 发送完成后恢复Pipe0地址
-    // rf_addr_mgr_restore_pipe0_addr();
-
-    // // 切换到RX模式
-    // HAL_RF_SetRxMode(hrf);
+    // ACK Payload模式：不切换，保持TX
 }
-
-//达到最大重传中断回调函数
-void maxrt_callback(RF_HandleTypeDef *hrf)
+//达到最大重传中断回调函数 - 业务模式
+void maxrt_callback_normal(RF_HandleTypeDef *hrf)
 {
     rf_int_count_maxrt++;
-
-    // 发送失败后也要恢复Pipe0地址
-    // rf_addr_mgr_restore_pipe0_addr();
-
-    // // 切换到RX模式
-    // HAL_RF_SetRxMode(hrf);
+    // ACK Payload模式：不切换
 }
 
-//初始化默认参数配置结构体
-RF_ConfgTypeDef Init_default_S=
+//发送完成中断回调函数 - 配对模式
+void txds_callback_pair(RF_HandleTypeDef *hrf)
+{
+    rf_int_count_txds++;
+    // 配对模式：发送完成后切RX
+    HAL_RF_SetRxMode(hrf);
+}
+//达到最大重传中断回调函数 - 配对模式
+void maxrt_callback_pair(RF_HandleTypeDef *hrf)
+{
+    rf_int_count_maxrt++;
+    // 配对模式：发送失败后也切RX
+    HAL_RF_SetRxMode(hrf);
+}
+
+//初始化参数配置结构体 - 业务模式(ACK Payload)
+RF_ConfgTypeDef Init_Normal_AckPayload =
+{
+    .Mode = MODE_TX,
+    .DataRate = BPS_1M,
+    .TxPower = RF_TX_POWER_P0p5_dBm,
+    .Channel = 0x05,
+    .Protocol ={
+        .AddressWidth = 5,
+        .TxAddress = {0x10, 0x11, 0x36, 0x00, 0x00},
+        .Support_NoAck = 1,
+        .AutoRetransmitDelay = 5,
+        .AutoRetransmitCount = 3,
+
+        .RxPipes[0] = {
+            .PipeNum = 0,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x10, 0x11, 0x36, 0x00, 0x00}
+        },
+        .RxPipes[1] = {
+            .PipeNum = 1,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x10, 0x56, 0x24, 0xCD, 0x78}
+        },
+        .RxPipes[2]={
+            .PipeNum = 2,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x11, 0, 0, 0, 0}
+        },
+        .RxPipes[3]={
+            .PipeNum = 3,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x12, 0, 0, 0, 0}
+        },
+        .RxPipes[4]={
+            .PipeNum = 4,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x13, 0, 0, 0, 0}
+        },
+        .RxPipes[5]={
+            .PipeNum = 5,
+            .Enable = 1,
+            .AutoAck = 1,
+            .EnDynamicPayload = 1,
+            .PayloadWidth = 32,
+            .Support_Payload_Attach_ACK = 1,
+            .Address = {0x14, 0, 0, 0, 0}
+        }
+    },
+    .IRQ = {
+        .RxDR = {
+            .enable = 1,
+            .user_cb = rxdr_callback
+        },
+        .TxDS = {
+            .enable = 1,
+            .user_cb = txds_callback_normal 
+        },
+        .MaxRT = {
+            .enable = 1,
+            .user_cb = maxrt_callback_normal
+        }
+    }
+};
+
+//初始化参数配置结构体 - 配对模式(队列+切换)
+RF_ConfgTypeDef Init_Pair_Queue =
 {
     .Mode = MODE_TX,
     .DataRate = BPS_1M,
@@ -137,39 +226,52 @@ RF_ConfgTypeDef Init_default_S=
         },
         .TxDS = {
             .enable = 1,
-            .user_cb = txds_callback
+            .user_cb = txds_callback_pair  // 配对模式：发送完成后切RX
         },
         .MaxRT = {
             .enable = 1,
-            .user_cb = maxrt_callback
+            .user_cb = maxrt_callback_pair
         }
     }
 };
 
 
-#include "rf_addr_mgr.h"
-
-void RF_Handler_Init(void)
+/* 业务模式初始化：ACK Payload模式，遥控保持TX */
+void RF_Handler_Init_ToNormal(void)
 {
-    /* 初始化RF模块 */
-    //默认地址的rxpipe地址设置为slave0地址，上电从flash中读取
-    //Init_default_S.Protocol.RxPipes[0].Address
-
-    HAL_RF_Init(&hrf, &Init_default_S);
+    HAL_RF_Init(&hrf, &Init_Normal_AckPayload);
     HAL_RF_TimeManager_register(&hrf, Get_SysTick_ms);
-
-    // 强制应用 rf_addr_mgr 的地址配置
-    // 这将覆盖 Init_default_S 中的硬编码地址
-    //rf_addr_mgr_apply_to_hardware();
 
     /* 默认初始化为发送模式 */
     HAL_RF_SetTxMode(&hrf);
+
     /* 初始化发送和接收队列 */
-    queue_init(&rf_txQueue, rf_send_queue_buffer, 
+    queue_init(&rf_txQueue, rf_send_queue_buffer,
                 sizeof(rf_send_queue_buffer), rf_send_queue_len, sizeof(Rf_txQueueItem_t));
     queue_init(&rf_rxQueue, rf_recv_queue_buffer,
                 sizeof(rf_recv_queue_buffer), rf_recv_queue_len, sizeof(Rf_rxQueueItem_t));
-    
+}
+
+/* 配对模式初始化：队列+切换模式 */
+void RF_Handler_Init_ToPair(void)
+{
+    HAL_RF_Init(&hrf, &Init_Pair_Queue);
+    HAL_RF_TimeManager_register(&hrf, Get_SysTick_ms);
+
+    /* 配对模式默认RX */
+    HAL_RF_SetRxMode(&hrf);
+
+    /* 初始化发送和接收队列 */
+    queue_init(&rf_txQueue, rf_send_queue_buffer,
+                sizeof(rf_send_queue_buffer), rf_send_queue_len, sizeof(Rf_txQueueItem_t));
+    queue_init(&rf_rxQueue, rf_recv_queue_buffer,
+                sizeof(rf_recv_queue_buffer), rf_recv_queue_len, sizeof(Rf_rxQueueItem_t));
+}
+
+/* 兼容旧接口：默认使用业务模式 */
+void RF_Handler_Init(void)
+{
+    RF_Handler_Init_ToNormal();
 }
 
 /* 发送数据入队函数
@@ -258,8 +360,9 @@ void RF_Service_Handler(RF_HandleTypeDef *hrf)
             HAL_RF_SetTxMode(hrf);
         }
 
-        // 使用 rf_addr_mgr 接口进行发送准备 自动备份Pipe0
-        rf_addr_mgr_backup_and_set_tx_addr(tx_item.dest_addr);
+        // 设置目标地址
+        HAL_RF_SetTxAddress(hrf, tx_item.dest_addr, 5);
+        HAL_RF_SetRxAddress(hrf, 0, tx_item.dest_addr, 5);
         
         // 尝试调用发送函数
         // 如果返回 BUSY，说明它内部运行了超时检测逻辑但还没超时
@@ -299,8 +402,7 @@ int8_t RF_Send(uint8_t *dest_addr, const uint8_t *data, uint8_t len)
         HAL_RF_SetTxMode(&hrf);
     }
 
-    // 使用 rf_addr_mgr 接口设置目标地址，自动备份Pipe0
-    //rf_addr_mgr_backup_and_set_tx_addr(dest_addr);
+    // 设置目标地址
     HAL_RF_SetTxAddress(&hrf, dest_addr, 5);
     HAL_RF_SetRxAddress(&hrf, 0, dest_addr, 5);
 

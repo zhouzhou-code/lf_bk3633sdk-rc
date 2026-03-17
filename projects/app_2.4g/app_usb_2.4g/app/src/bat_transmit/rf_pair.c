@@ -108,7 +108,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
         g_slave_ctrl.state = SLAVE_PAIR_IDLE;
         g_slave_ctrl.verify_target_count = 5;
         
-        app_addr_get_default(def_addr);
+        rf_config_get_pair_addr(def_addr);
         HAL_RF_SetTxAddress(&hrf, def_addr, 5);
         HAL_RF_SetRxAddress(&hrf, 0, def_addr, 5);
         HAL_RF_SetTxMode(&hrf);
@@ -137,7 +137,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
             uart_printf("Slave: Send REQ\n");
             // 确保地址正确
             uint8_t def_addr[5];
-            app_addr_get_default(def_addr);
+            rf_config_get_pair_addr(def_addr);
             HAL_RF_SetTxAddress(&hrf, def_addr, 5);
             HAL_RF_SetRxAddress(&hrf, 0, def_addr, 5);
             RF_txQueue_Send(def_addr,(uint8_t*)&req_pkt, sizeof(req_pkt));
@@ -288,7 +288,7 @@ void Host_Pairing_Task(uint8_t* flag) {
         g_host_ctrl.state = HOST_PAIR_IDLE;
         g_host_ctrl.verify_target_count = 10;
         //设置默认地址
-        app_addr_get_default(def_addr);
+        rf_config_get_pair_addr(def_addr);
         HAL_RF_SetTxAddress(&hrf, def_addr, 5);
         HAL_RF_SetRxAddress(&hrf, 0, def_addr, 5);
         HAL_RF_SetRxMode(&hrf);
@@ -301,7 +301,7 @@ void Host_Pairing_Task(uint8_t* flag) {
     pair_verify_pkt ping_pkt = {CMD_PAIR_VERIFY_PING, host_magic_number};
     uint8_t len;
     
-    app_addr_get_default(def_addr);
+    rf_config_get_pair_addr(def_addr);
     RF_Service_Handler(&hrf);
     
     switch (g_host_ctrl.state) {

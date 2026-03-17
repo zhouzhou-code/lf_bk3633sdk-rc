@@ -588,7 +588,7 @@
 
   <Group>
     <GroupName>Application/rf_service</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -671,8 +671,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>.\app\src\rf_service\rf_protocol.c</PathWithFileName>
-      <FilenameWithoutPath>rf_protocol.c</FilenameWithoutPath>
+      <PathWithFileName>.\app\src\rf_service\rf_config.c</PathWithFileName>
+      <FilenameWithoutPath>rf_config.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -683,8 +683,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>.\app\src\rf_service\rf_protocol.h</PathWithFileName>
-      <FilenameWithoutPath>rf_protocol.h</FilenameWithoutPath>
+      <PathWithFileName>.\app\src\rf_service\rf_config.h</PathWithFileName>
+      <FilenameWithoutPath>rf_config.h</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
