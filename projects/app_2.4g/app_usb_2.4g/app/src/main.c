@@ -28,7 +28,6 @@
 #include "icu.h"
 #include "remote_control/app/rc_scheduler.h"
 #include "remote_control/device/hall/hall_sensor.h"
-#include "user_config.h"
 #include "drv_gpio.h"
 #include "wdt.h"
 #include "spi.h"
@@ -63,6 +62,8 @@
 #include "lcd_kmg.h"
 
 #include "hall_sensor.h"
+#include "user_config.h"
+#include "pinmap_v1.h"
 
 extern void  xvr_reg_initial_24(void);
 
@@ -456,8 +457,7 @@ void app_key_event_handler(key_id_t id, key_event_t event)
     }
 }
 
-void hall_test_example(void)
-{
+void hall_test_example(void) {
     hall_sensor_t hall;
     uint16_t filter_buf[8] = {0};
     
@@ -510,7 +510,6 @@ void hall_test_example(void)
 #if 1
 int main(void)
 {
-    
     icu_init(); //不能用串口打印，还没初始化
     //wdt_disable();
     intc_init(); //不能用串口打印，还没初始化！
@@ -543,15 +542,13 @@ int main(void)
     mcu_clk_switch(MCU_CLK_16M);
     uart_printf("select MCU_CLK_16M:%d\r\n", Get_SysTick_ms());
     #endif   
+
     #if(AON_RTC_DRIVER)
     aon_rtc_init();
     uart_printf("init aon_rtc:%d\r\n", Get_SysTick_ms());
     #endif
 
-    #if(SPI_DRIVER)
-    spi_init(0,0,0);
-    uart_printf("init spi:%d\r\n", Get_SysTick_ms());
-    #endif
+
 
     #if(ADC_DRIVER)
     //adc_init(2,1);
@@ -567,29 +564,37 @@ int main(void)
     uart_printf("init usb\r\n");
     #endif
     
-    GLOBAL_INT_START();
-    uart_printf("GLOBAL_INT_START:%d\r\n", Get_SysTick_ms());
-
-    
     USB_Test();
     AES_Test();
 
+    GLOBAL_INT_START();
+    uart_printf("GLOBAL_INT_START:%d\r\n", Get_SysTick_ms());
 
+    gpio_config(Port_Pin(1, 7), GPIO_OUTPUT,GPIO_PULL_NONE);
+#if(SPI_DRIVER)
+    spi_init(0,0,0);
+    uart_printf("init spi:%d\r\n", Get_SysTick_ms());
+#endif
+
+    
     #if (ENABLE_LED_DISPLAY)
-    uart_printf("init lcd display\r\n");
-    gpio_set(Port_Pin(1, 7), 0); // 设置LCD电源使能引脚为低电平
-    OLED_Init(); //初始化
-    uart_printf("init lcd end\r\n");
-    LCD_Fill(0, 0, LCD_W, LCD_H, BLACK); //清屏
-    uart_printf("fill lcd\r\n");
-    update_ui(0,(uint8_t)100,(uint8_t)0);
-    //LCD_ShowString_Hor(10, 10, "OK!", WHITE, BLACK, 16);  // 测试
-    uart_printf("show string\r\n");
+    gpio_config(LCD_PWR_EN, GPIO_OUTPUT,GPIO_PULL_NONE);
+    gpio_set(LCD_PWR_EN, 1); // 设置LCD电源使能引脚为高电平上电
+    OLED_Init();
+    LCD_Fill(0, 0, LCD_W, LCD_H, BLACK);
+    //update_ui(0, (uint8_t)100, (uint16_t)0);
+    update_ui_test(10, 85);
     #endif
-        while(1){
-            uart_printf("Testing LCD...\r\n");
-            test_lcd2();      
-        }
+   uint8_t hall=0,soc=0;
+    while(1){
+        //uart_printf("Testing LCD.\r\n");
+        //test_lcd2();      
+        hall=(hall+1)%99;
+        soc=(soc+2)%99;
+
+        update_ui_test(hall, soc);
+
+    }
 
 
     #define slave 0

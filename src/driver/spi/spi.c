@@ -27,14 +27,46 @@
 #include "drv_gpio.h"
 #include "dma.h"       
 #include "BK3633_RegList.h"
-#include "rf.h"
 
-spi_param_t    spi_param; 
+spi_param_t	spi_param; 
 
+static void Delay_ms(int num) //sync from svn revision 18
+{
+    int x, y;
+    for(y = 0; y < num; y ++ )
+    {
+        for(x = 0; x < 1580; x++);
+    }
+
+}
+
+static void Delay_us(int num)
+{
+    int x, y;
+    for(y = 0; y < num; y++)
+    {
+        for(x = 0; x < 5; x++);
+    }
+}
 
 #if(SPI_DRIVER)
 unsigned char    *p_spi_txdata;
 unsigned char    *p_spi_rxdata;
+
+static void spi_bb_begin(void)
+{
+    // Delay_us(1);
+    gpio_set(Port_Pin(0,7), 0);
+    Delay_us(1);
+}
+
+static void spi_bb_end(void)
+{
+    Delay_us(1);
+    gpio_set(Port_Pin(0,7), 1);
+    // Delay_us(1);
+}
+
 /*********************************************************************
 //mode: 0->master,1->slave
 //SPI CLK = PLL clk/(freq_div*2)  
@@ -43,13 +75,19 @@ unsigned char    *p_spi_rxdata;
 void spi_init(uint8_t mode,uint8_t freq_div,uint8_t bit_wdth)
 {
     // SPI clock enable
-    SET_SPI_POWER_UP;
-
+    SET_SPI_POWER_UP;     
+    
     // Enable GPIO P0.4, P0.5, P0.6, P0.7 peripheral function for spi
-    gpio_config(Port_Pin(0, 4), GPIO_SC_FUN, GPIO_PULL_NONE);
-    gpio_config(Port_Pin(0, 5), GPIO_SC_FUN, GPIO_PULL_NONE);
-    gpio_config(Port_Pin(0, 6), GPIO_SC_FUN, GPIO_PULL_NONE);
-    gpio_config(Port_Pin(0, 7), GPIO_SC_FUN, GPIO_PULL_NONE);
+    // gpio_config(Port_Pin(0,2),OUTPUT,PULL_NONE);
+    gpio_config(Port_Pin(0,3),GPIO_OUTPUT,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(1,7),GPIO_OUTPUT,GPIO_PULL_NONE);
+
+    gpio_config(Port_Pin(0,4),GPIO_SC_FUN,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,5),GPIO_SC_FUN,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,6),GPIO_SC_FUN,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,7),GPIO_SC_FUN,GPIO_PULL_NONE);
+    
+    gpio_config(Port_Pin(0,16),GPIO_OUTPUT,GPIO_PULL_NONE);
 
     SPI_REG0X0_CFG = (0x01UL << POS_SPI_REG0X0_SPIEN)                   
                     | (CKPHA_CLK1 << POS_SPI_REG0X0_CKPHA)
@@ -59,11 +97,11 @@ void spi_init(uint8_t mode,uint8_t freq_div,uint8_t bit_wdth)
                     | (0x00UL << POS_SPI_REG0X0_WIRE3_EN)
                     | (freq_div << POS_SPI_REG0X0_SPI_CKR) 
                     | (0x01UL << POS_SPI_REG0X0_RXFIFO_INT_EN)
-                    | (0x00UL << POS_SPI_REG0X0_TXFIFO_INT_EN)
+                    | (0x01UL << POS_SPI_REG0X0_TXFIFO_INT_EN)
                     | (0x00UL << POS_SPI_REG0X0_RXOVF_EN)
                     | (0x00UL << POS_SPI_REG0X0_TXUDF_EN)
                     | (0x03UL << POS_SPI_REG0X0_RXFIFO_INT_LEVEL)
-                    | (0x00UL << POS_SPI_REG0X0_TXFIFO_INT_LEVEL);
+                    | (0x03UL << POS_SPI_REG0X0_TXFIFO_INT_LEVEL);
 
     if(mode==0)
         SPI_REG0X0_CFG |= ( 0x01UL << POS_SPI_REG0X0_MSTEN);
@@ -74,13 +112,15 @@ void spi_init(uint8_t mode,uint8_t freq_div,uint8_t bit_wdth)
     spi_param.spi_state=1;
     spi_param.write_complete_cb=NULL;
     spi_param.read_complete_cb=NULL;
+
+    // gpio_set(0x07, 1);
     
-}    
+}	
 
 void spi_write_read(uint8_t *wbuf, uint32_t w_size, uint8_t *rbuf, uint32_t r_size)
 {
     uint32_t max_len;
-        
+    	
     max_len = (w_size > r_size ) ? w_size : r_size;
     
     if(max_len>64)
@@ -116,30 +156,26 @@ void spi_write_read(uint8_t *wbuf, uint32_t w_size, uint8_t *rbuf, uint32_t r_si
                     
     if(r_size>0)
     {
-        while(0==(spi_send_state_get()));
+        while( (0==(spi_send_state_get())) && (SPI_REG0X2_STAT&0x4) );
         
-        while(r_size)
+        while(r_size--)
         {
-            if( SPI_REG0X2_STAT & (1<<POS_SPI_REG0X2_RXFIFO_RD_READY) ) // because spi_rx need more time to get buf at the first time.
-            {
-                *rbuf = (SPI_REG0X3_DAT & 0xff);
-                rbuf++;
-                r_size--;
-            }
+            *rbuf = (SPI_REG0X3_DAT & 0xff);
+            rbuf++;
         }
     }   
 }
 
 void spi_write(uint8_t *wbuf, uint32_t w_size)
-{    
+{	
     if(w_size <= 0)
     {
-        return;    
-    }    
+		return;	
+	}	
     if(w_size > 64)
     {
         w_size = 64;
-    }    
+    }	
     spi_waitbusying();
     SPI_REG0X1_CN=0;
     SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_TX_FINISH_INT);
@@ -156,34 +192,8 @@ void spi_write(uint8_t *wbuf, uint32_t w_size)
         w_size--;
 
     }
-    
+	
     SPI_REG0X1_CN |= (1<<POS_SPI_REG0X1_TX_EN) |(1<<POS_SPI_REG0X1_TX_FINISH_INT_EN); 
-}
-
-void spi_write_async(uint8_t *wbuf, uint16_t w_size, spi_write_cb cb)
-{
-    if (w_size == 0)
-        return;
-    if (w_size > 64)
-        w_size = 64;
-
-    spi_param.write_complete_cb = cb;
-    spi_param.read_complete_cb = NULL;
-
-    spi_waitbusying();
-    SPI_REG0X1_CN = 0;
-    SPI_REG0X2_STAT |= (1 << POS_SPI_REG0X2_TX_FINISH_INT);
-    SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_SPI);
-
-    SPI_REG0X1_CN = ((uint32_t)w_size << POS_SPI_REG0X1_TX_TRANS_LEN);
-
-    while ((SPI_REG0X2_STAT & (1 << POS_SPI_REG0X2_TXFIFO_WR_READY)) == 0)
-        ;
-
-    while (w_size--)
-        SPI_REG0X3_DAT = *wbuf++;
-
-    SPI_REG0X1_CN |= (1 << POS_SPI_REG0X1_TX_EN) | (1 << POS_SPI_REG0X1_TX_FINISH_INT_EN);
 }
 
 void spi_read( uint8_t *rbuf, uint32_t r_size)
@@ -196,7 +206,7 @@ void spi_read( uint8_t *rbuf, uint32_t r_size)
     }
     if(r_size > 4095)
     {
-        uart_printf("r_size over \r\n");    
+        uart_printf("r_size over \r\n");	
         r_size = 4095;
     }
     spi_waitbusying();
@@ -208,7 +218,7 @@ void spi_read( uint8_t *rbuf, uint32_t r_size)
     while(SPI_REG0X2_STAT&0x4)
     {
         tempdata = SPI_REG0X3_DAT;
-        uart_printf("clear rx fifo \r\n");    
+        uart_printf("clear rx fifo \r\n");	
     }
 
     SPI_REG0X1_CN = (r_size<<POS_SPI_REG0X1_RX_TRANS_LEN)|(1<<POS_SPI_REG0X1_RX_EN)|(1<<POS_SPI_REG0X1_RX_FINISH_INT_EN);
@@ -233,12 +243,13 @@ void spi_read( uint8_t *rbuf, uint32_t r_size)
             tempdata++;
             if(tempdata>30000)
             {
-                uart_printf("rx error:r_size=%d\r\n",r_size);    
+                uart_printf("rx error:r_size=%d\r\n",r_size);	
                 break;
             }
         }
     }    
 }
+
 
 void spi_send(uint16_t w_size)
 {
@@ -270,43 +281,33 @@ void spi_receiv(uint16_t r_size)
 }
 void spi_isr(void)
 {
-    // Don't mark the transfer done on any SPI interrupt. Only TX/RX finish
-    // interrupts indicate the configured transaction length completed.
-    uint32_t stat = SPI_REG0X2_STAT;
+    SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_SPI);
+    spi_param.spi_state=1;
 
-    if(stat & (1<<POS_SPI_REG0X2_TXFIFO_INT))
+    if(SPI_REG0X2_STAT&(1<<POS_SPI_REG0X2_TX_FINISH_INT))
     {
-        SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_TXFIFO_INT);
+        
+    	SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_TX_FINISH_INT);
+        
+    	if(spi_param.write_complete_cb!=NULL)
+    	    spi_param.write_complete_cb();
     }
-
-    if(stat & (1<<POS_SPI_REG0X2_TX_FINISH_INT))
+    if(SPI_REG0X2_STAT&(1<<POS_SPI_REG0X2_RX_FINISH_INT))
     {
-        SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_TX_FINISH_INT);
-        spi_param.spi_state=1;
-        SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_SPI);
-        if(spi_param.write_complete_cb!=NULL)
-            spi_param.write_complete_cb();
-        stat = SPI_REG0X2_STAT;
+    	SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RX_FINISH_INT);
+    	//if(spi_param.read_complete_cb!=NULL)
+    	//    spi_param.read_complete_cb();
+    	
     }
-
-    if(stat & (1<<POS_SPI_REG0X2_RX_FINISH_INT))
+    if(SPI_REG0X2_STAT&(1<<POS_SPI_REG0X2_RXOVF))
     {
-        SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RX_FINISH_INT);
-        spi_param.spi_state=1;
-        SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_SPI);
-        //if(spi_param.read_complete_cb!=NULL)
-        //    spi_param.read_complete_cb();
-        stat = SPI_REG0X2_STAT;
+    	SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RXOVF);
     }
-
-    if(stat & (1<<POS_SPI_REG0X2_RXOVF))
+    if(SPI_REG0X2_STAT&(1<<POS_SPI_REG0X2_RXFIFO_INT))
     {
-        SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RXOVF);
+    	SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RXFIFO_INT);
     }
-    if(stat & (1<<POS_SPI_REG0X2_RXFIFO_INT))
-    {
-        SPI_REG0X2_STAT |= (1<<POS_SPI_REG0X2_RXFIFO_INT);
-    }
+	
 }
 void spi_waitbusying(void)
 {
@@ -315,16 +316,17 @@ void spi_waitbusying(void)
        uart_printf("spi_waitbusying\n");
        Delay_us(10);
     }
+    // uart_printf("spi\r\n");
     spi_param.spi_state=0;
 }
 
 uint8_t spi_send_state_get(void)
 {
-    #if(SPI_DRIVER) 
-        return spi_param.spi_state;
-    #else
-        return 1;
-    #endif
+#if(SPI_DRIVER) 
+    return spi_param.spi_state;
+#else
+    return 1;
+#endif
 }
 
 void spi_dma_write(uint8_t *buffer,uint16_t buffer_len,spi_write_cb result_callback)
@@ -336,10 +338,10 @@ void spi_dma_write(uint8_t *buffer,uint16_t buffer_len,spi_write_cb result_callb
     spi_param.read_complete_cb = NULL;
     spi_waitbusying(); 
 
-    dma_config_write(0,SPI_REQ,(uint32_t)buffer,SPI_REG0X3_DAT_ADDR,buffer_len,DMA_DW_8B);    
+    dma_config_write(0,SPI_REQ,(uint32_t)buffer,SPI_REG0X3_DAT_ADDR,buffer_len,DMA_DW_8B);	
 
     spi_send(buffer_len);
-    
+	
 }
 
 void spi_dma_read(uint8_t *buffer,uint16_t buffer_len,spi_read_cb result_callback)
@@ -351,20 +353,22 @@ void spi_dma_read(uint8_t *buffer,uint16_t buffer_len,spi_read_cb result_callbac
 
     spi_waitbusying(); 
 
-    dma_config_read(0,SPI_REQ,SPI_REG0X3_DAT_ADDR,(uint32_t)buffer,buffer_len,DMA_DW_8B);    
+    dma_config_read(0,SPI_REQ,SPI_REG0X3_DAT_ADDR,(uint32_t)buffer,buffer_len,DMA_DW_8B);	
 
     spi_receiv(buffer_len);
 
 }
+
 void spi_dma_write_result_callback(void)
 {
-    SPI_REG0X1_CN &= ~(1<<POS_SPI_REG0X1_TX_EN);
-    uart_printf("write complete\r\n");
+	SPI_REG0X1_CN &= ~(1<<POS_SPI_REG0X1_TX_EN);
+	uart_printf("write complete\r\n");
 }
+
 void spi_dma_read_result_callback(void)
 {
-    SPI_REG0X1_CN &= ~(1<<POS_SPI_REG0X1_RX_EN);
-    uart_printf("read complete\r\n");
+	SPI_REG0X1_CN &= ~(1<<POS_SPI_REG0X1_RX_EN);
+	uart_printf("read complete\r\n");
 }
 
 
@@ -389,8 +393,8 @@ void spi_master_test(void)
     spi_write_read(&spi_wbuf[0],64,&spi_rbuf[0],64);
     
 #if 1 
-    for(i=0;i<64;i++)
-    {
+	for(i=0;i<64;i++)
+	{
         uart_printf("spi_rbuf[%d]=%x\r\n",i,spi_rbuf[i]);
 
         if(spi_rbuf[i]!=spi_wbuf[i])
@@ -398,8 +402,8 @@ void spi_master_test(void)
             //uart_printf("read error~~~~spi_wbuf[%x]=%x,spi_rbuf[%x]=%x\n",i,spi_wbuf[i],i,spi_rbuf[i]);
             //while(1);
         }
-    }
-    
+	}
+	
     memset(spi_rbuf,0,64);
 #endif 
 
@@ -416,74 +420,74 @@ below SPI Slave code
 void spi_slave_init(void)
 //note:the first tx dta is :0x72 (8bites),0x7232(16bites)
 {
-        int i;
+		int i;
 
     SET_SPI_POWER_UP;
     SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_SPI);
 
     // Enable GPIO P0.4, P0.5, P0.6, P0.7 peripheral function for spi
-    gpio_config(Port_Pin(0, 4), GPIO_SC_FUN, GPIO_PULL_NONE);
-    gpio_config(Port_Pin(0, 5), GPIO_SC_FUN, GPIO_PULL_NONE);
-    gpio_config(Port_Pin(0, 6), GPIO_SC_FUN, GPIO_PULL_NONE);
-    gpio_config(Port_Pin(0, 7), GPIO_SC_FUN, GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,4),GPIO_SC_FUN,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,5),GPIO_SC_FUN,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,6),GPIO_SC_FUN,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,7),GPIO_SC_FUN,GPIO_PULL_NONE);
 
   //  gpio_set_monitor(0x04);
   //  gpio_set_monitor(0x05);
    // gpio_set_monitor(0x07);
 
-    SPI_REG0X0_CFG = 0;
+	SPI_REG0X0_CFG = 0;
     SPI_REG0X0_CFG = (0x00UL << POS_SPI_REG0X0_SPIEN)
-                    //|( 0x1 << POS_SPI_REG0X0_MSTEN)           //master mode //set slave mode
-                    | (CKPHA_CLK1 << POS_SPI_REG0X0_CKPHA)
-                    | (CKPOL_L << POS_SPI_REG0X0_CKPOL)
-                    | (SPI_CHARFORMAT_8BIT << POS_SPI_REG0X0_BIT_WDTH)
-                    | (0x01UL << POS_SPI_REG0X0_SLV_RELEASE_INTEN)
-                    //| (0x01UL << POS_SPI_REG0X0_NSSMD)  //
-                    //| (freq_div << POS_SPI_REG0X0_SPI_CKR)  //clk div
-                    //| (0x00UL << POS_SPI_REG0X0_RXINT_EN)
-                    | (0x01UL << POS_SPI_REG0X0_RXFIFO_INT_EN)  // enable rxint
-                    | (0x00UL << POS_SPI_REG0X0_TXFIFO_INT_EN)
-                    | (0x00UL << POS_SPI_REG0X0_RXOVF_EN)
-                    | (0x00UL << POS_SPI_REG0X0_TXUDF_EN)
-                    //| (0x00UL << POS_SPI_REG0X0_RXINT_MODE)
-                    | (0x01UL << POS_SPI_REG0X0_RXFIFO_INT_LEVEL)  //rx
-                    | (0x01UL << POS_SPI_REG0X0_TXFIFO_INT_LEVEL);
+					//|( 0x1 << POS_SPI_REG0X0_MSTEN)           //master mode //set slave mode
+					| (CKPHA_CLK1 << POS_SPI_REG0X0_CKPHA)
+					| (CKPOL_L << POS_SPI_REG0X0_CKPOL)
+					| (SPI_CHARFORMAT_8BIT << POS_SPI_REG0X0_BIT_WDTH)
+					| (0x01UL << POS_SPI_REG0X0_SLV_RELEASE_INTEN)
+					//| (0x01UL << POS_SPI_REG0X0_NSSMD)  //
+					//| (freq_div << POS_SPI_REG0X0_SPI_CKR)  //clk div
+					//| (0x00UL << POS_SPI_REG0X0_RXINT_EN)
+					| (0x01UL << POS_SPI_REG0X0_RXFIFO_INT_EN)  // enable rxint
+					| (0x00UL << POS_SPI_REG0X0_TXFIFO_INT_EN)
+					| (0x00UL << POS_SPI_REG0X0_RXOVF_EN)
+					| (0x00UL << POS_SPI_REG0X0_TXUDF_EN)
+					//| (0x00UL << POS_SPI_REG0X0_RXINT_MODE)
+					| (0x01UL << POS_SPI_REG0X0_RXFIFO_INT_LEVEL)  //rx
+					| (0x01UL << POS_SPI_REG0X0_TXFIFO_INT_LEVEL);
     SPI_REG0X1_CN =   (1<<POS_SPI_REG0X1_TX_EN)
                                 |(1<<POS_SPI_REG0X1_RX_EN)
                                 |(1<<POS_SPI_REG0X1_TX_FINISH_INT_EN)
                                 |(1<<POS_SPI_REG0X1_RX_FINISH_INT_EN);
 
 
-    SYS_REG0X4_CLK_SEL |= (1<<POS_SYS_REG0X4_SPICLK_SEL);////PLL 96M CLK
-        SPI_REG0X0_CFG |= (0x01UL << POS_SPI_REG0X0_SPIEN);
+	SYS_REG0X4_CLK_SEL |= (1<<POS_SYS_REG0X4_SPICLK_SEL);////PLL 96M CLK
+	    SPI_REG0X0_CFG |= (0x01UL << POS_SPI_REG0X0_SPIEN);
 
-      SPI_REG0X2_STAT |= (0x03UL << POS_SPI_REG0X2_TXFIFO_CLR);
+  	SPI_REG0X2_STAT |= (0x03UL << POS_SPI_REG0X2_TXFIFO_CLR);
 
 
-    for(i = 0;i < 10; i++)
-    {
-        SPI_REG0X3_DAT = *p_spi_txdata;
-                p_spi_txdata ++;
-    }
+	for(i = 0;i < 10; i++)
+	{
+		SPI_REG0X3_DAT = *p_spi_txdata;
+            	p_spi_txdata ++;
+	}
 
-    uart_printf("SPI_CTRL 1 slave = %x\r\n",SPI_REG0X0_CFG);
+	uart_printf("SPI_CTRL 1 slave = %x\r\n",SPI_REG0X0_CFG);
 
 
 }
 
 void spi_slave_start(void)
 {
-        SPI_REG0X0_CFG |= 0x20;  //open rxint_en
+	    SPI_REG0X0_CFG |= 0x20;  //open rxint_en
 }
 
 void spi_slave_stop()
 {
-    SPI_REG0X0_CFG = 0;
-    SET_SPI_POWER_DOWN;
-    SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_SPI);
+	SPI_REG0X0_CFG = 0;
+	SET_SPI_POWER_DOWN;
+	SYS_REG0X10_INT_EN &= ~(0x01 << POS_SYS_REG0X10_INT_EN_SPI);
 
-    //REG_AHB0_ICU_SPICLKCON    = 0x1 ;                     //SPI clock enable
-    //    REG_AHB0_ICU_INT_ENABLE  &= ~INT_STATUS_SPI_bit;      //IRQ UART interrupt enable
+	//REG_AHB0_ICU_SPICLKCON    = 0x1 ;                     //SPI clock enable
+    //	REG_AHB0_ICU_INT_ENABLE  &= ~INT_STATUS_SPI_bit;      //IRQ UART interrupt enable
        SPI_REG0X2_STAT = 0;
 }
 
@@ -493,16 +497,16 @@ unsigned char terminal_value;
 //after cs high��init REG_APB2_SPI_DAT(10byte)
 void spi_slave_done_data(void)
 {
-    int i;
-    if( spi_slave_status == 1) //cs inactinve
-    {
-        uart_printf("spi len=%x:",terminal_value);
-        for(i=0;i<terminal_value;i++)
-        {
-            uart_printf("%x,",spi_rxbuf[i]);
-        }
+	int i;
+	if( spi_slave_status == 1) //cs inactinve
+	{
+	    uart_printf("spi len=%x:",terminal_value);
+		for(i=0;i<terminal_value;i++)
+		{
+			uart_printf("%x,",spi_rxbuf[i]);
+		}
         uart_printf("\r\n");
-        memset(spi_rxbuf,0,SPI_SLAVE_BUFFER_SIZE);
+		memset(spi_rxbuf,0,SPI_SLAVE_BUFFER_SIZE);
 
         for(i = 0;i < 10; i++)
         {
@@ -510,44 +514,43 @@ void spi_slave_done_data(void)
             SPI_REG0X3_DAT = spi_buf[i];
         }
 
-        p_spi_txdata =spi_buf;
-           p_spi_rxdata = spi_rxbuf;
-        spi_slave_status = 0;
-    }
+		p_spi_txdata =spi_buf;
+   		p_spi_rxdata = spi_rxbuf;
+		spi_slave_status = 0;
+	}
 }
 void spi_slave_isr(void)
 {
-    unsigned int            rxint;
-    unsigned char           rxfifo_en = 0;
+	unsigned int            rxint;
+	unsigned char           rxfifo_en = 0;
 
 
-    rxint = SPI_REG0X2_STAT & 0x0600;
-    if(rxint)
-    {
-        rxfifo_en = SPI_REG0X2_STAT & 0x0004;
-        terminal_value = 0;
-        while(rxfifo_en)
-        {
-            *p_spi_rxdata = SPI_REG0X3_DAT;
-            //uart_printf("%d\r\n",SPI_REG0X3_DAT);
-            p_spi_rxdata ++;
+	rxint = SPI_REG0X2_STAT & 0x0600;
+	if(rxint)
+	{
+		rxfifo_en = SPI_REG0X2_STAT & 0x0004;
+		terminal_value = 0;
+		while(rxfifo_en)
+		{
+			*p_spi_rxdata = SPI_REG0X3_DAT;
+			//uart_printf("%d\r\n",SPI_REG0X3_DAT);
+			p_spi_rxdata ++;
 
-            rxfifo_en = SPI_REG0X2_STAT & 0x0004;
+			rxfifo_en = SPI_REG0X2_STAT & 0x0004;
 
-            terminal_value++;
+			terminal_value++;
 
 
-            //break;
-        }
-
-        if(rxint&0x600)
-        {
-            spi_slave_status=1;
-        }
+			//break;
+		}
+	if(rxint&0x600)
+		{
+			spi_slave_status=1;
+		}
 
 
         SPI_REG0X2_STAT |= 0x0600; //clear rxint
-    }
+	}
 }
 
 /*************************************************************************
@@ -556,38 +559,36 @@ void spi_slave_isr(void)
 *************************************************************************/
 void spi_slave_test(void)
 {
-    /****************************************************
-    **SPI slave test
-    ****************************************************/
-    int i;
-      for(i=0;i<80;i++)
-    {
-        spi_buf[i]=i+0x51;//+0x56;
-        spi_rxbuf[i]=i+0x20;//0x78;
-    }
+	/****************************************************
+	**SPI slave test
+	****************************************************/
+	int i;
+  	for(i=0;i<80;i++)
+	{
+		spi_buf[i]=i+0x51;//+0x56;
+		spi_rxbuf[i]=i+0x20;//0x78;
+	}
        p_spi_txdata =spi_buf;
        p_spi_rxdata = spi_rxbuf;
-    spi_slave_init();
+	spi_slave_init();
 
-    //spi_init(1,3,0);
+	//spi_init(1,3,0);
 
-    //SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_SPI);
+	//SYS_REG0X10_INT_EN |= (0x01 << POS_SYS_REG0X10_INT_EN_SPI);
 
-    //spi_slave_start();
-    gpio_config(Port_Pin(3, 2), GPIO_OUTPUT, GPIO_PULL_NONE);
+	//spi_slave_start();
+    gpio_config(Port_Pin(3,2),GPIO_OUTPUT,GPIO_PULL_NONE);
 
-    gpio_config(Port_Pin(3, 1), GPIO_OUTPUT, GPIO_PULL_NONE);
-    gpio_toggle(Port_Pin(3, 2));
-    gpio_toggle(Port_Pin(3, 2));
-    gpio_toggle(Port_Pin(3, 2));
-    gpio_toggle(Port_Pin(3, 2));
-    while(1)
-    {
+    gpio_config(Port_Pin(3,1),GPIO_OUTPUT,GPIO_PULL_NONE);
+	gpio_toggle(Port_Pin(3,2));
+	gpio_toggle(Port_Pin(3,2));
+	gpio_toggle(Port_Pin(3,2));
+	gpio_toggle(Port_Pin(3,2));
+	while(1)
+	{
         spi_slave_done_data();
-    }
+	}
 }
-
-
 
 #endif
 

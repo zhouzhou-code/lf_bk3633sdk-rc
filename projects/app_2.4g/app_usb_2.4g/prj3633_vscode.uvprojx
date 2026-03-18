@@ -528,6 +528,11 @@
               <FileType>1</FileType>
               <FilePath>.\app\src\remote_control\app\test_slave.c</FilePath>
             </File>
+            <File>
+              <FileName>pinmap_v1.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\pinmap_v1.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -643,13 +648,6 @@
         </Group>
         <Group>
           <GroupName>Application/remote_control/config</GroupName>
-          <Files>
-            <File>
-              <FileName>pinmap_v1.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\pinmap_v1.h</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>Application/battary_tramsmit</GroupName>
