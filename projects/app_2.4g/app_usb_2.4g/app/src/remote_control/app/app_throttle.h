@@ -19,8 +19,7 @@ void app_throttle_init(void);
  * @param throttle_value 输出：当前油门值
  * @param throttle_changed_flag 输出：油门是否发生变化（1=变化，0=未变化）
  */
-void app_throttle_update(uint16_t *throttle_value, uint8_t *throttle_changed_flag);
-
+void app_throttle_update(uint8_t *throttle_value, uint8_t *throttle_changed_flag) ;
 /**
  * @brief 获取当前油门值
  * @return 油门值 0-100

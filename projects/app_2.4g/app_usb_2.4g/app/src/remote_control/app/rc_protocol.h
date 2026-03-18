@@ -4,14 +4,16 @@
  * @brief 遥控器通信协议
  *
  * 帧格式:
- *   [HEAD: A5 5A] [LEN: 1B] [CMD: 1B] [SEQ: 1B] [PAYLOAD: nB] [CRC16: 2B] [TAIL: BB]
+ *   [HEAD: A5 5A] [LEN: 1B] [SRC_DEV: 1B] [DST_DEV: 1B] [CMD: 1B] [SEQ: 1B] [PAYLOAD: nB] [CRC16: 2B] [TAIL: BB]
  *
  *   HEAD     - 固定帧头 0xA5 0x5A
- *   LEN      - payload字节数（不含HEAD/CMD/SEQ/CRC/TAIL）
+ *   LEN      - payload字节数（不含HEAD/SRC/DST/CMD/SEQ/CRC/TAIL）
+ *   SRC_DEV  - 源设备类型
+ *   DST_DEV  - 目标设备类型
  *   CMD      - 命令码，遥控下行0x3x，电机上行0x6x
  *   SEQ      - 序列号，下行为发送seq，上行为确认ack_seq
  *   PAYLOAD  - 数据域
- *   CRC16    - 校验范围: LEN + CMD + SEQ + PAYLOAD，小端存储
+ *   CRC16    - 校验范围: LEN + SRC_DEV + DST_DEV + CMD + SEQ + PAYLOAD，小端存储
  *   TAIL     - 固定帧尾 0xBB
  *
  * 确认机制（ACK payload异步回传）:
@@ -24,15 +26,6 @@
  *      - ack_seq >= change_seq → 数据已确认，停止重发
  *      - ack_seq <  change_seq → 数据未确认，继续发送
  *   4. seq为uint8_t自然回绕(0-255)，用(int8_t)差值比较处理溢出
- *
- *   示例（油门从0变到500）:
- *     TX seq=10 throttle=500  →  主控收到, 存ack_seq=10
- *     TX seq=11 throttle=500  ←  ACK ack_seq=10, 确认! 停止重发
- *
- *   示例（中间丢包）:
- *     TX seq=10 throttle=500  →  丢包
- *     TX seq=11 throttle=500  →  主控收到, 存ack_seq=11
- *     TX seq=12 throttle=500  ←  ACK ack_seq=11, 确认! 停止重发
  *
  ****************************************************************************************
  */
@@ -48,10 +41,17 @@
 #define PROTO_TAIL          0xBB
 #define PROTO_MAX_PAYLOAD   16
 
+/* ======================== 设备类型 ======================== */
+
+#define DEV_REMOTE          0x01    /* 遥控器 */
+#define DEV_ESC             0x02    /* 电控 */
+#define DEV_BATTERY         0x03    /* 动力电池 */
+#define DEV_CADENCE         0x04    /* 踏频 */
+
 /* ======================== 命令码 ======================== */
 
-#define CMD_RC_CTRL         0x31    /* 遥控 → 主控: 控制数据 */
-#define CMD_MC_STATUS       0x61    /* 主控 → 遥控: 状态回传 */
+#define CMD_RC_CTRL         0x31    /* 遥控 → 电控: 控制数据 */
+#define CMD_MC_STATUS       0x61    /* 电控 → 遥控: 状态回传 */
 
 /* ======================== 模式 ======================== */
 
@@ -77,26 +77,60 @@ typedef struct {
 
 /*
  * 打包下行控制帧
- * @param buf  输出缓冲区
- * @param seq  当前发送序列号
- * @param ctrl 控制数据
- * @return     帧总字节数
+ * @param buf     输出缓冲区
+ * @param src_dev 源设备类型
+ * @param dst_dev 目标设备类型
+ * @param seq     当前发送序列号
+ * @param ctrl    控制数据
+ * @return        帧总字节数
  */
-uint8_t proto_pack_ctrl(uint8_t *buf, uint8_t seq, const rc_ctrl_t *ctrl);
+uint8_t proto_pack_ctrl(uint8_t *buf, uint8_t src_dev, uint8_t dst_dev,
+                        uint8_t seq, const rc_ctrl_t *ctrl);
 
 /*
  * 解析上行状态帧 (从ACK payload中提取)
  * @param buf     接收帧数据
  * @param len     帧长度
+ * @param src_dev [out] 源设备类型
+ * @param dst_dev [out] 目标设备类型
  * @param ack_seq [out] 主控确认的seq
  * @param status  [out] 状态数据
  * @return        0=成功, -1=校验失败
  */
 int8_t proto_parse_status(const uint8_t *buf, uint8_t len,
+                          uint8_t *src_dev, uint8_t *dst_dev,
                           uint8_t *ack_seq, mc_status_t *status);
 
 /* CRC16-CCITT (poly=0x1021, init=0xFFFF) */
 uint16_t proto_crc16(const uint8_t *data, uint8_t len);
+
+/* ======================== 从机侧接口 ======================== */
+
+/*
+ * 解析遥控下行控制帧 (从机使用)
+ * @param buf     接收帧数据
+ * @param len     帧长度
+ * @param src_dev [out] 源设备类型
+ * @param dst_dev [out] 目标设备类型
+ * @param seq     [out] 遥控发送的seq
+ * @param ctrl    [out] 控制数据
+ * @return        0=成功, -1=校验失败
+ */
+int8_t proto_parse_ctrl(const uint8_t *buf, uint8_t len,
+                        uint8_t *src_dev, uint8_t *dst_dev,
+                        uint8_t *seq, rc_ctrl_t *ctrl);
+
+/*
+ * 打包上行状态帧 (从机装入ACK payload)
+ * @param buf     输出缓冲区
+ * @param src_dev 源设备类型
+ * @param dst_dev 目标设备类型
+ * @param ack_seq 确认的seq (收到的遥控seq)
+ * @param status  状态数据
+ * @return        帧总字节数
+ */
+uint8_t proto_pack_status(uint8_t *buf, uint8_t src_dev, uint8_t dst_dev,
+                          uint8_t ack_seq, const mc_status_t *status);
 
 /* ======================== 发送确认跟踪 ======================== */
 

@@ -74,8 +74,8 @@ void adc_deinit(uint8_t channel)
 void adc_isr(void)
 {
     SADC_REG0X0_CFG0 |= (0x01 << POS_SADC_REG0X0_CFG0_INT_CLEAR);
-    
-    adc_flag=1;    
+    adc_flag=1;
+
     // if((SADC_REG0X0_CFG0&0x03)==0x03)
     //     uart_printf("adc_value=%x\r\n",SADC_REG0X4_DAT);
     

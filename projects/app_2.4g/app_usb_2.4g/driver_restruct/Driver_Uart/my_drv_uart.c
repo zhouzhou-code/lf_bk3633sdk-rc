@@ -49,7 +49,7 @@ void uart_init(uint32_t baudrate)
     
     // GPIO Config for UART0 (P0.0=TX, P0.1=RX)
     gpio_config(Port_Pin(0,0), GPIO_SC_FUN, GPIO_PULL_HIGH);
-    gpio_config(Port_Pin(0,1), GPIO_SC_FUN, GPIO_PULL_HIGH);
+    //gpio_config(Port_Pin(0,1), GPIO_SC_FUN, GPIO_PULL_HIGH);
     
     // UART0 Control Register Configuration
     UART_REG0X0 = (uart_clk_div << POS_UART_REG0X0_CLK_DIVID) |

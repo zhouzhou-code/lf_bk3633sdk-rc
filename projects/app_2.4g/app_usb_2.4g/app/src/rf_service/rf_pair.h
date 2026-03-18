@@ -90,6 +90,7 @@ typedef struct {
 
     uint32_t verify_cnt;               // ping-pong成功计数
     uint32_t verify_target_count;      // 目标ping-pong次数，小于slave的目标ping-pong次数
+    uint8_t  paired_dev_type;          // 配对的设备类型
 } HostPairCtrl_t;
 
 extern uint8_t slave_pair_success_flag;

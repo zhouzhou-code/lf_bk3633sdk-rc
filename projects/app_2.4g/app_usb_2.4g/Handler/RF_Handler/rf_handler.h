@@ -41,11 +41,19 @@ extern volatile uint32_t rf_int_count_rxdr;
 extern volatile uint32_t rf_int_count_txds;
 extern volatile uint32_t rf_int_count_maxrt;
 
+/* 业务模式初始化：ACK Payload模式 */
+void RF_Handler_Init_ToNormal(void);
+
+/* 配对模式初始化：队列+切换模式 */
+void RF_Handler_Init_ToPair(void);
+
+/* 默认初始化（兼容旧代码） */
 void RF_Handler_Init(void);
 void RF_txQueue_Send(uint8_t *dest_addr,uint8_t *data_pack, uint8_t len);
 void RF_txQueue_Clear(void);
 uint8_t RF_rxQueue_Recv(const uint8_t **data_ptr, uint8_t *out_len, uint8_t *pipes);
 uint8_t RF_rxQueue_clear(void);
 void RF_Service_Handler(RF_HandleTypeDef *hrf);
+int8_t RF_Send(uint8_t *dest_addr, const uint8_t *data, uint8_t len);
 
 #endif /* __RF_HANDLER_H */

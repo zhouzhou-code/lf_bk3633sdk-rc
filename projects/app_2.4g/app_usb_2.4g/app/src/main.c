@@ -28,7 +28,6 @@
 #include "icu.h"
 #include "remote_control/app/rc_scheduler.h"
 #include "remote_control/device/hall/hall_sensor.h"
-#include "user_config.h"
 #include "drv_gpio.h"
 #include "wdt.h"
 #include "spi.h"
@@ -53,16 +52,18 @@
 #include "timer_handler.h"
 #include "bat_protocol.h"
 #include "rf_pair.h"
+#include "rf_config.h"
 #include "addr_pool.h"
 #include "gpio_init.h"
 #include "app_sleep.h"
 #include "key_scan.h"
-#include "rf_addr_mgr.h"
 
 #include "lcd_init.h"
 #include "lcd_kmg.h"
 
 #include "hall_sensor.h"
+#include "user_config.h"
+#include "pinmap_v1.h"
 
 extern void  xvr_reg_initial_24(void);
 
@@ -456,8 +457,7 @@ void app_key_event_handler(key_id_t id, key_event_t event)
     }
 }
 
-void hall_test_example(void)
-{
+void hall_test_example(void) {
     hall_sensor_t hall;
     uint16_t filter_buf[8] = {0};
     
@@ -490,18 +490,8 @@ void hall_test_example(void)
     delay_ms(100);
     float arg1=0;
     while(1){
-        //app_throttle_update(&throttle_value, &flag);
-        //throttle_value=hall_sensor_read_throttle(&hall);
-        //throttle_value=hall_sensor_read_raw(&hall);
-        //throttle_value_filter=hall_filter_update(&hall.filter, throttle_value);
-        // throttle_value_filter=hall_sensor_read_filtered(&hall);
 
         hall_sensor_update(&hall); 
-
-        // float data[2];
-        // data[0] = arg1++;
-        // data[1] = arg1++;
-        // vofa_senddata(data, 2);
 
         float data[3];
         data[0] = hall.data.raw;
@@ -520,9 +510,7 @@ void hall_test_example(void)
 #if 1
 int main(void)
 {
-    
     icu_init(); //不能用串口打印，还没初始化
-
     //wdt_disable();
     intc_init(); //不能用串口打印，还没初始化！
     
@@ -543,7 +531,7 @@ int main(void)
     flash_init();
     uart_printf("init flash:%d\r\n", Get_SysTick_ms());
 
-    rf_addr_mgr_init();
+    //rf_addr_mgr_init();
     uart_printf("init rf_addr_mgr:%d\r\n", Get_SysTick_ms());
 
     
@@ -554,15 +542,13 @@ int main(void)
     mcu_clk_switch(MCU_CLK_16M);
     uart_printf("select MCU_CLK_16M:%d\r\n", Get_SysTick_ms());
     #endif   
+
     #if(AON_RTC_DRIVER)
     aon_rtc_init();
     uart_printf("init aon_rtc:%d\r\n", Get_SysTick_ms());
     #endif
 
-    #if(SPI_DRIVER)
-    spi_init(0,0,0);
-    uart_printf("init spi:%d\r\n", Get_SysTick_ms());
-    #endif
+
 
     #if(ADC_DRIVER)
     //adc_init(2,1);
@@ -578,38 +564,50 @@ int main(void)
     uart_printf("init usb\r\n");
     #endif
     
-    GLOBAL_INT_START();
-    uart_printf("GLOBAL_INT_START:%d\r\n", Get_SysTick_ms());
-
-    
     USB_Test();
     AES_Test();
 
+    GLOBAL_INT_START();
+    uart_printf("GLOBAL_INT_START:%d\r\n", Get_SysTick_ms());
 
-    #if(ENABLE_LED_DISPLAY)
-    uart_printf("init lcd display\r\n");
-    OLED_Init(); //初始化
-    uart_printf("init lcd end\r\n");
-    LCD_Fill(0, 0, LCD_W, LCD_H, BLACK); //清屏
-    uart_printf("fill lcd\r\n");
-    LCD_ShowString_Hor(10, 10, "OK!", WHITE, BLACK, 16);  // 测试
-    uart_printf("show string\r\n");
-    #endif
-
-    //hall_test_example();
-
-    // hall_init();
-    // while(1){
-    //     uint16_t hall_value;
-    //     hall_value=hall_read_raw();
-    //     uart_printf("hall: %d\r\n", hall_value);
-    //     delay_ms(100);
-    // }
+    gpio_config(Port_Pin(1, 7), GPIO_OUTPUT,GPIO_PULL_NONE);
+#if(SPI_DRIVER)
+    spi_init(0,0,0);
+    uart_printf("init spi:%d\r\n", Get_SysTick_ms());
+#endif
 
     
+    #if (ENABLE_LED_DISPLAY)
+    gpio_config(LCD_PWR_EN, GPIO_OUTPUT,GPIO_PULL_NONE);
+    gpio_set(LCD_PWR_EN, 1); // 设置LCD电源使能引脚为高电平上电
+    OLED_Init();
+    LCD_Fill(0, 0, LCD_W, LCD_H, BLACK);
+    //update_ui(0, (uint8_t)100, (uint16_t)0);
+    update_ui_test(10, 85);
+    #endif
+   uint8_t hall=0,soc=0;
+    while(1){
+        //uart_printf("Testing LCD.\r\n");
+        //test_lcd2();      
+        hall=(hall+1)%99;
+        soc=(soc+2)%99;
+
+        update_ui_test(hall, soc);
+
+    }
+
+
+    #define slave 0
+
+    #if slave
+    extern  void test_slave_loop(void);
+    test_slave_loop();
+    #else
     RC_Scheduler_t sched;
     RC_Scheduler_Init(&sched);
     RC_Scheduler_Task(&sched);
+    #endif
+
     /*----------------------------测试按键功能--------------------------------------*/
     const key_config_t my_keys[] = {
         {KEY_ID_LEFT,   Port_Pin(0, 2), 2000, false}, // Left Key: 3s Long Press
@@ -617,22 +615,13 @@ int main(void)
     };
     key_init(my_keys, sizeof(my_keys)/sizeof(key_config_t));
     key_register_callback(app_key_event_handler);
-    
+
     uart_printf("Key Test Start...\r\n");
+    rf_config_load_from_flash();  // 加载RF配置
     RF_Handler_Init();//初始化RF句柄及队列
     
     #define is_host 1
     while(1) {
-
-        while(1){
-            uint8_t dest_addr[5] = {0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
-            uint8_t test_data[32] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14};
-            //发包测试 
-            RF_txQueue_Send(dest_addr,test_data, 16);
-            RF_Service_Handler(&hrf);
-            delay_ms(10);
-        }
-
         static uint32_t last_scan_time = 0;
         if (Get_SysTick_ms() - last_scan_time >= 10) {
             last_scan_time = Get_SysTick_ms();
@@ -647,136 +636,83 @@ int main(void)
     }
 
 
-    /*------------------------------------测试队列性能------------------------------------*/
-    // Key Test Init
-   
 
-    // gpio_config(Port_Pin(0,3), GPIO_OUTPUT, GPIO_PULL_NONE); 
-    // gpio_config(Port_Pin(0,7), GPIO_OUTPUT, GPIO_PULL_NONE); 
-    // gpio_set(Port_Pin(0,7),0);
-
-    // while(1){
-    //    //uart_printf("e:%d\r\n",Get_SysTick_ms());
-
-    //    if(Get_SysTick_ms()>=1000*60){ //运行1分钟测试
-    //           uart_printf("test over 1 min\r\n");
-    //           while(1);
-    //    }
-    // }
-    
-
-    // uart_printf("e:%d\r\n",Get_SysTick_ms());
-    // // cpu延时等串口寄存器发完
-    // for(int i=0;i<10000;i++){
-    //     __nop();
-    // }
-
-    // cpu_24_reduce_voltage_sleep();   //进入低电压睡眠
-    // while(1){
-    //     app_enter_deep_sleep_with_wakeup_by_rtc(100); //进入深度睡眠，5秒后被RTC唤醒
-    //     uart_printf("wake up from sleep:%d\r\n",Get_SysTick_ms());
-    // }
-
-    
-
-    // gpio_set(Port_Pin(0,3),1);
-    // gpio_set(Port_Pin(0,3),0);
-    // Rf_rxQueueItem_t temp;
-    // temp.pipes = 0;
-    // temp.len = 20;
-    // //gpio_set(Port_Pin(0,3),1);
-    // for(int i=0;i<128;i++)
-    //     queue_push_overwrite(&rf_rxQueue, (Rf_rxQueueItem_t*)&temp);
-    // //gpio_set(Port_Pin(0,3),0);  
-    // //delay_ms(5); 
-    // gpio_set(Port_Pin(0,3),1); 
-    // for(int i=0;i<1;i++)
-    //     queue_pop(&rf_rxQueue, (Rf_rxQueueItem_t*)&temp);
-    // gpio_set(Port_Pin(0,3),0); 
-    // //delay_ms(10);
-    
-    //     while(1){
-    //         gpio_set(Port_Pin(0,3),1);
-    //         // delay_ms(10);
-    //         // gpio_set(Port_Pin(0,3),0);
-    //         // delay_ms(20);
-    //     }
 
 
     /* ------------------------------------双通道收发-------------------------------------- */
     //使用pipe0接收ACK
-    uint8_t pipe0_addr[5] = {0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
-    uint8_t pipe1_addr[5] = {0xA1, 0xA1, 0xA1, 0xA1, 0xA1};
-     RF_Handler_Init();//初始化RF句柄及队列
-     //printf_all_registers();
-     HAL_RF_SetTxMode(&hrf);//设置为发送模式
-     HAL_RF_SetTxPower(&hrf, RF_TX_POWER_N4p6_dBm);//设置发送功率
-     uint32_t txcount=0;
-     uint32_t txcount1=0;
-     uint8_t test_send_data0[5];
-     uint8_t test_send_data1[14];
-    for(int i=0;i<5;i++) test_send_data0[i]=i;
-    for(int i=0;i<14;i++) test_send_data1[i]=i;
-    set_power(RF_TX_POWER_N8p6_dBm); //设置发射功率为-8.6dBm
-    while(1) //发送
-    {
-        txcount++;
-        txcount1++;
+    // uint8_t pipe0_addr[5] = {0xA0, 0xA0, 0xA0, 0xA0, 0xA0};
+    // uint8_t pipe1_addr[5] = {0xA1, 0xA1, 0xA1, 0xA1, 0xA1};
+    //  RF_Handler_Init();//初始化RF句柄及队列
+    //  //printf_all_registers();
+    //  HAL_RF_SetTxMode(&hrf);//设置为发送模式
+    //  HAL_RF_SetTxPower(&hrf, RF_TX_POWER_N4p6_dBm);//设置发送功率
+    //  uint32_t txcount=0;
+    //  uint32_t txcount1=0;
+    //  uint8_t test_send_data0[5];
+    //  uint8_t test_send_data1[14];
+    // for(int i=0;i<5;i++) test_send_data0[i]=i;
+    // for(int i=0;i<14;i++) test_send_data1[i]=i;
+    // set_power(RF_TX_POWER_N8p6_dBm); //设置发射功率为-8.6dBm
+    // while(1) //发送
+    // {
+    //     txcount++;
+    //     txcount1++;
 
-        //发10次pipe0,再换地址发10次pipe1
-        if(txcount<=10){
-            test_send_data0[0]=txcount;
-            HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
-            //HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
-            RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
-        }
-        else{ //换地址发！
+    //     //发10次pipe0,再换地址发10次pipe1
+    //     if(txcount<=10){
+    //         test_send_data0[0]=txcount;
+    //         HAL_RF_SetTxAddress(&hrf, pipe0_addr, 5);//设置发送地址为pipe0地址
+    //         //HAL_RF_SetRxAddress(&hrf,0, pipe0_addr, 5);//设置发送地址为pipe0地址
+    //         RF_txQueue_Send(pipe0_addr,test_send_data0, sizeof(test_send_data0));//测试发送数据入队
+    //     }
+    //     else{ //换地址发！
 
-            test_send_data1[0]=txcount-10;
-            HAL_RF_SetTxAddress(&hrf, pipe1_addr, 5);//设置发送地址为pipe1地址
-            //HAL_RF_SetRxAddress(&hrf,0, pipe1_addr, 5);//设置发送地址为pipe1地址
-            RF_txQueue_Send(pipe1_addr,test_send_data1, sizeof(test_send_data1));//测试发送数据入队
+    //         test_send_data1[0]=txcount-10;
+    //         HAL_RF_SetTxAddress(&hrf, pipe1_addr, 5);//设置发送地址为pipe1地址
+    //         //HAL_RF_SetRxAddress(&hrf,0, pipe1_addr, 5);//设置发送地址为pipe1地址
+    //         RF_txQueue_Send(pipe1_addr,test_send_data1, sizeof(test_send_data1));//测试发送数据入队
 
-            if(txcount>25) {
-                txcount=0;
-            }   
-        }
-        //只发送240次，测试
-        if(txcount1>=100){
-            while(1){
-                uart_printf("send all count=%d \r\n", txcount1);
+    //         if(txcount>25) {
+    //             txcount=0;
+    //         }   
+    //     }
+    //     //只发送240次，测试
+    //     if(txcount1>=100){
+    //         while(1){
+    //             uart_printf("send all count=%d \r\n", txcount1);
 
-                //app_enter_deep_sleep_with_wakeup_by_rtc(1000);
-                //__HAL_RF_PowerDown();
-                //delay_ms(10000);
-            }
-        }
-        delay_ms(100);
-        RF_Service_Handler(&hrf);
+    //             //app_enter_deep_sleep_with_wakeup_by_rtc(1000);
+    //             //__HAL_RF_PowerDown();
+    //             //delay_ms(10000);
+    //         }
+    //     }
+    //     delay_ms(100);
+    //     RF_Service_Handler(&hrf);
 
-        //
+    //     //
        
-    }
+    // }
 
-    HAL_RF_SetRxMode(&hrf);//设置为接收模式
-    HAL_RF_SetRxAddress(&hrf, 0, pipe0_addr, 5);//设置pipe0地址
-    HAL_RF_SetRxAddress(&hrf, 1, pipe1_addr, 5);//设置pipe1地址
-    uint32_t rx_cnt=0;
-    //printf_all_registers();
-    while(1)//接收                                                
-    {
-        uint8_t* rec_data;
-        uint8_t  out_len;
-        uint8_t  pipes;
-        gpio_set(Port_Pin(0,3),1);
-        if(RF_rxQueue_Recv(&rec_data, &out_len, &pipes)!=0){
-            gpio_set(Port_Pin(0,3),0);
-            rx_cnt++;
-            //uart_printf("len=%d, pipe=%d,data0=%d \r\n", out_len, pipes,rec_data[0]);
-            uart_printf("%d %d %d %d\r\n",rec_data[0], rx_cnt,rf_int_count_rxdr,rf_rxQueue.overwrite_cnt);
-        }
-        delay_ms(15);
-    }
+    // HAL_RF_SetRxMode(&hrf);//设置为接收模式
+    // HAL_RF_SetRxAddress(&hrf, 0, pipe0_addr, 5);//设置pipe0地址
+    // HAL_RF_SetRxAddress(&hrf, 1, pipe1_addr, 5);//设置pipe1地址
+    // uint32_t rx_cnt=0;
+    // //printf_all_registers();
+    // while(1)//接收                                                
+    // {
+    //     uint8_t* rec_data;
+    //     uint8_t  out_len;
+    //     uint8_t  pipes;
+    //     gpio_set(Port_Pin(0,3),1);
+    //     if(RF_rxQueue_Recv(&rec_data, &out_len, &pipes)!=0){
+    //         gpio_set(Port_Pin(0,3),0);
+    //         rx_cnt++;
+    //         //uart_printf("len=%d, pipe=%d,data0=%d \r\n", out_len, pipes,rec_data[0]);
+    //         uart_printf("%d %d %d %d\r\n",rec_data[0], rx_cnt,rf_int_count_rxdr,rf_rxQueue.overwrite_cnt);
+    //     }
+    //     delay_ms(15);
+    // }
 
 
     /* ------------------------------------配对测试,过-------------------------------------- */

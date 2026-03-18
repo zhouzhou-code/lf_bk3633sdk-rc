@@ -5,32 +5,30 @@
 #include "pic.h"
 #include "one_50x50_lcd.h"
 #include "user_config.h"
-#include "oled_config.h"
 #include "datatypes.h"
+#include "timer_handler.h"
 
 #define KMS_UNIT       "km "
 #define SPEED_UNIT     "km/h"
-extern void Delay_ms(int num);
-extern void Delay_us(int num);
-
-// UI pacing between drawing steps. Default keeps behavior close to original code.
-static uint16_t s_lcd_ui_step_delay_ms = 1;
-
-void lcd_ui_set_step_delay_ms(uint16_t ms)
+static void Delay_ms(int num) //sync from svn revision 18
 {
-    s_lcd_ui_step_delay_ms = ms;
+    int x, y;
+    for(y = 0; y < num; y ++ )
+    {
+        for(x = 0; x < 1580; x++);
+    }
+
 }
 
-uint16_t lcd_ui_get_step_delay_ms(void)
+static void Delay_us(int num)
 {
-    return s_lcd_ui_step_delay_ms;
+    int x, y;
+    for(y = 0; y < num; y++)
+    {
+        for(x = 0; x < 5; x++);
+    }
 }
 
-static void lcd_ui_step_delay(void)
-{
-    if (s_lcd_ui_step_delay_ms)
-        Delay_ms((int)s_lcd_ui_step_delay_ms);
-}
 
 uint8_t reverse_bits(uint8_t b) {
     b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
@@ -334,9 +332,9 @@ void LCD_Show_Space_Hor_dma(uint16_t x, uint16_t y, uint16_t bc, uint8_t sizey)
             dma_buffer[dma_index ++] = bc >> 8;
             dma_buffer[dma_index ++] = bc & 0xFF;
             if (dma_index >= SPI_BATCH_N) {
-                // LCD_DC_Set();
+                LCD_DC_Set();
                 LCD_WR_Bus_batch(&(dma_buffer[0]), dma_index);
-                // LCD_DC_Set();
+                LCD_DC_Set();
                 dma_index = 0;
             }
             // LCD_WR_DATA(bc);
@@ -356,10 +354,9 @@ void LCD_Show_Space_Hor_dma(uint16_t x, uint16_t y, uint16_t bc, uint8_t sizey)
     
 #if USE_DMA
     LCD_Address_Set(x, y - sizey + 1, x + sizey - 1, y); // 注意：坐标系统是横屏的，y向上增长
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(&(dma_buffer[0]), dma_index, NULL);
-    LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone(); // prevents dma_buffer reuse races
+    LCD_DC_Set();
+    spi_dma_write(&(dma_buffer[0]), dma_index, NULL);
+    LCD_DC_Set();
 #else
     // uint16_t batch_n = 32;
     // uint16_t batch_size = dma_index / SPI_BATCH_N;
@@ -444,9 +441,9 @@ void LCD_ShowChar_Digital_Hor_dma(uint16_t x, uint16_t y, uint8_t ch, uint16_t f
 
             if (dma_index >= SPI_BATCH_N)
             {
-                // LCD_DC_Set();
+                LCD_DC_Set();
                 LCD_WR_Bus_batch(&(dma_buffer[0]), dma_index);
-                // LCD_DC_Set();
+                LCD_DC_Set();
                 dma_index = 0;
             }
             k++;
@@ -462,10 +459,9 @@ void LCD_ShowChar_Digital_Hor_dma(uint16_t x, uint16_t y, uint8_t ch, uint16_t f
     // LCD_WR_DATA_dma(&(dma_buffer[0]), dma_index);
 #if USE_DMA
     LCD_Address_Set(x, y - sizey + 1, x + sizey - 1, y); // 注意：坐标系统是横屏的，y向上增长
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(&(dma_buffer[0]), dma_index, NULL);
-    LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone(); // prevents dma_buffer reuse races
+    LCD_DC_Set();
+    spi_dma_write(&(dma_buffer[0]), dma_index, NULL);
+    LCD_DC_Set();
 #else
     LCD_DC_Set();
     // uint16_t batch_n = 64;
@@ -558,10 +554,11 @@ void LCD_ShowChar_Hor_dma(uint16_t x, uint16_t y, uint8_t ch, uint16_t fc, uint1
 
     LCD_Address_Set(x, y - sizey + 1, x + sizey - 1, y); // 注意：坐标系统是横屏的，y向上增长
     // LCD_WR_DATA_dma(&dma_buffer, dma_index);
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(&(dma_buffer[0]), dma_index, NULL);
-    LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone(); // prevents dma_buffer reuse races
+    LCD_DC_Set();
+    // LCD_WR_Bus_dma(dat, size);
+    // uart_printf("len>%d\r\n", dma_index);
+    spi_dma_write(&(dma_buffer[0]), dma_index, NULL);
+    // LCD_DC_Set();
 }
 
 // void OLED_ShowChar_0(u8 x, u8 y, u8 chr, u8 Char_Size)
@@ -1820,15 +1817,27 @@ void modify_mode_state(void)
 void update_ui(int tatal_kms, uint8_t battery_capacity, uint16_t speed)
 {
 
-    lcd_ui_step_delay();
-    // // modify_mode_state();
-    Kamingo_Show_Total_Kms(6, 250, tatal_kms, WHITE, BLACK, TOTAL_KMS_DIGITAL_SIZE, false);
-    lcd_ui_step_delay();
-    Kamingo_Show_Battery(10, 135, battery_capacity, WHITE, BLACK, BATTERY_DIGITAL_SIZE, true);
-    lcd_ui_step_delay();
+    Delay_ms(30);
+    // modify_mode_state();
     Kamingo_Show_Ride_type(60, 170, RIDE_TYPE_PIC_SIZE, RIDE_TYPE_PIC_SIZE, model_state, false);
-    lcd_ui_step_delay();
+    Delay_ms(30);
+    Kamingo_Show_Battery(10, 135, battery_capacity, WHITE, BLACK, BATTERY_DIGITAL_SIZE, true);
+    Delay_ms(30);
+    Kamingo_Show_Total_Kms(6, 250, tatal_kms, WHITE, BLACK, TOTAL_KMS_DIGITAL_SIZE, false);
+    Delay_ms(30);
     Kamingo_Show_Speed_Kmh(57, 180, speed, MYELLOW, BLACK, SPEED_KMH_DIGITAL_SIZE, false);
+}
+
+
+void update_ui_test(uint8_t hall, uint8_t bat_soc)
+{
+    LCD_KEY1_Clr();
+    Delay_ms(30);
+    Kamingo_Show_Battery(10, 135, bat_soc, WHITE, BLACK, BATTERY_DIGITAL_SIZE, true);
+    Delay_ms(30);
+    Kamingo_Show_Total_Kms(50, 135, hall, WHITE, BLACK, TOTAL_KMS_DIGITAL_SIZE, false);
+    Delay_ms(30);
+    LCD_KEY1_Set();
 }
 
 void test_lcd2(void)
@@ -1836,16 +1845,16 @@ void test_lcd2(void)
     static int16_t total_kms = 0;
     int16_t total_kms1 = rand() % 100;
     // LCD_ShowPicture(10, 10, 30, 62, gImage_bty_4);
-    Delay_us(20);
+    // Delay_ms(300);
     LCD_KEY1_Clr();
-    lcd_ui_step_delay();
+    Delay_ms(30);
     modify_mode_state();
     Kamingo_Show_Ride_type(60, 170, RIDE_TYPE_PIC_SIZE, RIDE_TYPE_PIC_SIZE, model_state, false);
-    lcd_ui_step_delay();
+    Delay_ms(30);
     Kamingo_Show_Battery(10, 135, total_kms1, WHITE, BLACK, BATTERY_DIGITAL_SIZE, true);
-    lcd_ui_step_delay();
+    Delay_ms(30);
     Kamingo_Show_Total_Kms(6, 250, total_kms++, WHITE, BLACK, TOTAL_KMS_DIGITAL_SIZE, false);
-    lcd_ui_step_delay();
+    Delay_ms(30);
     Kamingo_Show_Speed_Kmh(57, 180, total_kms1, MYELLOW, BLACK, SPEED_KMH_DIGITAL_SIZE, false);
     // LCD_ShowChar_Digital_Hor_dma(6, 250, total_kms + '0', WHITE, BLACK, TOTAL_KMS_DIGITAL_SIZE);
     // LCD_ShowChar_Digital_Hor_dma(6, 210, total_kms1 + '0', WHITE, BLACK, TOTAL_KMS_DIGITAL_SIZE);

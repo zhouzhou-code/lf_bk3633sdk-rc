@@ -3,156 +3,34 @@
 #include <stdio.h>
 // #include "pic.h"
 #include "user_config.h"
-#include "oled_config.h"
-#include "drv_gpio.h"
+#include "datatypes.h"
 #include "timer_handler.h"
 
-// Avoid entering deep sleep while SPI/DMA is active. (Some sleep paths can gate PLL/SPI clocks.)
-
-static void delay_us(int num)
+static void Delay_ms(int num) //sync from svn revision 18
 {
     int x, y;
     for(y = 0; y < num; y ++ )
     {
-        for(x = 0; x < 10; x++);
+        for(x = 0; x < 1580; x++);
     }
+
 }
 
-
-#if (SPI_DRIVER)
-static volatile uint8_t s_lcd_tx_busy;
-static volatile uint8_t s_lcd_tx_done;
-static volatile uint8_t s_lcd_tx_depth;
-static volatile uint8_t s_lcd_tx_end_pending;
-static lcd_tx_done_cb_t s_lcd_tx_user_done_cb;
-
-// Small internal staging buffers so we can safely use DMA for short writes.
-static uint8_t s_lcd_u8;
-static uint8_t s_lcd_u16[2];
-
-static void lcd_spi_tx_done_isr_cb(void)
+static void Delay_us(int num)
 {
-    s_lcd_tx_busy = 0;
-    s_lcd_tx_done = 1;
-
-    // If the transaction ended while the transfer was still in progress,
-    // deassert CS now (in ISR context) at the real completion point.
-    if (s_lcd_tx_end_pending && (s_lcd_tx_depth == 0))
+    int x, y;
+    for(y = 0; y < num; y++)
     {
-        LCD_CS_Set();
-        s_lcd_tx_end_pending = 0;
-    }
-
-    if (s_lcd_tx_user_done_cb)
-    {
-        s_lcd_tx_user_done_cb();
-        s_lcd_tx_user_done_cb = NULL;
+        for(x = 0; x < 5; x++);
     }
 }
-
-void LCD_TX_Begin(lcd_tx_dc_t dc)
-{
-    if (dc == LCD_TX_DATA)
-        LCD_DC_Set();
-    else
-        LCD_DC_Clr();
-
-    if (s_lcd_tx_depth++ == 0)
-        LCD_CS_Clr();
-}
-
-void LCD_TX_End(void)
-{
-    if (s_lcd_tx_depth == 0)
-        return;
-
-    s_lcd_tx_depth--;
-    if (s_lcd_tx_depth != 0)
-        return;
-
-    if (s_lcd_tx_busy)
-    {
-        s_lcd_tx_end_pending = 1;
-        return;
-    }
-
-    LCD_CS_Set();
-}
-
-void LCD_TX_Write_DMA_Async(const uint8_t *buf, uint16_t len, lcd_tx_done_cb_t done_cb)
-{
-    s_lcd_tx_done = 0;
-    s_lcd_tx_busy = 1;
-    s_lcd_tx_user_done_cb = done_cb;
-
-    // For short transfers, avoid DMA setup cost and use FIFO write w/ TX-finish interrupt.
-    // For longer transfers, use DMA.
-    if (len <= 64)
-        spi_write_async((uint8_t *)buf, len, lcd_spi_tx_done_isr_cb);
-    else
-        spi_dma_write((uint8_t *)buf, len, lcd_spi_tx_done_isr_cb);
-}
-
-void LCD_TX_WaitDone(void)
-{
-    // Busy-wait with short delay to keep clocks running during active SPI/DMA.
-    // (cpu_idle_sleep/WFI can enter very low power states on this platform and stall transfers.)
-    while (s_lcd_tx_busy)
-        delay_us(1);
-}
-#else
-// Bit-bang fallback (SPI_DRIVER == 0): no real async/DMA, so operations are synchronous.
-static void lcd_bb_send_u8(uint8_t dat)
-{
-    uint8_t i;
-    for (i = 0; i < 8; i++)
-    {
-        LCD_SCK_Clr();
-        if (dat & 0x80)
-            LCD_MOSI_Set();
-        else
-            LCD_MOSI_Clr();
-        LCD_SCK_Set();
-        dat <<= 1;
-    }
-}
-
-void LCD_TX_Begin(lcd_tx_dc_t dc)
-{
-    if (dc == LCD_TX_DATA)
-        LCD_DC_Set();
-    else
-        LCD_DC_Clr();
-    LCD_CS_Clr();
-}
-
-void LCD_TX_End(void)
-{
-    LCD_CS_Set();
-}
-
-void LCD_TX_Write_DMA_Async(const uint8_t *buf, uint16_t len, lcd_tx_done_cb_t done_cb)
-{
-    while (len--)
-        lcd_bb_send_u8(*buf++);
-    if (done_cb)
-        done_cb();
-}
-
-void LCD_TX_WaitDone(void)
-{
-    // synchronous in bit-bang mode
-}
-#endif
-
 
 
 #if !(SPI_DRIVER)
 /**
- * @brief       软件SPI发送一个字节数据（GPIO模拟CLK和MOSI）
+ * @brief       IO模拟SPI发送一个字节数据
  * @param       dat: 需要发送的字节数据
  * @retval      无
- * @note        通过GPIO手动翻转时钟和数据线，逐位发送数据
  */
 void LCD_WR_Bus(uint8_t dat)
 {
@@ -176,47 +54,65 @@ void LCD_WR_Bus(uint8_t dat)
 }
 #else
 /**
- * @brief       硬件SPI发送一个字节数据（DMA加速）
+ * @brief       IO模拟SPI发送一个字节数据
  * @param       dat: 需要发送的字节数据
  * @retval      无
- * @note        使用硬件SPI外设+DMA传输，速度快，CPU占用低
  */
 void LCD_WR_Bus(uint8_t dat)
 {
-    // Legacy helper: send a single byte as DATA (DC high) and wait until done.
-    s_lcd_u8 = dat;
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(&s_lcd_u8, 1, NULL);
-    LCD_TX_End();        // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone();   // wait until completion (do not enter deep sleep during active SPI)
+    uint8_t i;
+    uint8_t rc_bf = 0;
+    // LCD_CS_Clr();
+    // LCD_KEY1_Clr();
+    // Delay_us(1);
+#if (SPI_DRIVER)
+    spi_write(&dat, 1);
+    // spi_write_read(&dat, 1, &rc_bf, 1);
+#endif
+    // Delay_us(1);
+    // LCD_KEY1_Set();
+    // LCD_CS_Set();
 }
 
 /**
- * @brief       硬件SPI批量发送数据（DMA加速）
- * @param       dat: 数据缓冲区指针
- * @param       size: 数据长度（字节）
+ * @brief       IO模拟SPI发送一个字节数据
+ * @param       dat: 需要发送的字节数据
  * @retval      无
- * @note        适合大量像素数据传输，使用DMA提高效率
  */
 void LCD_WR_Bus_batch(uint8_t* dat, uint16_t size)
 {
-    // Batch send is used for pixel/GRAM writes: treat as DATA.
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(dat, size, NULL);
-    LCD_TX_End();        // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone();   // wait until completion (prevents buffer reuse races)
+    uint8_t i;
+    uint8_t rc_bf = 0;
+    // LCD_CS_Clr();
+    // LCD_KEY1_Clr();
+    // Delay_us(1);
+#if (SPI_DRIVER)
+    spi_write(dat, size);
+    // spi_write_read(&dat, 1, &rc_bf, 1);
+#endif
+    // Delay_us(1);
+    // LCD_KEY1_Set();
+    // LCD_CS_Set();
 }
 
 void LCD_WR_Bus_16(uint16_t dat)
 {
-    // Send a 16-bit value as DATA (big-endian byte order).
-    s_lcd_u16[0] = (uint8_t)(dat >> 8);
-    s_lcd_u16[1] = (uint8_t)(dat & 0xFF);
-
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(s_lcd_u16, 2, NULL);
-    LCD_TX_End();        // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone();
+    uint8_t i;
+    uint8_t rc_bf = 0;
+    uint8_t sd_buffer[2];
+    sd_buffer[0] = dat >> 8;
+    sd_buffer[1] = dat & 0xFF;
+    // LCD_CS_Clr();
+    // LCD_KEY1_Clr();
+    // Delay_us(1);
+#if (SPI_DRIVER)
+    // spi_write(&sd_buffer, 2);
+    spi_dma_write(&sd_buffer, 2, NULL);
+    // spi_write_read(&dat, 1, &rc_bf, 1);
+#endif
+    // Delay_us(1);
+    // LCD_KEY1_Set();
+    // LCD_CS_Set();
 }
 
 void LCD_WR_Bus_dma(uint8_t* dat, uint16_t size)
@@ -233,14 +129,14 @@ void LCD_WR_Bus_16_Part(uint8_t* dat)
 {
     // LCD_CS_Clr();
     // LCD_KEY1_Clr();
-    // delay_us(1);
+    // Delay_us(1);
 
 #if (SPI_DRIVER)
         // spi_write(&sd_buffer, 2);
         spi_dma_write(dat, DMA_SIZE, NULL);
         // spi_write_read(&dat, 1, &rc_bf, 1);
 #endif
-    // delay_us(1);
+    // Delay_us(1);
     // LCD_KEY1_Set();
     // LCD_CS_Set();
 }
@@ -254,12 +150,12 @@ void LCD_WR_Bus_16_Part(uint8_t* dat)
 //     sd_buffer[1] = dat & 0xFF;
 //     LCD_CS_Clr();
 //     // LCD_KEY1_Clr();
-//     // delay_us(1);
+//     // Delay_us(1);
 // #if (SPI_DRIVER)
 //     spi_write(&sd_buffer, 2);
 //     // spi_write_read(&dat, 1, &rc_bf, 1);
 // #endif
-//     // delay_us(1);
+//     // Delay_us(1);
 //     // LCD_KEY1_Set();
 //     LCD_CS_Set();
 // }
@@ -271,104 +167,91 @@ void LCD_WR_Bus_16_Part(uint8_t* dat)
  */
 void LCD_WR_REG(uint8_t reg)
 {
-#if (SPI_DRIVER)
-    uart_printf("in LCD_WR_REG\r\n");
-    // Send 1-byte command (D/C low).
-    s_lcd_u8 = reg; 
-    uart_printf("LCD_TX_Begin(LCD_TX_CMD)\r\n");
-    LCD_TX_Begin(LCD_TX_CMD);
-    uart_printf("Calling LCD_TX_Write_DMA_Async\r\n");
-    LCD_TX_Write_DMA_Async(&s_lcd_u8, 1, NULL);
-    uart_printf("call LCD_TX_End\r\n");
-    LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
-    uart_printf("Calling LCD_TX_WaitDone\r\n");
-    LCD_TX_WaitDone();
-
-    // Keep default state as DATA (matches old behavior).
-    LCD_DC_Set();
-#else
     LCD_DC_Clr();
     LCD_WR_Bus(reg);
     LCD_DC_Set();
-#endif
 }
 
 /**
- * @brief       向液晶写一个8bit数据
+ * @brief       向液晶写一个字节数据
  * @param       dat: 要写的数据
  * @retval      无
  */
 void LCD_WR_DATA8(uint8_t dat)
 {
-#if (SPI_DRIVER) //硬件SPI
-    // Send 1-byte data (D/C high).
-    s_lcd_u8 = dat;
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(&s_lcd_u8, 1, NULL);
-    LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone();
-#else //软件SPI
     LCD_DC_Set();
     LCD_WR_Bus(dat);
-#endif
+    // LCD_DC_Set();
 }
 
 /**
- * @brief       向液晶写一个16bit数据
+ * @brief       向液晶写一个半字数据
  * @param       dat: 要写的数据
  * @retval      无
  */
 void LCD_WR_DATA(uint16_t dat)
 {
-    // Send 16-bit data (D/C high).
+    LCD_DC_Set();
+    // uart_printf("m>%x\r\n", dat >> 8);
+    // uart_printf("s>%x\r\n", dat & 0xFF);
+    // LCD_WR_Bus(dat >> 8);
+    // LCD_WR_Bus(dat & 0xFF);
     LCD_WR_Bus_16(dat);
+    LCD_DC_Set();
 }
 
 
 /**
- * @brief       DMA批量写数据
- * @param       dat: 数据缓冲区指针
- * @param       size: 数据长度（字节）
+ * @brief       向液晶写一个半字数据
+ * @param       dat: 要写的数据
  * @retval      无
- * @note        使用DMA传输，适合大量数据
  */
 void LCD_WR_DATA_dma(uint8_t* dat, uint16_t size)
 {
-    // Legacy helper: send a data buffer using DMA and wait until done.
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(dat, size, NULL);
-    LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone();
+    LCD_DC_Set();
+    // LCD_WR_Bus_dma(dat, size);
+    // uart_printf("len>%d\r\n", size);
+    spi_dma_write(dat, size, NULL);
+    LCD_DC_Set();
 }
 
 /**
- * @brief       分段写数据
- * @param       dat: 数据缓冲区指针
- * @param       size: 数据长度（字节）
+ * @brief       向液晶写一个半字数据
+ * @param       dat: 要写的数据
  * @retval      无
- * @note        用于中等数据量传输
- */
+ */                                                                                          
 
 void LCD_WR_DATA_Part(uint8_t* dat, uint16_t size)
 {
-        LCD_TX_Begin(LCD_TX_DATA);
-        LCD_TX_Write_DMA_Async(dat, size, NULL);
-        LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
-        LCD_TX_WaitDone(); // prevents buffer reuse races in callers
+        LCD_DC_Set();
+        // uart_printf("m>%x\r\n", dat >> 8);
+        // uart_printf("s>%x\r\n", dat & 0xFF);
+        // LCD_WR_Bus(dat >> 8);
+        // LCD_WR_Bus(dat & 0xFF);
+        spi_dma_write(dat, size, NULL);
+        // LCD_DC_Set();
+        
+ 
 }
 
 /**
- * @brief       显示图片数据
- * @param       dat: 图片数据指针
+ * @brief       向液晶写一个半字数据
+ * @param       dat: 要写的数据
  * @retval      无
- * @note        固定传输4608字节（48x48像素，RGB565格式）
  */
 void display_image(uint8_t *dat)
 {
-    LCD_TX_Begin(LCD_TX_DATA);
-    LCD_TX_Write_DMA_Async(dat, 4608, NULL);
-    LCD_TX_End();      // CS deassert happens in the DMA/SPI completion ISR
-    LCD_TX_WaitDone();
+    LCD_DC_Set();
+    // LCD_CS_Clr();
+    // uart_printf("m>%x\r\n", dat >> 8);
+    // uart_printf("s>%x\r\n", dat & 0xFF);
+    // LCD_WR_Bus(dat >> 8);
+    // LCD_WR_Bus(dat & 0xFF);
+    // LCD_WR_Bus_16(dat);
+    spi_dma_write(dat, 4608, NULL);
+    // spi_dma_write(dat + 2304, 2304, NULL);
+    // LCD_CS_Set();
+    LCD_DC_Set();
 }
 
 /**
@@ -394,8 +277,8 @@ void LCD_Address_Set(uint16_t xs, uint16_t ys, uint16_t xe, uint16_t ye)
     LCD_WR_DATA8(ye >> 8);
     LCD_WR_DATA8(ye & 0xFF);
     LCD_WR_REG(0x2c); // 储存器写
-    // delay_ms(1);
-    delay_us(5);
+    // Delay_ms(1);
+    Delay_us(5);
     LCD_WR_REG(0x2c);
 }
 
@@ -428,20 +311,12 @@ void LCD_Fill(uint16_t xs, uint16_t ys, uint16_t xe, uint16_t ye, uint16_t color
  */
 void LCD_Init(void)
 {
-    // Ensure control pins are in GPIO output mode (CS is software-controlled in 3-wire SPI).
-    gpio_config(LCD_RES_GPIO_PIN, GPIO_OUTPUT, GPIO_PULL_NONE);
-    gpio_config(LCD_DC_GPIO_PIN, GPIO_OUTPUT, GPIO_PULL_NONE);
-    gpio_config(LCD_CS_GPIO_PIN, GPIO_OUTPUT, GPIO_PULL_HIGH);
-    gpio_config(LCD_KEY1_GPIO_PIN, GPIO_OUTPUT, GPIO_PULL_NONE);
-    LCD_CS_Set();
-    LCD_DC_Set();
-
     LCD_RES_Set();
-    delay_ms(100);
+    Delay_ms(100);
     LCD_RES_Clr();
-    delay_ms(250);
+    Delay_ms(250);
     LCD_RES_Set();
-    delay_ms(250);
+    Delay_ms(250);
 
     LCD_WR_REG(0xC0);
     LCD_WR_DATA8(0x5A);
@@ -2614,7 +2489,7 @@ void LCD_Init(void)
     LCD_WR_DATA8(0x00);
 
     LCD_WR_REG(0x11);
-    delay_ms(2);
+    Delay_ms(2);
     
     LCD_WR_REG(0x3a);
     LCD_WR_DATA8(0x55);
@@ -2650,7 +2525,7 @@ void LCD_Init(void)
     LCD_WR_REG(0x53);
     LCD_WR_DATA8(0x20);
 
-    delay_ms(25);
+    Delay_ms(25);
 
     LCD_WR_REG(0x29);
     LCD_WR_REG(0x39);
@@ -2661,24 +2536,13 @@ void LCD_Init(void)
  */
 void OLED_Init(void)
 {
-  // Ensure control pins are in GPIO output mode (CS is software-controlled in 3-wire SPI).
-  gpio_config(LCD_RES_GPIO_PIN, GPIO_OUTPUT, GPIO_PULL_NONE);
-  gpio_config(LCD_DC_GPIO_PIN, GPIO_OUTPUT, GPIO_PULL_NONE);
-  gpio_config(LCD_CS_GPIO_PIN, GPIO_OUTPUT, GPIO_PULL_HIGH);
-  gpio_config(LCD_KEY1_GPIO_PIN, GPIO_OUTPUT, GPIO_PULL_NONE);
-  LCD_CS_Set();
-  LCD_DC_Set();
-
   LCD_RES_Set();
-  uart_printf("before delayms:%d\r\n",Get_SysTick_ms());
-  delay_ms(200);
-  uart_printf("after delayms:%d\r\n",Get_SysTick_ms());
+  Delay_ms(200);
   LCD_RES_Clr();
-  delay_ms(800);
+  Delay_ms(800);
   LCD_RES_Set();
-  delay_ms(800);
+  Delay_ms(800);
 
-  uart_printf("now in LCD_WR_REG:0xC0");
   LCD_WR_REG(0xC0);
   LCD_WR_DATA8(0x5A);
   LCD_WR_DATA8(0x5A);
@@ -2687,7 +2551,6 @@ void OLED_Init(void)
   LCD_WR_DATA8(0x5A);
   LCD_WR_REG(0xD0);
   LCD_WR_DATA8(0x10);
-  uart_printf("now in LCD_WR_REG:0xB1");
 
   // B1h 16bit Pixel Format Switch: Last Para:); LCD_WR_DATA8(0x00->GBRG-3553,); LCD_WR_DATA8(0x10->RGB-565;
   LCD_WR_REG(0xB1);
@@ -4865,8 +4728,6 @@ void OLED_Init(void)
   // RAMWR (2Ch): Memory Write Start
   LCD_WR_REG(0x2c);
   LCD_WR_REG(0x2c);
-
-  uart_printf("LCD initialization complete\r\n");
 }
 
 

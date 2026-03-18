@@ -73,6 +73,7 @@
 
 
 
+
 /*
  * ENUMERATION DEFINITIONS
  *****************************************************************************************
@@ -100,7 +101,7 @@ typedef void (*spi_write_cb)(void);
 typedef void (*spi_read_cb)(void);
 typedef struct
 {
-    uint8_t                transfer_start;  
+	uint8_t 		       transfer_start;  
     volatile uint8_t   spi_state;
     spi_write_cb       write_complete_cb;  
     spi_read_cb        read_complete_cb;
@@ -115,9 +116,6 @@ void spi_send(uint16_t w_size);
 void spi_waitbusying(void);
 void spi_isr(void);
 void spi_write(uint8_t *wbuf, uint32_t w_size);
-// Async FIFO-based write (no DMA). Calls cb from spi_isr() on TX finish.
-// Note: caller must ensure buffer stays valid until cb is invoked.
-void spi_write_async(uint8_t *wbuf, uint16_t w_size, spi_write_cb cb);
 void spi_read( uint8_t *rbuf, uint32_t r_size);
 
 void spi_receiv(uint16_t r_size);

@@ -523,6 +523,16 @@
               <FileType>5</FileType>
               <FilePath>.\app\src\remote_control\app\rc_protocol.h</FilePath>
             </File>
+            <File>
+              <FileName>test_slave.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\app\test_slave.c</FilePath>
+            </File>
+            <File>
+              <FileName>pinmap_v1.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\pinmap_v1.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -638,13 +648,6 @@
         </Group>
         <Group>
           <GroupName>Application/remote_control/config</GroupName>
-          <Files>
-            <File>
-              <FileName>pinmap_v1.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\pinmap_v1.h</FilePath>
-            </File>
-          </Files>
         </Group>
         <Group>
           <GroupName>Application/battary_tramsmit</GroupName>
@@ -662,18 +665,8 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Application/rf_service</GroupName>
+          <GroupName>Application/rf</GroupName>
           <Files>
-            <File>
-              <FileName>rf_addr_mgr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\app\src\rf_service\rf_addr_mgr.c</FilePath>
-            </File>
-            <File>
-              <FileName>rf_addr_mgr.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\rf_service\rf_addr_mgr.h</FilePath>
-            </File>
             <File>
               <FileName>rf_pair.c</FileName>
               <FileType>1</FileType>
@@ -695,14 +688,14 @@
               <FilePath>.\app\src\rf_service\addr_pool.h</FilePath>
             </File>
             <File>
-              <FileName>rf_protocol.c</FileName>
+              <FileName>rf_config.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\app\src\rf_service\rf_protocol.c</FilePath>
+              <FilePath>.\app\src\rf_service\rf_config.c</FilePath>
             </File>
             <File>
-              <FileName>rf_protocol.h</FileName>
+              <FileName>rf_config.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\app\src\rf_service\rf_protocol.h</FilePath>
+              <FilePath>.\app\src\rf_service\rf_config.h</FilePath>
             </File>
           </Files>
         </Group>
