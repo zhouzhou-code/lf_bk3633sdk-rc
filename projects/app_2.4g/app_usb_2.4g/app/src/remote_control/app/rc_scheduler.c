@@ -21,6 +21,7 @@
 #include "rf_config.h"
 #include "timer_handler.h"
 #include "user_config.h"
+#include "pinmap_v1.h"
 #include "debug.h"
 #include <string.h>
 #include "hal_drv_rf.h"
@@ -28,8 +29,20 @@
 
 extern RF_HandleTypeDef hrf;
 
-/* RF发送后的保护窗口(ms) */
-#define RF_GUARD_WINDOW_MS  1
+/* ======================== 电池管理对象 ======================== */
+static bat_manager_t s_bat;
+
+static const bat_hw_config_t s_bat_hw = {
+    .pwr_en_gpio     = SYS_PWR_EN,
+    .pwr_key_gpio    = KEY_SYS_PWR,
+    .adc_channel     = 2,            // ADC Channel 2
+    .adc_pwr_en_gpio = ADC_VBAT_PWR_EN,
+    .pgood_gpio      = CHG_PGOOD,
+    .chrg_gpio       = CHG_CHRG,
+    .divider_ratio   = 0.207f,       // 47/(180+47)
+    .bat_empty_mv    = 3300,         // 空电 3.3V
+    .bat_full_mv     = 4200,         // 满电 4.2V
+};
 
 /* ======================== 通信层(static) ======================== */
 
@@ -115,8 +128,9 @@ void RC_Scheduler_Init(RC_Scheduler_t *sched)
 
     app_key_init();
 
-    /* 锁定电源 */
-    app_board_power_on();
+    /* 初始化电池管理并锁定电源 */
+    bat_manage_init(&s_bat, &s_bat_hw);
+    bat_manage_power_on(&s_bat);
 
     /* 从Flash读取RF设备地址 */
     rf_config_load_from_flash();
@@ -124,7 +138,6 @@ void RC_Scheduler_Init(RC_Scheduler_t *sched)
     /* 初始化硬件 */
     RF_Handler_Init();
     app_throttle_init();
-    app_bat_manage_init();
 
     /* 初始化通信层 */
     tracker_init(&s_tracker);
@@ -213,19 +226,16 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
             /* TODO: app_lcd_refresh(&s_mc_status); */
         }
 
-        /* ========== 200ms: 电量查询/关机检测 ========== */
+        /* ========== 200ms: 电量检测/充电状态/关机 ========== */
         if (now - ts[4] >= 240) {
             ts[4] = now;
-            uint16_t bat_adc_value = app_bat_manage_read_adc();
-            uint8_t soc=bat_adc_value/1024*4.2;
-            uart_printf("Battery SOC: %d%%\r\n", soc);
-            app_board_shutdown(app_key_get_shutdown_flag());
-        }
+            bat_manage_update(&s_bat);
+            uart_printf("ADC: %d, BAT: %dmV SOC:%d%% CHG:%d\r\n",
+                        s_bat.data.adc_raw, s_bat.data.voltage_mv, s_bat.data.soc, s_bat.data.chg_state);
 
-        /* ========== 5000ms: 电池状态查询 ========== */  
-        if (now - ts[6] >= 5000) {
-            ts[6] = now;
-            /* TODO: app_bat_status_process(); */
+            if (app_key_get_shutdown_flag()) {
+                bat_manage_power_off(&s_bat);
+            }
         }
 
         /* ========== 睡眠判断 ========== */

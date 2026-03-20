@@ -540,7 +540,6 @@ int main(void)
     uart_printf("init uarts\r\n");
 
     xvr_reg_initial();
-    app_board_power_on();
     //定时器初始化(依赖xvr里初始化rc32k时钟，放在xvr初始化后面)
     Timer_Handler_Init(); //放在靠前的位置先初始化，其他模块有用到定时器的功能
     uart_printf("Timer_Handler_Init done:%d\r\n", Get_SysTick_ms());
@@ -616,68 +615,68 @@ int main(void)
     update_ui_test(10, 85);
     #endif
 
-    app_board_power_on();
-    //hall_test_example();
-    gpio_config(ADC_VBAT_PWR_EN, GPIO_OUTPUT, GPIO_PULL_NONE);
-    gpio_set(ADC_VBAT_PWR_EN, 1);
+//     app_board_power_on();
+//     //hall_test_example();
+//     gpio_config(ADC_VBAT_PWR_EN, GPIO_OUTPUT, GPIO_PULL_NONE);
+//     gpio_set(ADC_VBAT_PWR_EN, 1);
 
-    adc_init(2,1);
-    RF_Handler_Init_ToNormal();
-    HAL_RF_SetTxMode(&hrf);
-    uint8_t test_send_data0[5];
-    uint8_t test_send_data1[32];
-    for(int i=0;i<5;i++) test_send_data0[i]=i;
-    for(int i=0;i<32;i++) test_send_data1[i]=i;
-    set_power(RF_TX_POWER_P9p5_dBm); 
-    //gpio_set(ADC_VBAT_PWR_EN, 1);
-    //adc_init(2, 1);
-while(1){
-    // 调用你自己封装的测电量函数 (里面记得要拉高/延时/读ADC/拉低)
-    uint16_t bat_adc_value = app_bat_manage_read_adc();
+//     adc_init(2,1);
+//     RF_Handler_Init_ToNormal();
+//     HAL_RF_SetTxMode(&hrf);
+//     uint8_t test_send_data0[5];
+//     uint8_t test_send_data1[32];
+//     for(int i=0;i<5;i++) test_send_data0[i]=i;
+//     for(int i=0;i<32;i++) test_send_data1[i]=i;
+//     set_power(RF_TX_POWER_P9p5_dBm); 
+//     //gpio_set(ADC_VBAT_PWR_EN, 1);
+//     //adc_init(2, 1);
+// while(1){
+//     // 调用你自己封装的测电量函数 (里面记得要拉高/延时/读ADC/拉低)
+//     uint16_t bat_adc_value = app_bat_manage_read_adc();
     
-    // --- 步骤1：配置芯片的 ADC 参考电压 ---
-    // 请根据 BK3633 的实际配置修改此值。
-    // 如果是用内部基准，通常是 1000 (1.0V)；如果是直接用 VDD 供电做基准，可能是 3300 (3.3V)
-    #define VREF_MV 1050 
+//     // --- 步骤1：配置芯片的 ADC 参考电压 ---
+//     // 请根据 BK3633 的实际配置修改此值。
+//     // 如果是用内部基准，通常是 1000 (1.0V)；如果是直接用 VDD 供电做基准，可能是 3300 (3.3V)
+//     #define VREF_MV 1050 
 
-    // --- 步骤2：计算真实电池电压 (mV) ---
-    // 硬件分压比: VBAT通过 180K 和 47K 分压。反推比例为 (180+47)/47 = 227/47
-    // 10位ADC电压: (ADC值 / 1024) * VREF_MV
-    // 综合公式: VBAT_mV = (ADC值 * VREF_MV * 227) / (1024 * 47)
-    // 防溢出分析: ADC最大1024 * 1200 * 227 = 278,937,600，远小于32位最大值42亿，绝对安全！
-    uint32_t v_mv = (bat_adc_value * VREF_MV * 227) / (1024 * 47);
+//     // --- 步骤2：计算真实电池电压 (mV) ---
+//     // 硬件分压比: VBAT通过 180K 和 47K 分压。反推比例为 (180+47)/47 = 227/47
+//     // 10位ADC电压: (ADC值 / 1024) * VREF_MV
+//     // 综合公式: VBAT_mV = (ADC值 * VREF_MV * 227) / (1024 * 47)
+//     // 防溢出分析: ADC最大1024 * 1200 * 227 = 278,937,600，远小于32位最大值42亿，绝对安全！
+//     uint32_t v_mv = (bat_adc_value * VREF_MV * 227) / (1024 * 47);
     
-    // 把毫伏拆成 整数部分 和 小数部分，用于格式化打印
-    uint32_t v_int = v_mv / 1000;          // 取出整数，例如 4
-    uint32_t v_frac = v_mv % 1000;         // 取出小数，例如 150 (代表 4.150V)
+//     // 把毫伏拆成 整数部分 和 小数部分，用于格式化打印
+//     uint32_t v_int = v_mv / 1000;          // 取出整数，例如 4
+//     uint32_t v_frac = v_mv % 1000;         // 取出小数，例如 150 (代表 4.150V)
     
-    // --- 步骤3：计算 SOC (电量百分比) ---
-    // 锂电池经典简易放电模型：4.2V(4200mV)为满电100%，3.0V(3000mV)为没电0%
-    uint32_t soc_10000 = 0; // 万分比
-    if (v_mv >= 4200) {
-        soc_10000 = 10000;  // 超过4.2V算作 100.00%
-    } else if (v_mv > 3000) {
-        // 在 3.0V 到 4.2V 之间做线性映射
-        soc_10000 = ((v_mv - 3000) * 10000) / (4200 - 3000); 
-    } else {
-        soc_10000 = 0;      // 低于3.0V算作 0.00%
-    }
+//     // --- 步骤3：计算 SOC (电量百分比) ---
+//     // 锂电池经典简易放电模型：4.2V(4200mV)为满电100%，3.0V(3000mV)为没电0%
+//     uint32_t soc_10000 = 0; // 万分比
+//     if (v_mv >= 4200) {
+//         soc_10000 = 10000;  // 超过4.2V算作 100.00%
+//     } else if (v_mv > 3000) {
+//         // 在 3.0V 到 4.2V 之间做线性映射
+//         soc_10000 = ((v_mv - 3000) * 10000) / (4200 - 3000); 
+//     } else {
+//         soc_10000 = 0;      // 低于3.0V算作 0.00%
+//     }
     
-    uint32_t soc_int = soc_10000 / 100;    // 整数百分比
-    uint32_t soc_frac = soc_10000 % 100;   // 小数百分比
+//     uint32_t soc_int = soc_10000 / 100;    // 整数百分比
+//     uint32_t soc_frac = soc_10000 % 100;   // 小数百分比
     
-    // --- 步骤4：打印结果 ---
-    // 全部用 %d 打印，完美避开 %f 的坑！
-    uart_printf("ADC: %d, SOC: %d.%02d%%, V: %d.%03dV\r\n", 
-                bat_adc_value, 
-                soc_int, soc_frac, 
-                v_int, v_frac);
+//     // --- 步骤4：打印结果 ---
+//     // 全部用 %d 打印，完美避开 %f 的坑！
+//     uart_printf("ADC: %d, SOC: %d.%02d%%, V: %d.%03dV\r\n", 
+//                 bat_adc_value, 
+//                 soc_int, soc_frac, 
+//                 v_int, v_frac);
 
-    // 射频发送与延时
-    uint8_t dest[5] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
-    RF_Send(dest, test_send_data0, sizeof(test_send_data1));
-    delay_ms(1000);
-}
+//     // 射频发送与延时
+//     uint8_t dest[5] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
+//     RF_Send(dest, test_send_data0, sizeof(test_send_data1));
+//     delay_ms(1000);
+// }
     #define slave 0
     #if slave
     extern  void test_slave_loop(void);
