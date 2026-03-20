@@ -12,8 +12,8 @@
 typedef enum {
     KEY_ID_LEFT = 0,
     KEY_ID_RIGHT,
-    KEY_ID_MIDDLE,
     KEY_ID_PAIR,
+    KEY_ID_POWER,
     KEY_ID_MAX
 } key_id_t;
 

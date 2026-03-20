@@ -35,4 +35,10 @@ uint8_t* app_key_get_pair_flag_ptr(void);
  */
 void app_key_clear_pair_flag(void);
 
+/**
+ * @brief 获取关机键信号
+ * @return 1=需要关机, 0=正常
+ */
+uint8_t app_key_get_shutdown_flag(void);
+
 #endif // __APP_KEY_H__

@@ -12,7 +12,7 @@
  */
 #include "rc_scheduler.h"
 #include "rc_protocol.h"
-#include "app_shutdown.h"
+#include "app_bat_manage.h"
 #include "app_sleep.h"
 #include "app_key.h"
 #include "app_throttle.h"
@@ -124,6 +124,7 @@ void RC_Scheduler_Init(RC_Scheduler_t *sched)
     /* 初始化硬件 */
     RF_Handler_Init();
     app_throttle_init();
+    app_bat_manage_init();
 
     /* 初始化通信层 */
     tracker_init(&s_tracker);
@@ -163,10 +164,10 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
     while (1) {
         uint32_t now = Get_SysTick_ms();
 
-        /* ========== 10ms: 按键扫描 ========== */
-        if (now - ts[0] >= 20) {
+        /* ========== 20ms: 按键扫描 ========== */
+        if (now - ts[0] >= 40) {
             ts[0] = now;
-            app_key_scan(20);
+            app_key_scan(40);
         }
 
         /* ========== 配对处理（始终调用，内部自行管理状态） ========== */
@@ -192,7 +193,7 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
             sleep_flag = 1;
 
             /* ========== 50ms: 油门更新+RF发送+处理ACK ========== */
-            if (now - ts[2] >= 50) {
+            if (now - ts[2] >= 80) {
                 ts[2] = now;
                 static uint8_t hb_cnt;
                 hb_cnt++;
@@ -207,15 +208,18 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
         }
         
         /* ========== 100ms: LCD刷新 ========== */
-        if (now - ts[3] >= 100) {
+        if (now - ts[3] >= 120) {
             ts[3] = now;
             /* TODO: app_lcd_refresh(&s_mc_status); */
         }
 
-        /* ========== 200ms: 关机检测 ========== */
-        if (now - ts[4] >= 200) {
+        /* ========== 200ms: 电量查询/关机检测 ========== */
+        if (now - ts[4] >= 240) {
             ts[4] = now;
-            app_board_shutdown(sched->shutdown_flag);
+            uint16_t bat_adc_value = app_bat_manage_read_adc();
+            uint8_t soc=bat_adc_value/1024*4.2;
+            uart_printf("Battery SOC: %d%%\r\n", soc);
+            app_board_shutdown(app_key_get_shutdown_flag());
         }
 
         /* ========== 5000ms: 电池状态查询 ========== */  

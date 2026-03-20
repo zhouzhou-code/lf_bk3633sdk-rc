@@ -12,6 +12,8 @@
 
 // 配对标志
 static uint8_t pair_flag = 0;
+// 关机标志
+static uint8_t shutdown_flag = 0;
 
 /**
  * @brief 按键事件处理回调
@@ -55,6 +57,18 @@ static void app_key_event_handler(key_id_t id, key_event_t event) {
             }
             break;
 
+        case KEY_ID_POWER: // KEY_SYS_PWR
+        
+            if(event == KEY_EVT_SHORT_PRESS) {
+                uart_printf("PWR KEY: Short Press\r\n");
+            } else if(event == KEY_EVT_LONG_PRESS) {
+                uart_printf("PWR KEY: Long Press\r\n");
+                // 长按3s进入关机标志
+                shutdown_flag = 1;
+
+            }
+            break;
+
         default:
             break;
     }
@@ -66,11 +80,12 @@ static void app_key_event_handler(key_id_t id, key_event_t event) {
 void app_key_init(void) {
     // 配置按键（注意：按下=高电平）
     const key_config_t keys[] = {
-        {KEY_ID_LEFT,   KEY1, 1000, true},  // KEY1: 高电平有效
-        {KEY_ID_RIGHT,  KEY2, 1000, true},  // KEY2: 高电平有效
+        {KEY_ID_LEFT,   KEY1, 1000, true},         // KEY1: 高电平有效
+        {KEY_ID_RIGHT,  KEY2, 1000, true},         // KEY2: 高电平有效
+        {KEY_ID_POWER,  KEY_SYS_PWR, 3000, true},  // KEY_SYS_PWR: 高电平有效（长按3s）
     };
 
-    key_init(keys, 2);
+    key_init(keys, 3);
     key_register_callback(app_key_event_handler);
 
     uart_printf("app_key_init done\r\n");
@@ -102,4 +117,11 @@ uint8_t* app_key_get_pair_flag_ptr(void) {
  */
 void app_key_clear_pair_flag(void) {
     pair_flag = 0;
+}
+
+/**
+ * @brief 获取关机键信号
+ */
+uint8_t app_key_get_shutdown_flag(void) {
+    return shutdown_flag;
 }

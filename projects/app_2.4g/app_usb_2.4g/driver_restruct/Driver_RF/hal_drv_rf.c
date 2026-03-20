@@ -635,8 +635,6 @@ HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
 /**
   * @brief  设置为接收模式
   * @param  hrf: RF 句柄
-  * @param  dev_addr: 发送地址指针
-  * @param  length: 地址宽度 必须传入和AddressWidth相同的值
   */
 HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
 {

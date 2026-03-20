@@ -484,16 +484,6 @@
               <FilePath>.\app\src\remote_control\app\app_sleep.h</FilePath>
             </File>
             <File>
-              <FileName>app_shutdown.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\app\src\remote_control\app\app_shutdown.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_shutdown.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\app\app_shutdown.h</FilePath>
-            </File>
-            <File>
               <FileName>app_key.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\app\src\remote_control\app\app_key.c</FilePath>
@@ -532,6 +522,16 @@
               <FileName>pinmap_v1.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\app\src\remote_control\pinmap_v1.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_bat_manage.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\app\app_bat_manage.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_bat_manage.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\app\app_bat_manage.h</FilePath>
             </File>
           </Files>
         </Group>
