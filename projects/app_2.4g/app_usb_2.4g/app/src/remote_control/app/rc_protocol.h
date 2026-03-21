@@ -1,32 +1,17 @@
 /**
  ****************************************************************************************
  * @file rc_protocol.h
- * @brief 遥控器通信协议
+ * @brief 遥控器通信协议 v2
  *
- * 帧格式:
- *   [HEAD: A5 5A] [LEN: 1B] [SRC_DEV: 1B] [DST_DEV: 1B] [CMD: 1B] [SEQ: 1B] [PAYLOAD: nB] [CRC16: 2B] [TAIL: BB]
+ * 帧格式 (7B overhead):
+ *   [HEAD: CA BD] [INFO: 1B] [CMD: 1B] [SEQ: 1B] [PAYLOAD: nB] [CRC16: 2B]
  *
- *   HEAD     - 固定帧头 0xA5 0x5A
- *   LEN      - payload字节数（不含HEAD/SRC/DST/CMD/SEQ/CRC/TAIL）
- *   SRC_DEV  - 源设备类型
- *   DST_DEV  - 目标设备类型
- *   CMD      - 命令码，遥控下行0x3x，电机上行0x6x
- *   SEQ      - 序列号，下行为发送seq，上行为确认ack_seq
- *   PAYLOAD  - 数据域
- *   CRC16    - 校验范围: LEN + SRC_DEV + DST_DEV + CMD + SEQ + PAYLOAD，小端存储
- *   TAIL     - 固定帧尾 0xBB
- *
- * 确认机制（ACK payload异步回传）:
- *   遥控主动发送，主控通过RF的ACK payload回传数据。
- *   由于ACK payload至少延迟一帧，遥控通过seq/ack_seq匹配确认:
- *
- *   1. 遥控每帧携带递增的seq
- *   2. 主控收到后将seq存入ack_seq，随下一次ACK回传
- *   3. 遥控收到ack_seq后与记录的change_seq比较:
- *      - ack_seq >= change_seq → 数据已确认，停止重发
- *      - ack_seq <  change_seq → 数据未确认，继续发送
- *   4. seq为uint8_t自然回绕(0-255)，用(int8_t)差值比较处理溢出
- *
+ *   HEAD     - 固定帧头 0xCA 0xBD
+ *   INFO     - bit[7:3]=LEN(5bit, 0-31) | bit[2:0]=保留
+ *   CMD      - 命令码 (隐含方向和设备类型)
+ *   SEQ      - 序列号 (下行=seq, 上行=ack_seq)
+ *   PAYLOAD  - 应用层数据 (最大25B)
+ *   CRC16    - 校验范围: INFO + CMD + SEQ + PAYLOAD，小端存储
  ****************************************************************************************
  */
 #ifndef _RC_PROTOCOL_H_
@@ -36,124 +21,96 @@
 
 /* ======================== 帧常量 ======================== */
 
-#define PROTO_HEAD_0        0xA5
-#define PROTO_HEAD_1        0x5A
-#define PROTO_TAIL          0xBB
-#define PROTO_MAX_PAYLOAD   16
+#define PROTO_HEAD_0        0xCA
+#define PROTO_HEAD_1        0xBD
+#define PROTO_OVERHEAD      7       /* HEAD(2) + INFO(1) + CMD(1) + SEQ(1) + CRC(2) */
+#define PROTO_MAX_PAYLOAD   25      /* 32 - 7 */
 
-/* ======================== 设备类型 ======================== */
+/* ======================== INFO 位域操作 ======================== */
 
-#define DEV_REMOTE          0x01    /* 遥控器 */
-#define DEV_ESC             0x02    /* 电控 */
-#define DEV_BATTERY         0x03    /* 动力电池 */
-#define DEV_CADENCE         0x04    /* 踏频 */
+#define PROTO_MAKE_INFO(len)    ((uint8_t)((len) << 3))
+#define PROTO_INFO_LEN(info)    (((info) >> 3) & 0x1F)
 
 /* ======================== 命令码 ======================== */
 
-#define CMD_RC_CTRL         0x31    /* 遥控 → 电控: 控制数据 */
-#define CMD_MC_STATUS       0x61    /* 电控 → 遥控: 状态回传 */
+#define CMD_ESC_CTRL        0x31    /* REMOTE → ESC: 控制数据 */
+#define CMD_BAT_QUERY       0x32    /* REMOTE → BATTERY: 电池查询 */
+#define CMD_ESC_STATUS      0x61    /* ESC → REMOTE: 电控状态回传 */
+#define CMD_BAT_STATUS      0x62    /* BATTERY → REMOTE: 电池状态回传 */
 
 /* ======================== 模式 ======================== */
 
 #define MODE_ASSIST         0x00    /* 助力模式 */
 #define MODE_TRAINING       0x01    /* 训练模式(阻力) */
 
-/* ======================== 载荷定义 ======================== */
 
-/* 遥控 → 主控: 档位gear决定最大输出功率 1=25%, 2=50%, 3=75%, 4=100% */
+
+/* ======================== 应用层载荷定义 ======================== */
+
+/* REMOTE → ESC 控制数据 (CMD=0x31, 3B) */
 typedef struct {
-    uint8_t  gear;          /* 档位 1-4 */
-    uint8_t  mode;          /* MODE_ASSIST(助力模式) / MODE_TRAINING(训练模式) */
-    uint8_t  throttle;      /* 油门值 */
-} __attribute__((packed)) rc_ctrl_t;
+    uint8_t  gear;          /* 输出功率档位 1~4 */
+    uint8_t  mode;          /* MODE_ASSIST / MODE_TRAINING */
+    uint8_t  throttle;      /* 油门值百分比 0~100 */
+} __attribute__((packed)) esc_ctrl_data_t;
 
-/* 主控 → 遥控: 通过ACK payload回传 */
+/* ESC → REMOTE 状态数据 (CMD=0x61, 6B) */
 typedef struct {
-    uint16_t speed;         /* 速度 */
-    uint32_t mileage;       /* 里程 */
-} __attribute__((packed)) mc_status_t;
+    uint16_t speed;         /* 速度 (小端) */
+    uint32_t mileage;       /* 里程 (小端) */
+} __attribute__((packed)) esc_status_data_t;
 
-/* ======================== 帧打包/解析 ======================== */
+/* BATTERY → REMOTE 状态数据 (CMD=0x62, 3B) */
+typedef struct {
+    uint8_t  temperature;   /* 温度 (偏移+40°C, 即0=−40°C) */
+    uint8_t  soc;           /* 电量百分比 0~100 */
+    uint8_t  status;        /* 状态标志位 */
+} __attribute__((packed)) bat_status_data_t;
 
-/*
- * 打包下行控制帧
- * @param buf     输出缓冲区
- * @param src_dev 源设备类型
- * @param dst_dev 目标设备类型
- * @param seq     当前发送序列号
- * @param ctrl    控制数据
- * @return        帧总字节数
+/* ======================== 传输层: 通用打包/解析 ======================== */
+
+/**
+ * @brief 通用帧打包
+ * @param buf     输出缓冲区 (至少 7+plen 字节)
+ * @param cmd     命令码
+ * @param seq     序列号
+ * @param payload 载荷数据 (可为NULL当plen=0)
+ * @param plen    载荷长度
+ * @return        帧总字节数 (7+plen)
  */
-uint8_t proto_pack_ctrl(uint8_t *buf, uint8_t src_dev, uint8_t dst_dev,
-                        uint8_t seq, const rc_ctrl_t *ctrl);
+uint8_t proto_pack(uint8_t *buf, uint8_t cmd, uint8_t seq,
+                   const void *payload, uint8_t plen);
 
-/*
- * 解析上行状态帧 (从ACK payload中提取)
+/**
+ * @brief 通用帧解析
  * @param buf     接收帧数据
  * @param len     帧长度
- * @param src_dev [out] 源设备类型
- * @param dst_dev [out] 目标设备类型
- * @param ack_seq [out] 主控确认的seq
- * @param status  [out] 状态数据
+ * @param cmd     [out] 命令码
+ * @param seq     [out] 序列号
+ * @param payload [out] 载荷起始指针
+ * @param plen    [out] 载荷长度
  * @return        0=成功, -1=校验失败
  */
-int8_t proto_parse_status(const uint8_t *buf, uint8_t len,
-                          uint8_t *src_dev, uint8_t *dst_dev,
-                          uint8_t *ack_seq, mc_status_t *status);
+int8_t proto_parse(const uint8_t *buf, uint8_t len,
+                   uint8_t *cmd, uint8_t *seq,
+                   const uint8_t **payload, uint8_t *plen);
 
 /* CRC16-CCITT (poly=0x1021, init=0xFFFF) */
 uint16_t proto_crc16(const uint8_t *data, uint8_t len);
 
-/* ======================== 从机侧接口 ======================== */
-
-/*
- * 解析遥控下行控制帧 (从机使用)
- * @param buf     接收帧数据
- * @param len     帧长度
- * @param src_dev [out] 源设备类型
- * @param dst_dev [out] 目标设备类型
- * @param seq     [out] 遥控发送的seq
- * @param ctrl    [out] 控制数据
- * @return        0=成功, -1=校验失败
- */
-int8_t proto_parse_ctrl(const uint8_t *buf, uint8_t len,
-                        uint8_t *src_dev, uint8_t *dst_dev,
-                        uint8_t *seq, rc_ctrl_t *ctrl);
-
-/*
- * 打包上行状态帧 (从机装入ACK payload)
- * @param buf     输出缓冲区
- * @param src_dev 源设备类型
- * @param dst_dev 目标设备类型
- * @param ack_seq 确认的seq (收到的遥控seq)
- * @param status  状态数据
- * @return        帧总字节数
- */
-uint8_t proto_pack_status(uint8_t *buf, uint8_t src_dev, uint8_t dst_dev,
-                          uint8_t ack_seq, const mc_status_t *status);
-
 /* ======================== 发送确认跟踪 ======================== */
 
-/*
- * 跟踪器: 管理seq自增 + 油门确认状态
- *
- * 使用流程:
- *   1. 油门变化时调用 tracker_mark_pending()  → 记录change_seq, 标记待确认
- *   2. 发送时调用    tracker_next_seq()       → 获取递增seq
- *   3. 收到ACK调用   tracker_on_ack(ack_seq)  → 比对, 自动清除pending
- *   4. 查询          tracker_is_pending()     → 非0=需要继续发送
- */
 typedef struct {
     uint8_t seq;            /* 当前发送seq (每帧自增, 自然回绕0-255) */
     uint8_t acked_seq;      /* 最后收到的ack_seq */
-    uint8_t change_seq;     /* 油门变化时记录的seq */
-    uint8_t pending;        /* 1=油门待确认, 0=已确认 */
+    uint8_t change_seq;     /* 数据变化时记录的seq */
+    uint8_t pending;        /* 1=待确认, 0=已确认 */
 } proto_tracker_t;
 
 void    tracker_init(proto_tracker_t *t);
-uint8_t tracker_next_seq(proto_tracker_t *t);       /* 返回新seq */
-void    tracker_mark_pending(proto_tracker_t *t);    /* 油门变化时调用 */
+uint8_t tracker_next_seq(proto_tracker_t *t);
+void    tracker_mark_pending(proto_tracker_t *t);
 void    tracker_on_ack(proto_tracker_t *t, uint8_t ack_seq);
-uint8_t tracker_is_pending(const proto_tracker_t *t); /* 非0=待确认 */
+uint8_t tracker_is_pending(const proto_tracker_t *t);
 
 #endif /* _RC_PROTOCOL_H_ */

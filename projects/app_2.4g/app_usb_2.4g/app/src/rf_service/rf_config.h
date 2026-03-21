@@ -11,12 +11,12 @@
 
 #define RF_ADDR_LEN 5
 
-/* 设备类型枚举 */
+/* 设备类型枚举 (0-3, 适配协议INFO字段2bit位域) */
 typedef enum {
-    DEV_TYPE_REMOTE     = 0x01,  /* 遥控器 */
-    DEV_TYPE_ESC        = 0x02,  /* 电控 */
-    DEV_TYPE_BATTERY    = 0x03,  /* 动力电池 */
-    DEV_TYPE_CADENCE    = 0x04,  /* 踏频 */
+    DEV_TYPE_REMOTE     = 0,    /* 遥控器 */
+    DEV_TYPE_ESC        = 1,    /* 电控 */
+    DEV_TYPE_BATTERY    = 2,    /* 动力电池 */
+    DEV_TYPE_CADENCE    = 3,    /* 踏频 */
 } device_type_t;
 
 /* Flash 存储结构 - 极简版 */

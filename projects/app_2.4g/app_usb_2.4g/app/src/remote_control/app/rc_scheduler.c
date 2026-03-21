@@ -46,22 +46,41 @@ static const bat_hw_config_t s_bat_hw = {
 
 /* ======================== 通信层(static) ======================== */
 
-static uint8_t         s_esc_addr[5];       /* 电控地址 */
-static rc_ctrl_t       s_ctrl;              /* 当前下发数据 */
-static proto_tracker_t s_tracker;           /* seq跟踪器 */
-static mc_status_t     s_mc_status;         /* 电控状态 */
-static uint8_t         s_mc_online;         /* 电控在线标志 */
+static uint8_t            s_esc_addr[5];       /* 电控地址 */
+static uint8_t            s_esc_paired;        /* 电控已配对标志 */
+static esc_ctrl_data_t    s_ctrl;              /* 当前下发数据 */
+static proto_tracker_t    s_tracker;           /* seq跟踪器(电控) */
+static esc_status_data_t  s_esc_status;        /* 电控状态 */
+static uint8_t            s_mc_online;         /* 电控在线标志 */
+
+static uint8_t            s_bat_addr[5];       /* 电池地址 */
+static uint8_t            s_bat_paired;        /* 电池已配对标志 */
+static bat_status_data_t  s_ext_bat_status;    /* 外部电池状态 */
+static uint8_t            s_ext_bat_online;    /* 外部电池在线标志 */
+static uint8_t            s_bat_query_seq;     /* 电池查询seq */
 
 /**
- * @brief 打包并发送控制帧
+ * @brief 打包并发送控制帧(到电控)
  */
 static void comm_send_ctrl_frame(void)
 {
     uint8_t tx_buf[32];
     uint8_t seq = tracker_next_seq(&s_tracker);
-    uint8_t len = proto_pack_ctrl(tx_buf, DEV_REMOTE, DEV_ESC, seq, &s_ctrl);
+    uint8_t len = proto_pack(tx_buf, CMD_ESC_CTRL, seq, &s_ctrl, sizeof(s_ctrl));
 
     RF_Send(s_esc_addr, tx_buf, len);
+}
+
+/**
+ * @brief 发送电池查询帧(到电池)
+ */
+static void comm_send_bat_query(void)
+{
+    uint8_t tx_buf[32];
+    s_bat_query_seq++;
+    uint8_t len = proto_pack(tx_buf, CMD_BAT_QUERY, s_bat_query_seq, NULL, 0);
+
+    RF_Send(s_bat_addr, tx_buf, len);
 }
 
 /**
@@ -73,22 +92,32 @@ static void comm_process_rx(void)
     uint8_t rx_len, pipes;
 
     while (RF_rxQueue_Recv(&rx_data, &rx_len, &pipes)) {
-        if (rx_len < 6) continue;
-        uint8_t cmd = rx_data[5];
+        uint8_t cmd, seq;
+        const uint8_t *payload;
+        uint8_t plen;
+
+        if (proto_parse(rx_data, rx_len, &cmd, &seq, &payload, &plen) != 0)
+            continue;
+
         switch (cmd) {
-        case CMD_MC_STATUS: {
-            uint8_t src_dev, dst_dev, ack_seq;
-            mc_status_t status;
-            if (proto_parse_status(rx_data, rx_len, &src_dev, &dst_dev, &ack_seq, &status) == 0) {
-                /* 校验设备类型 */
-                if (dst_dev != DEV_REMOTE) break;
-                s_mc_status = status;
-                uart_printf("speed: %d meter=%d\r\n", s_mc_status.speed, s_mc_status.mileage);
+        case CMD_ESC_STATUS:
+            if (plen == sizeof(esc_status_data_t)) {
+                memcpy(&s_esc_status, payload, sizeof(esc_status_data_t));
+                uart_printf("speed: %d meter=%d\r\n", s_esc_status.speed, s_esc_status.mileage);
                 s_mc_online = 1;
-                tracker_on_ack(&s_tracker, ack_seq);
+                tracker_on_ack(&s_tracker, seq);
             }
             break;
-        }
+        case CMD_BAT_STATUS:
+            if (plen == sizeof(bat_status_data_t)) {
+                memcpy(&s_ext_bat_status, payload, sizeof(bat_status_data_t));
+                s_ext_bat_online = 1;
+                uart_printf("EXT_BAT: temp=%d soc=%d status=0x%02X\r\n",
+                            s_ext_bat_status.temperature - 40,
+                            s_ext_bat_status.soc,
+                            s_ext_bat_status.status);
+            }
+            break;
         default:
             break;
         }
@@ -120,6 +149,32 @@ static void control_update_and_send(void)
     }
 }
 
+/**
+ * @brief 从Flash加载所有已配对设备地址
+ */
+static void comm_load_all_addrs(void)
+{
+    /* 电控地址 */
+    if (rf_config_read_device_addr(DEV_TYPE_ESC, s_esc_addr)) {
+        s_esc_paired = 1;
+        uart_printf("ESC addr: %02X %02X %02X %02X %02X\r\n",
+                    s_esc_addr[0], s_esc_addr[1], s_esc_addr[2], s_esc_addr[3], s_esc_addr[4]);
+    } else {
+        s_esc_paired = 0;
+        uart_printf("ESC not paired\r\n");
+    }
+
+    /* 电池地址 */
+    if (rf_config_read_device_addr(DEV_TYPE_BATTERY, s_bat_addr)) {
+        s_bat_paired = 1;
+        uart_printf("BAT addr: %02X %02X %02X %02X %02X\r\n",
+                    s_bat_addr[0], s_bat_addr[1], s_bat_addr[2], s_bat_addr[3], s_bat_addr[4]);
+    } else {
+        s_bat_paired = 0;
+        uart_printf("BAT not paired\r\n");
+    }
+}
+
 /* ======================== 调度层 ======================== */
 
 void RC_Scheduler_Init(RC_Scheduler_t *sched)
@@ -145,20 +200,21 @@ void RC_Scheduler_Init(RC_Scheduler_t *sched)
     s_ctrl.mode = MODE_ASSIST;
     s_ctrl.throttle = 0;
     s_mc_online = 0;
+    s_ext_bat_online = 0;
+    s_bat_query_seq = 0;
 
+    /* 从Flash加载所有已配对设备地址 */
+    comm_load_all_addrs();
 
-    /* 从Flash加载电控地址，如果已配对则应用 */
-    if (rf_config_read_device_addr(DEV_TYPE_ESC, s_esc_addr)) {
+    /* 默认使用电控地址作为RF收发地址 */
+    if (s_esc_paired) {
         HAL_RF_SetTxAddress(&hrf, s_esc_addr, 5);
         HAL_RF_SetRxAddress(&hrf, 0, s_esc_addr, 5);
-        uart_printf("ESC addr loaded: %02X %02X %02X %02X %02X\r\n",
-                    s_esc_addr[0], s_esc_addr[1], s_esc_addr[2], s_esc_addr[3], s_esc_addr[4]);
     } else {
-        /* 未配对，使用默认地址 */
         HAL_RF_GetRxAddress(&hrf, 0, s_esc_addr);
-        uart_printf("ESC not paired, using default addr\r\n");
+        uart_printf("Using default addr\r\n");
     }
-    
+
     sched->initialized = 1;
     uart_printf("RC_Scheduler_Init done\r\n");
 }
@@ -192,46 +248,73 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
             delay_ms(10);
             sleep_flag = 0;
         } else {
-            /* 配对刚结束，同步本地ESC地址缓存 */
+            /* 配对刚结束，重新加载所有设备地址 */
             if (last_pair) {
                 last_pair = 0;
                 tracker_init(&s_tracker);
-                if (rf_config_read_device_addr(DEV_TYPE_ESC, s_esc_addr)) {
+                comm_load_all_addrs();
+
+                /* 恢复默认RF地址到电控 */
+                if (s_esc_paired) {
                     HAL_RF_SetTxAddress(&hrf, s_esc_addr, 5);
                     HAL_RF_SetRxAddress(&hrf, 0, s_esc_addr, 5);
-                    uart_printf("ESC addr: %02X %02X %02X %02X %02X\r\n",
-                        s_esc_addr[0], s_esc_addr[1], s_esc_addr[2], s_esc_addr[3], s_esc_addr[4]);
                 }
             }
             sleep_flag = 1;
 
-            /* ========== 50ms: 油门更新+RF发送+处理ACK ========== */
+            /* ========== 80ms: 油门更新+RF发送+处理ACK ========== */
             if (now - ts[2] >= 80) {
                 ts[2] = now;
                 static uint8_t hb_cnt;
                 hb_cnt++;
 
-                control_update_and_send();
-                if (hb_cnt >= 10) {
-                    hb_cnt = 0;
-                    comm_send_ctrl_frame();
+                if (s_esc_paired) {
+                    /* 切换到电控地址 */
+                    HAL_RF_SetTxAddress(&hrf, s_esc_addr, 5);
+                    HAL_RF_SetRxAddress(&hrf, 0, s_esc_addr, 5);
+
+                    control_update_and_send();
+
+                    /* 心跳：如果油门没有触发发送，则强制发一帧心跳保活 */
+                    if (hb_cnt >= 10) {
+                        hb_cnt = 0;
+                        if (!tracker_is_pending(&s_tracker)) {
+                            comm_send_ctrl_frame();
+                        }
+                    }
                 }
                 comm_process_rx();
             }
+
+            /* ========== 500ms: 电池查询 ========== */
+            if (now - ts[1] >= 500) {
+                ts[1] = now;
+                if (s_bat_paired) {
+                    /* 切换到电池地址发送查询 */
+                    HAL_RF_SetTxAddress(&hrf, s_bat_addr, 5);
+                    HAL_RF_SetRxAddress(&hrf, 0, s_bat_addr, 5);
+                    comm_send_bat_query();
+                    comm_process_rx();
+                }
+            }
         }
-        
+
         /* ========== 100ms: LCD刷新 ========== */
         if (now - ts[3] >= 120) {
             ts[3] = now;
-            /* TODO: app_lcd_refresh(&s_mc_status); */
+            /* TODO: app_lcd_refresh(&s_esc_status, &s_ext_bat_status); */
         }
 
         /* ========== 200ms: 电量检测/充电状态/关机 ========== */
         if (now - ts[4] >= 240) {
             ts[4] = now;
-            bat_manage_update(&s_bat);
-            uart_printf("ADC: %d, BAT: %dmV SOC:%d%% CHG:%d\r\n",
+            static uint8_t tmp_cnt;
+            if(++tmp_cnt>10)
+            {   tmp_cnt=0;
+                bat_manage_update(&s_bat);
+                uart_printf("ADC: %d, BAT: %dmV SOC:%d%% CHG:%d\r\n",
                         s_bat.data.adc_raw, s_bat.data.voltage_mv, s_bat.data.soc, s_bat.data.chg_state);
+            }
 
             if (app_key_get_shutdown_flag()) {
                 bat_manage_power_off(&s_bat);
@@ -239,8 +322,7 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
         }
 
         /* ========== 睡眠判断 ========== */
-        //delay_ms(6); //延时一段时间等rf射频模块处理完
-        
+
         //等到rf射频模块空闲为止(最大是maxrt的发送时间)，且加上超时防止意外卡死
         uint32_t start_time = Get_SysTick_ms();
         while(hrf.TxState!=TX_IDLE) {
@@ -249,7 +331,6 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
             }
         }
 
-         
         // gpio_config(Port_Pin(0,0),GPIO_FLOAT,GPIO_PULL_NONE); //uart关掉
         // gpio_config(Port_Pin(0,1),GPIO_FLOAT,GPIO_PULL_NONE);
         app_enter_sleep_with_wakeup_by_timer(40, sleep_flag);

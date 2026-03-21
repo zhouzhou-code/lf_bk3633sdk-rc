@@ -533,6 +533,16 @@
               <FileType>5</FileType>
               <FilePath>.\app\src\remote_control\app\app_bat_manage.h</FilePath>
             </File>
+            <File>
+              <FileName>rc_protocol.md</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\app\rc_protocol.md</FilePath>
+            </File>
+            <File>
+              <FileName>test_bat_slave.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\app\src\remote_control\app\test_bat_slave.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

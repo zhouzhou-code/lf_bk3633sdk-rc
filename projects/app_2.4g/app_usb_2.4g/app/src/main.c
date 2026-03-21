@@ -679,8 +679,10 @@ int main(void)
 // }
     #define slave 0
     #if slave
-    extern  void test_slave_loop(void);
-    test_slave_loop();
+    // extern  void test_slave_loop(void);
+    // test_slave_loop();
+
+    test_bat_slave_loop();
     #else
     RC_Scheduler_t sched;
 

@@ -65,7 +65,7 @@ void app_key_event_handler_test(key_id_t id, key_event_t event)
 }
 
 /* 电控状态 */
-static mc_status_t s_mc_status = {
+static esc_status_data_t s_esc_status = {
     .speed = 0,
     .mileage = 0,
 };
@@ -79,34 +79,35 @@ static void process_business_rx(void)
     uint8_t rx_len, pipes;
 
     while (RF_rxQueue_Recv(&rx_data, &rx_len, &pipes)) {
-        if (rx_len < 6) continue;
+        uint8_t cmd, seq;
+        const uint8_t *payload;
+        uint8_t plen;
 
-        uint8_t cmd = rx_data[5];
+        if (proto_parse(rx_data, rx_len, &cmd, &seq, &payload, &plen) != 0)
+            continue;
 
         switch (cmd) {
-        case CMD_RC_CTRL: {
-            uint8_t src_dev, dst_dev, seq;
-            rc_ctrl_t ctrl;
+        case CMD_ESC_CTRL: {
+            if (plen != sizeof(esc_ctrl_data_t)) break;
 
-            if (proto_parse_ctrl(rx_data, rx_len, &src_dev, &dst_dev, &seq, &ctrl) == 0) {
-                /* 校验设备类型 */
-                if (dst_dev != DEV_TYPE_ESC) break;
+            esc_ctrl_data_t ctrl;
+            memcpy(&ctrl, payload, sizeof(ctrl));
 
-                uart_printf("RX CTRL: seq=%d gear=%d mode=%d throttle=%d\r\n",
-                            seq, ctrl.gear, ctrl.mode, ctrl.throttle);
+            uart_printf("RX CTRL: seq=%d gear=%d mode=%d throttle=%d\r\n",
+                        seq, ctrl.gear, ctrl.mode, ctrl.throttle);
 
-                /* 模拟电控：根据油门更新速度 */
-                s_mc_status.speed = ctrl.throttle * 10;
-                s_mc_status.mileage += 1;
+            /* 模拟电控：根据油门更新速度 */
+            s_esc_status.speed = ctrl.throttle * 10;
+            s_esc_status.mileage += 1;
 
-                /* 打包状态帧作为ACK payload */
-                uint8_t ack_buf[32];
-                uint8_t ack_len = proto_pack_status(ack_buf, DEV_TYPE_ESC, DEV_TYPE_REMOTE, seq, &s_mc_status);
-                HAL_RF_Attach_PL2ACK(&hrf, pipes, ack_buf, ack_len);
+            /* 打包状态帧作为ACK payload */
+            uint8_t ack_buf[32];
+            uint8_t ack_len = proto_pack(ack_buf, CMD_ESC_STATUS, seq,
+                                         &s_esc_status, sizeof(s_esc_status));
+            HAL_RF_Attach_PL2ACK(&hrf, pipes, ack_buf, ack_len);
 
-                uart_printf("ACK STATUS: seq=%d speed=%d mileage=%lu\r\n",
-                            seq, s_mc_status.speed, s_mc_status.mileage);
-            }
+            uart_printf("ACK STATUS: seq=%d speed=%d mileage=%lu\r\n",
+                        seq, s_esc_status.speed, s_esc_status.mileage);
             break;
         }
         default:
@@ -132,6 +133,9 @@ void test_slave_loop(void)
 
     /* 初始化RF */
     RF_Handler_Init();
+
+    /* 设置配对参数：电控设备，Host分配地址 */
+    Slave_Pairing_SetConfig(DEV_TYPE_ESC, ADDR_MODE_HOST_ASSIGN, NULL);
 
     /* 从Flash加载自己的地址（电控地址） */
     uint8_t esc_addr[5];

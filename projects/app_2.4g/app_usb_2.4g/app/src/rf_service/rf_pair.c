@@ -80,13 +80,27 @@ static void printf_txrx_addr(void)
 
 
 static SlavePairCtrl_t g_slave_ctrl = {
-    .state = SLAVE_PAIR_IDLE, 
+    .state = SLAVE_PAIR_IDLE,
     .start_wait = 0,
+    .dev_type = DEV_TYPE_ESC,
+    .addr_mode = ADDR_MODE_HOST_ASSIGN,
+    .slave_addr = {0},
     .verify_cnt = 0,
     .verify_target_count = 5,
     .reach_goal_flag = 0,
     .last_ping_recv_timestamp = 0
 };
+
+void Slave_Pairing_SetConfig(uint8_t dev_type, uint8_t addr_mode, const uint8_t *addr)
+{
+    g_slave_ctrl.dev_type = dev_type;
+    g_slave_ctrl.addr_mode = addr_mode;
+    if (addr_mode == ADDR_MODE_SLAVE_PROVIDE && addr != NULL) {
+        memcpy(g_slave_ctrl.slave_addr, addr, 5);
+    } else {
+        memset(g_slave_ctrl.slave_addr, 0, 5);
+    }
+}
 
 void Slave_Pairing_Task(uint8_t* flag) {
     static uint8_t last_flag = 0;
@@ -109,9 +123,17 @@ void Slave_Pairing_Task(uint8_t* flag) {
 
     if ((*flag) && !last_flag) {
         last_flag = 1;
+        /* 保存配置（memset会清掉） */
+        uint8_t saved_dev_type = g_slave_ctrl.dev_type;
+        uint8_t saved_addr_mode = g_slave_ctrl.addr_mode;
+        uint8_t saved_addr[5];
+        memcpy(saved_addr, g_slave_ctrl.slave_addr, 5);
         memset(&g_slave_ctrl, 0, sizeof(g_slave_ctrl));
         g_slave_ctrl.state = SLAVE_PAIR_IDLE;
         g_slave_ctrl.verify_target_count = 5;
+        g_slave_ctrl.dev_type = saved_dev_type;
+        g_slave_ctrl.addr_mode = saved_addr_mode;
+        memcpy(g_slave_ctrl.slave_addr, saved_addr, 5);
 
         // 初始化为配对模式
         RF_Handler_Init_ToPair();
@@ -124,7 +146,16 @@ void Slave_Pairing_Task(uint8_t* flag) {
         uart_printf("Slave: Start Pairing Task...\n");
     }
 
-    pair_req_pkt req_pkt = {CMD_PAIR_REQ, 0x10345678};
+    /* v2: REQ包从g_slave_ctrl读取dev_type + addr_mode + addr */
+    pair_req_pkt req_pkt;
+    memset(&req_pkt, 0, sizeof(req_pkt));
+    req_pkt.cmd = CMD_PAIR_REQ;
+    req_pkt.dev_type = g_slave_ctrl.dev_type;
+    req_pkt.addr_mode = g_slave_ctrl.addr_mode;
+    if (g_slave_ctrl.addr_mode == ADDR_MODE_SLAVE_PROVIDE) {
+        memcpy(req_pkt.addr, g_slave_ctrl.slave_addr, 5);
+    }
+
     pair_resp_pkt *recv_resp_pkg = NULL;
     pair_verify_pkt pong_pkt = {CMD_PAIR_VERIFY_PONG, slave_magic_number};
     pair_verify_pkt *recv_ping_pkt = NULL;
@@ -238,7 +269,7 @@ void Slave_Pairing_Task(uint8_t* flag) {
             uart_printf("Slave: Pairing Process Success Completed.\n");
             printf_txrx_addr();
 
-            rf_config_update_device_addr(DEV_TYPE_ESC, g_slave_ctrl.resp_pkt.new_addr);
+            rf_config_update_device_addr((device_type_t)g_slave_ctrl.dev_type, g_slave_ctrl.resp_pkt.new_addr);
             rf_config_save_to_flash();
 
             // flag置0，下次调用时last_flag=1触发cleanup恢复RF
@@ -258,19 +289,9 @@ static HostPairCtrl_t g_host_ctrl={
 };
 
 // -----------------------------------------------------------
-// Host 端设备类型识别
+// v2: get_device_type_by_slave_id 已废弃
+// REQ 包直接携带 dev_type 字段，无需魔数前缀推断
 // -----------------------------------------------------------
-static device_type_t get_device_type_by_slave_id(uint32_t slave_id)
-{
-    // 根据 slave_id 高字节判断设备类型
-    uint8_t prefix = (slave_id >> 24) & 0xFF;
-    switch (prefix) {
-        case 0x10: return DEV_TYPE_ESC;
-        case 0x11: return DEV_TYPE_BATTERY;
-        case 0x12: return DEV_TYPE_CADENCE;
-        default:   return DEV_TYPE_BATTERY; // 默认电池
-    }
-}
 
 /**
 * @brief: Host端配对任务
@@ -351,23 +372,32 @@ void Host_Pairing_Task(uint8_t* flag) {
             
             if (RF_rxQueue_Recv(&recv_req, &len, NULL) == 1) {
                 if (len == sizeof(pair_req_pkt) && recv_req->cmd == CMD_PAIR_REQ) {
-                    uart_printf("Host: Recv Req from %08X\n", recv_req->slave_id);
+                    /* v2: 直接从REQ包读取dev_type */
+                    device_type_t dev_type = (device_type_t)recv_req->dev_type;
+                    uint8_t addr_mode = recv_req->addr_mode;
+                    uart_printf("Host: Recv REQ dev_type=%d addr_mode=%d\n", dev_type, addr_mode);
 
-                    // 根据设备ID判断设备类型
-                    device_type_t dev_type = get_device_type_by_slave_id(recv_req->slave_id);
-
-                    // 生成随机地址
+                    /* 根据addr_mode决定地址来源 */
                     uint8_t new_addr[5];
-                    rf_config_generate_addr(new_addr);
-                    uart_printf("Host: Generated new addr: %02X %02X %02X %02X %02X\n",
-                                new_addr[0], new_addr[1], new_addr[2], new_addr[3], new_addr[4]);
+                    if (addr_mode == ADDR_MODE_SLAVE_PROVIDE) {
+                        /* Slave自带地址，直接采纳 */
+                        memcpy(new_addr, recv_req->addr, 5);
+                        uart_printf("Host: Use slave addr: %02X %02X %02X %02X %02X\n",
+                                    new_addr[0], new_addr[1], new_addr[2], new_addr[3], new_addr[4]);
+                    } else {
+                        /* Host生成随机地址(默认) */
+                        rf_config_generate_addr(new_addr);
+                        uart_printf("Host: Generated addr: %02X %02X %02X %02X %02X\n",
+                                    new_addr[0], new_addr[1], new_addr[2], new_addr[3], new_addr[4]);
+                    }
 
-                    //准备 RESP 包
+                    /* 准备 RESP 包 */
                     g_host_ctrl.resp_pkt.cmd = CMD_PAIR_RESP;
                     memcpy(g_host_ctrl.resp_pkt.new_addr, new_addr, 5);
-                    g_host_ctrl.paired_dev_type = dev_type; // 记录设备类型
+                    g_host_ctrl.resp_pkt.new_chn = 0; /* 预留 */
+                    g_host_ctrl.paired_dev_type = dev_type;
 
-                    //准备连发
+                    /* 准备连发 */
                     g_host_ctrl.state = HOST_PAIR_SEND_RESP;
                 }
             }
