@@ -3,7 +3,7 @@
 #include "rf_handler.h" 
 #include "rf_pair.h" 
 #include "user_config.h" 
-#include "app.h"
+//#include "app.h"
 #include "bk3633_reglist.h"
 #include "driver_timer.h"
 #include <string.h>

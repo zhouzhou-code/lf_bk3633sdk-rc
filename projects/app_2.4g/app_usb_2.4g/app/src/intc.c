@@ -9,7 +9,7 @@
 #include "dma.h"
 #include "reg_intc.h"
 #include "driver_timer.h"
-#include "app.h"
+//#include "app.h"
 #include "hal_drv_rf.h"
 #include "test_my_rf_fun.h"
 #include "rf_handler.h"

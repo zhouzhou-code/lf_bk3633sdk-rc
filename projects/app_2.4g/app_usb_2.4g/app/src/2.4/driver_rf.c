@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "app.h"
+//#include "app.h"
 
 #include "driver_rf.h"
 #include "driver_bk24.h"

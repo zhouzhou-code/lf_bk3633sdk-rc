@@ -21,7 +21,6 @@
 #include "my_drv_uart.h"      // UART initialization
 #include "my_drv_uart2.h"      // UART2 initialization
 #include "flash.h"     // Flash initialization
-#include "app.h"       // application functions
 #include "reg_access.h"
 #include "boot.h"
 #include "dbg.h"

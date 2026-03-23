@@ -615,11 +615,6 @@
               <FilePath>.\app\src\remote_control\device\hall\hall_sensor.h</FilePath>
             </File>
             <File>
-              <FileName>API_REFERENCE.md</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\app\src\remote_control\device\hall\API_REFERENCE.md</FilePath>
-            </File>
-            <File>
               <FileName>key_scan.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\app\src\remote_control\device\key\key_scan.c</FilePath>
@@ -633,6 +628,57 @@
               <FileName>lcd_init.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\app\src\remote_control\device\oled\lcd_init.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>lcd_init.h</FileName>
@@ -643,6 +689,57 @@
               <FileName>lcd_kmg.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\app\src\remote_control\device\oled\lcd_kmg.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>lcd_kmg.h</FileName>
@@ -653,6 +750,11 @@
               <FileName>LCD_SPI_CS_TIMING_FIX.md</FileName>
               <FileType>5</FileType>
               <FilePath>.\app\src\remote_control\device\oled\LCD_SPI_CS_TIMING_FIX.md</FilePath>
+            </File>
+            <File>
+              <FileName>HALL_API_REFERENCE.md</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\app\src\remote_control\device\hall\HALL_API_REFERENCE.md</FilePath>
             </File>
           </Files>
         </Group>
@@ -1549,11 +1651,6 @@
               <FileName>driver_timer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\src\driver\timer\driver_timer.c</FilePath>
-            </File>
-            <File>
-              <FileName>driver_sensor.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\src\driver\sensor\driver_sensor.c</FilePath>
             </File>
             <File>
               <FileName>hal_drv_rf.c</FileName>

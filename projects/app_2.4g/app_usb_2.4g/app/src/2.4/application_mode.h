@@ -1,7 +1,7 @@
 #ifndef    _APPLICATION_MODE_H
     #define    _APPLICATION_MODE_H
 
-#include "app.h"
+//#include "app.h"
 #include "application_rf.h"
 #include "driver_rf.h"
 

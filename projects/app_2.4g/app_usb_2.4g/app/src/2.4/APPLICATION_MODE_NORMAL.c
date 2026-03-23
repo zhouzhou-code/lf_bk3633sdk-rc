@@ -1,4 +1,4 @@
-#include "app.h"
+//#include "app.h"
 #include "driver_sensor.h"
 #include "application_mode.h"
 #include "wdt.h"

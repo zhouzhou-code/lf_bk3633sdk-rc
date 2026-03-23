@@ -1,4 +1,4 @@
-#include "app.h"
+//#include "app.h"
 #include "bk3633_reglist.h"
 #include "icu.h"
 #include "driver_timer.h"
