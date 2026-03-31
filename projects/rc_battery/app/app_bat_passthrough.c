@@ -100,19 +100,18 @@ void app_bat_passthrough_run(void)
     uint32_t last_tick_2ms = 0;
     uint32_t last_tick_10ms = 0;
 
-    /* 加载RF配置 */
+    /* 加载RF地址配置 */
     rf_config_load_from_flash();
 
     /* 初始化RF */
     RF_Handler_Init();
+    HAL_RF_SetTxPower(&hrf, RF_TX_POWER_P7p6_dBm); //透传改大功率
 
     /* 初始化配对IO检测 (BMS拉高电平触发) */
     gpio_config(PAIR_IO_PIN, GPIO_INPUT, GPIO_PULL_LOW);
 
-    /* 设置配对参数：电池设备，自带地址模式/遥控分配地址 */
-    uint8_t bat_self_addr[5];
-    rf_config_generate_addr(bat_self_addr);
-    Slave_Pairing_SetConfig(DEV_TYPE_BATTERY, ADDR_MODE_SLAVE_PROVIDE, bat_self_addr);
+    /* 设置配对参数：电池设备，由Host分配地址 */
+    Slave_Pairing_SetConfig(DEV_TYPE_BATTERY, ADDR_MODE_HOST_ASSIGN, NULL);
     
     /* 从Flash加载电池地址 */
     uint8_t bat_addr[5];
@@ -133,18 +132,21 @@ void app_bat_passthrough_run(void)
     while (1) {
         uint32_t now = Get_SysTick_ms();
 
-        /* 2ms: UART协议解析 */
+        /* 2ms: UART协议解析，配对码和动态电池信息 */
         if ((now - last_tick_2ms) >= 2) {
             last_tick_2ms = now;
             extern my_queue_t uart0_rxQueue;
             Protocol_ParseByte(&uart0_rxQueue);
 
-            /* 取出最新SOC，更新到bat_status缓存 */
-            Bat_Soc_t soc_pkt;
-            if (bat_protocol_take_soc(&soc_pkt)) {
-                s_bat_status.soc = soc_pkt.soc;
+            /* 取出最新电池状态，更新到bat_status缓存 */
+            Bat_Status_t status_pkt;
+            if (bat_protocol_take_status(&status_pkt)) {
+                s_bat_status.temperature = status_pkt.temperature;
+                s_bat_status.soc = status_pkt.soc;
+                s_bat_status.status = status_pkt.status;
                 s_soc_valid = 1;
-                APP_BAT_LOG("soc=%d%%\r\n", soc_pkt.soc);
+                APP_BAT_LOG("temp=%d soc=%d%% st=0x%02X\r\n",
+                            status_pkt.temperature, status_pkt.soc, status_pkt.status);
             }
         }
 

@@ -3,8 +3,8 @@
 #include "user_config.h"
 #include <string.h>
 
-static Bat_Soc_t g_last_soc_pkt;
-static bool g_soc_pending = false;
+static Bat_Status_t g_last_status_pkt;
+static bool g_status_pending = false;
 
 static uint8_t g_pair_cmd_addr = 0;
 static bool g_pair_cmd_pending = false;
@@ -25,18 +25,20 @@ uint16_t crc16_modbus(const uint8_t *data, uint16_t length)
     return crc;
 }
 
-static void bat_protocol_push_soc(const BatteryDynamicInfo_t *p_dynamic_info)
+static void bat_protocol_push_status(const BatteryDynamicInfo_t *p_dynamic_info)
 {
-    Bat_Soc_t bat_soc = {
+    Bat_Status_t bat_status = {
         .header = 0xAA,
         .cmd = UPCMD_DYNAMIC,
-        .length = 0x01,
+        .length = 0x03,
+        .temperature = p_dynamic_info->temp_cell,
         .soc = p_dynamic_info->soc,
+        .status = (p_dynamic_info->status != 0) ? 0x01 : 0x00,
     };
 
-    bat_soc.crc16 = crc16_modbus((const uint8_t *)&bat_soc, sizeof(Bat_Soc_t) - 2);
-    memcpy(&g_last_soc_pkt, &bat_soc, sizeof(Bat_Soc_t));
-    g_soc_pending = true;
+    bat_status.crc16 = crc16_modbus((const uint8_t *)&bat_status, sizeof(Bat_Status_t) - 2);
+    memcpy(&g_last_status_pkt, &bat_status, sizeof(Bat_Status_t));
+    g_status_pending = true;
 }
 
 static void bat_protocol_push_pair_cmd(uint8_t addr)
@@ -111,7 +113,7 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
         if (cmd_byte == UPCMD_DYNAMIC) {
             if (total_frame_len == sizeof(BatteryDynamicInfo_t)) {
                 const BatteryDynamicInfo_t *p_dynamic_info = (const BatteryDynamicInfo_t *)&temp_parse_buf[0];
-                bat_protocol_push_soc(p_dynamic_info);
+                bat_protocol_push_status(p_dynamic_info);
             }
         } else if (cmd_byte == PAIR_CMD) {
             // 支持两种格式：
@@ -126,14 +128,14 @@ void Protocol_ParseByte(my_queue_t* uart_rx_queue)
     }
 }
 
-bool bat_protocol_take_soc(Bat_Soc_t *out_soc)
+bool bat_protocol_take_status(Bat_Status_t *out_status)
 {
-    if (!out_soc || !g_soc_pending) {
+    if (!out_status || !g_status_pending) {
         return false;
     }
 
-    memcpy(out_soc, &g_last_soc_pkt, sizeof(Bat_Soc_t));
-    g_soc_pending = false;
+    memcpy(out_status, &g_last_status_pkt, sizeof(Bat_Status_t));
+    g_status_pending = false;
     return true;
 }
 

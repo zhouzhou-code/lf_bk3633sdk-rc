@@ -99,11 +99,13 @@ typedef struct {
     uint8_t cmd;           // 命令码
     uint8_t length;        // 数据长度
 
+    uint8_t temperature;   // 电芯温度(偏移+40°C)
     uint8_t soc;           // SOC(%)
+    uint8_t status;        // 状态: 0x00正常, 0x01异常
 
     uint16_t crc16;        // CRC16校验值
 
-} Bat_Soc_t;
+} Bat_Status_t;
 #pragma pack()
 
 
@@ -148,7 +150,7 @@ typedef struct {
 
 void Protocol_ParseByte(my_queue_t* uart_rx_queue);
 uint16_t crc16_modbus(const uint8_t *data, uint16_t length);
-bool bat_protocol_take_soc(Bat_Soc_t *out_soc);
+bool bat_protocol_take_status(Bat_Status_t *out_status);
 bool bat_protocol_take_pair_cmd(uint8_t *out_addr);
 void bat_protocol_send_pair_resp(uint8_t addr, uint8_t result_code);
 #endif /* __BAT_PROTOCOL_H */
