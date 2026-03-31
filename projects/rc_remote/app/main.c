@@ -71,7 +71,7 @@ int main(void)
     intc_init();
 
     #if(UART_PRINTF_ENABLE)
-    uart2_init(1000000);
+    //uart2_init(1000000);
     uart_init(1000000);
     #else
     gpio_config(Port_Pin(0,0),GPIO_FLOAT,GPIO_PULL_NONE); //uart关掉
@@ -105,6 +105,8 @@ int main(void)
     adc_init(1, 1);
     #endif
 
+    //gpio_config(Port_Pin(1,7),GPIO_OUTPUT,GPIO_PULL_NONE);
+
     GLOBAL_INT_START();
     uart_printf("GLOBAL_INT_START:%d\r\n", Get_SysTick_ms());
 
@@ -114,12 +116,21 @@ int main(void)
     #endif
 
     #if(ENABLE_LED_DISPLAY)
+    gpio_config(LCD_RST,GPIO_OUTPUT,GPIO_PULL_NONE);
+    gpio_config(LCD_DCX,GPIO_OUTPUT,GPIO_PULL_NONE);     // P0.7 DC
+    gpio_config(LCD_SPI_CS,GPIO_OUTPUT,GPIO_PULL_NONE);  // P0.6 CS
+    gpio_set(LCD_SPI_CS, 0); // CS常低，LCD是SPI总线唯一设备
     gpio_config(LCD_PWR_EN, GPIO_OUTPUT, GPIO_PULL_NONE);
-    gpio_set(LCD_PWR_EN, 1);
+    gpio_set(LCD_PWR_EN, 0);
     OLED_Init();
     LCD_Fill(0, 0, LCD_W, LCD_H, BLACK);
     update_ui_test(10, 85);
     #endif
+    while(1){
+        uart_printf("Running...\r\n");
+        update_ui_test(10, 85);
+        delay_ms(100);
+    }
 
 
     /* ======================== Test Mode Switch ======================== */

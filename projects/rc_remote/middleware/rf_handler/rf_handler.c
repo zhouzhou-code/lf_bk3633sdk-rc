@@ -32,7 +32,7 @@ void rxdr_callback(RF_HandleTypeDef *hrf)
         temp.pipes = hrf->RxPipes;
         temp.len = hrf->RxLen;
         memcpy(temp.payload, hrf->RxBuff, hrf->RxLen);
-
+        
         queue_push_overwrite(&rf_rxQueue, (Rf_rxQueueItem_t*)&temp);
     }
     rf_int_count_rxdr++;

@@ -459,8 +459,8 @@ void RC_Scheduler_Task(RC_Scheduler_t *sched)
             }
         }
 
-        gpio_config(Port_Pin(0,0),GPIO_FLOAT,GPIO_PULL_NONE); //uart关掉
-        gpio_config(Port_Pin(0,1),GPIO_FLOAT,GPIO_PULL_NONE);
+        // gpio_config(Port_Pin(0,0),GPIO_FLOAT,GPIO_PULL_NONE); //uart关掉
+        // gpio_config(Port_Pin(0,1),GPIO_FLOAT,GPIO_PULL_NONE);
         // delay_ms(3);
         app_enter_sleep_with_wakeup_by_timer(40, allow_sleep_flag);
     }

@@ -18,7 +18,7 @@
 
 /// Use RC 32Kif INTER_RC32K set to 1
 #define INTER_RC32K            1
-#define UART_PRINTF_ENABLE     0
+#define UART_PRINTF_ENABLE     1
 #define DEBUG_HW               1
 #define GPIO_DBG_MSG           0
 #define MALLCO_DEFINE          1
@@ -35,10 +35,10 @@
 #define I2C_DRIVER              0
 #define PWM_DRIVER              0
 #define USB_DRIVER              0
-#define SPI_DRIVER              0
+#define SPI_DRIVER              1
 #define AON_RTC_DRIVER          0
 
-#define ENABLE_LED_DISPLAY      0
+#define ENABLE_LED_DISPLAY      1
 
 
 #define RF_DRIVER          1

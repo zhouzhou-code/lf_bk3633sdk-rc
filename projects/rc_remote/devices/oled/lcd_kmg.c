@@ -5,8 +5,13 @@
 #include "pic.h"
 #include "one_50x50_lcd.h"
 #include "user_config.h"
-#include "datatypes.h"
+// #include "datatypes.h"
 #include "timer_handler.h"
+
+#define DMA_SIZE     930
+#define USE_DMA        0
+#define SPI_BATCH_N    64
+#define SPI_PIC_BATCH_N    64
 
 #define KMS_UNIT       "km "
 #define SPEED_UNIT     "km/h"
@@ -1643,49 +1648,49 @@ void Kamingo_Show_Battery(uint16_t x, uint16_t y, uint8_t battery_capacity, uint
 }
 
 
-extern volatile control_model_state model_state;
-extern volatile bool cruise_on;
-void Kamingo_Show_Ride_type(uint16_t x, uint16_t y, uint16_t width, uint16_t height, control_model_state ride_type, bool reset) {
-     unsigned char* ride_ico;
-     static control_model_state last_ride_type = CTL_MODEL_STOP;
-     uint32_t data_size = sizeof(gImage_pas_bike_rot) / 2;
-    if (reset) {
-        last_ride_type = -1;
-        return;
-    }
-     if (last_ride_type != ride_type)
-     {
-         switch (ride_type)
-         {
-            case CTL_MODEL_STOP:
-            case CTL_MODEL_UNLOCK:
-                /* code */
-                ride_ico = gImage_pas_bike_rot;
-                break;
-            case CTL_MODEL_B1_LEVEL:
-            case CTL_MODEL_B2_LEVEL:
-                if (cruise_on)
-                {
-                    ride_ico = gImage_pas_cruise_rot;
-                }
-                else
-                {
-                    ride_ico = gImage_pas_ebike_rot;
-                }
-                /* code */
-                break;
+// extern volatile control_model_state model_state;
+// extern volatile bool cruise_on;
+//void Kamingo_Show_Ride_type(uint16_t x, uint16_t y, uint16_t width, uint16_t height, control_model_state ride_type, bool reset) {
+    //  unsigned char* ride_ico;
+    //  static control_model_state last_ride_type = CTL_MODEL_STOP;
+    //  uint32_t data_size = sizeof(gImage_pas_bike_rot) / 2;
+    // if (reset) {
+    //     last_ride_type = -1;
+    //     return;
+    // }
+    //  if (last_ride_type != ride_type)
+    //  {
+    //      switch (ride_type)
+    //      {
+    //         case CTL_MODEL_STOP:
+    //         case CTL_MODEL_UNLOCK:
+    //             /* code */
+    //             ride_ico = gImage_pas_bike_rot;
+    //             break;
+    //         case CTL_MODEL_B1_LEVEL:
+    //         case CTL_MODEL_B2_LEVEL:
+    //             if (cruise_on)
+    //             {
+    //                 ride_ico = gImage_pas_cruise_rot;
+    //             }
+    //             else
+    //             {
+    //                 ride_ico = gImage_pas_ebike_rot;
+    //             }
+    //             /* code */
+    //             break;
 
-            default:
-                ride_ico = gImage_pas_bike_rot;
-                break;
-         }
+    //         default:
+    //             ride_ico = gImage_pas_bike_rot;
+    //             break;
+    //      }
          
-        //  uart_printf("pl>%d\r\n", data_size);
-        //  LCD_ShowPicture_batch(x, y, width, height, ride_ico, data_size);
-         LCD_ShowPicture_dma(x, y, width, height, ride_ico, data_size);
-     }
-     last_ride_type = ride_type;
-}
+    //     //  uart_printf("pl>%d\r\n", data_size);
+    //     //  LCD_ShowPicture_batch(x, y, width, height, ride_ico, data_size);
+    //      LCD_ShowPicture_dma(x, y, width, height, ride_ico, data_size);
+    //  }
+    //  last_ride_type = ride_type;
+    //}
 
 void Kamingo_Show_Speed_Kmh(uint16_t x, uint16_t y, uint16_t speed, uint16_t fc, uint16_t bc, uint8_t sizey, bool reset)
 {
@@ -1792,26 +1797,26 @@ void Kamingo_Show_Speed_Kmh(uint16_t x, uint16_t y, uint16_t speed, uint16_t fc,
 
 void modify_mode_state(void)
 {
-    if (model_state == CTL_MODEL_STOP || model_state == CTL_MODEL_UNLOCK)
-    {
-        model_state = CTL_MODEL_B1_LEVEL;
-    }
-    else if (model_state == CTL_MODEL_B1_LEVEL)
-    {
-        model_state = CTL_MODEL_STOP;
-        if (cruise_on)
-        {
-            cruise_on = false;
-        }
-        else
-        {
-            cruise_on = true;
-        }
-    }
-    else
-    {
-        model_state = CTL_MODEL_STOP;
-    }
+    // if (model_state == CTL_MODEL_STOP || model_state == CTL_MODEL_UNLOCK)
+    // {
+    //     model_state = CTL_MODEL_B1_LEVEL;
+    // }
+    // else if (model_state == CTL_MODEL_B1_LEVEL)
+    // {
+    //     model_state = CTL_MODEL_STOP;
+    //     if (cruise_on)
+    //     {
+    //         cruise_on = false;
+    //     }
+    //     else
+    //     {
+    //         cruise_on = true;
+    //     }
+    // }
+    // else
+    // {
+    //     model_state = CTL_MODEL_STOP;
+    // }
 }
 
 void update_ui(int tatal_kms, uint8_t battery_capacity, uint16_t speed)
@@ -1819,7 +1824,7 @@ void update_ui(int tatal_kms, uint8_t battery_capacity, uint16_t speed)
 
     Delay_ms(30);
     // modify_mode_state();
-    Kamingo_Show_Ride_type(60, 170, RIDE_TYPE_PIC_SIZE, RIDE_TYPE_PIC_SIZE, model_state, false);
+    //Kamingo_Show_Ride_type(60, 170, RIDE_TYPE_PIC_SIZE, RIDE_TYPE_PIC_SIZE, model_state, false);
     Delay_ms(30);
     Kamingo_Show_Battery(10, 135, battery_capacity, WHITE, BLACK, BATTERY_DIGITAL_SIZE, true);
     Delay_ms(30);
@@ -1831,13 +1836,13 @@ void update_ui(int tatal_kms, uint8_t battery_capacity, uint16_t speed)
 
 void update_ui_test(uint8_t hall, uint8_t bat_soc)
 {
-    LCD_KEY1_Clr();
+    //LCD_KEY1_Clr();
     Delay_ms(30);
     Kamingo_Show_Battery(10, 135, bat_soc, WHITE, BLACK, BATTERY_DIGITAL_SIZE, true);
     Delay_ms(30);
     Kamingo_Show_Total_Kms(50, 135, hall, WHITE, BLACK, TOTAL_KMS_DIGITAL_SIZE, false);
     Delay_ms(30);
-    LCD_KEY1_Set();
+    //LCD_KEY1_Set();
 }
 
 void test_lcd2(void)
@@ -1849,7 +1854,7 @@ void test_lcd2(void)
     LCD_KEY1_Clr();
     Delay_ms(30);
     modify_mode_state();
-    Kamingo_Show_Ride_type(60, 170, RIDE_TYPE_PIC_SIZE, RIDE_TYPE_PIC_SIZE, model_state, false);
+   // Kamingo_Show_Ride_type(60, 170, RIDE_TYPE_PIC_SIZE, RIDE_TYPE_PIC_SIZE, model_state, false);
     Delay_ms(30);
     Kamingo_Show_Battery(10, 135, total_kms1, WHITE, BLACK, BATTERY_DIGITAL_SIZE, true);
     Delay_ms(30);

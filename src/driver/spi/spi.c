@@ -79,17 +79,16 @@ void spi_init(uint8_t mode,uint8_t freq_div,uint8_t bit_wdth)
     uart_printf("SPI initialized.\r\n");
     // Enable GPIO P0.4, P0.5, P0.6, P0.7 peripheral function for spi
     
-    // gpio_config(Port_Pin(0,3),GPIO_OUTPUT,GPIO_PULL_NONE);
-    // gpio_config(Port_Pin(1,7),GPIO_OUTPUT,GPIO_PULL_NONE);
 
-    // gpio_config(Port_Pin(0,4),GPIO_SC_FUN,GPIO_PULL_NONE);
-    // gpio_config(Port_Pin(0,5),GPIO_SC_FUN,GPIO_PULL_NONE);
-    // gpio_config(Port_Pin(0,6),GPIO_SC_FUN,GPIO_PULL_NONE);
-    // gpio_config(Port_Pin(0,7),GPIO_SC_FUN,GPIO_PULL_NONE);
-    
-    // gpio_config(Port_Pin(0,16),GPIO_OUTPUT,GPIO_PULL_NONE);
 
-    uart_printf("SPI_GPIO initialized.\r\n");
+    // 新板子layout: P0.4=SCK, P0.5=MOSI, P0.6=LCD_CS, P0.7=LCD_DC
+    // BK3633 SPI第二功能: P0.4=SCK, P0.5=MOSI, P0.6=MISO, P0.7=NSS
+    // 只有SCK和MOSI对得上，P0.6(MISO)和P0.7(NSS)不能用SC_FUN
+    // P0.6(CS)和P0.7(DC)由main.c配为GPIO_OUTPUT软件控制
+    gpio_config(Port_Pin(0,4),GPIO_SC_FUN,GPIO_PULL_NONE);
+    gpio_config(Port_Pin(0,5),GPIO_SC_FUN,GPIO_PULL_NONE);
+
+    uart_printf("SPI_GPIO initialized_1\r\n");
     SPI_REG0X0_CFG = (0x01UL << POS_SPI_REG0X0_SPIEN)                   
                     | (CKPHA_CLK1 << POS_SPI_REG0X0_CKPHA)
                     | (CKPOL_L << POS_SPI_REG0X0_CKPOL)
@@ -103,12 +102,13 @@ void spi_init(uint8_t mode,uint8_t freq_div,uint8_t bit_wdth)
                     | (0x00UL << POS_SPI_REG0X0_TXUDF_EN)
                     | (0x03UL << POS_SPI_REG0X0_RXFIFO_INT_LEVEL)
                     | (0x03UL << POS_SPI_REG0X0_TXFIFO_INT_LEVEL);
-
+    uart_printf("SPI initialized_2\r\n");
     if(mode==0)
         SPI_REG0X0_CFG |= ( 0x01UL << POS_SPI_REG0X0_MSTEN);
     else
         SPI_REG0X0_CFG |= ( 0x01UL << POS_SPI_REG0X0_SLV_RELEASE_INTEN);
-        
+    uart_printf("SPI initialized_3\r\n");
+
     SYS_REG0X4_CLK_SEL &= ~(1<<POS_SYS_REG0X4_SPICLK_SEL);////PLL CLK
     spi_param.spi_state=1;
     spi_param.write_complete_cb=NULL;

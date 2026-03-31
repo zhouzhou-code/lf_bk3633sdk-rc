@@ -3,8 +3,10 @@
 #include <stdio.h>
 // #include "pic.h"
 #include "user_config.h"
-#include "datatypes.h"
+// #include "datatypes.h"
 #include "timer_handler.h"
+
+#define DMA_SIZE     930
 
 static void Delay_ms(int num) //sync from svn revision 18
 {
