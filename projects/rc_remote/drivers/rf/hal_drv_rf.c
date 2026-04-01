@@ -8,8 +8,12 @@
 #include "timer_handler.h"
 
 
-
-#define RF_LOG    uart_printf
+#define RF_DRV_LOG 0
+#if (RF_DRV_LOG)
+    #define RF_DRV_LOG uart_printf
+#else
+    #define RF_DRV_LOG(...)  ((void)0) 
+#endif
 
 SYSTEM_STRUCT_DATA system_data;
 uint32_t RF_flag=0;
@@ -233,7 +237,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
             break;
     }
 
-    RF_LOG("set bps success\r\n", __FILE__, __LINE__);
+    RF_DRV_LOG("set bps success\r\n", __FILE__, __LINE__);
 
     xvr_reg_initial_24(); // 配置 XVR 寄存器
 
@@ -260,7 +264,7 @@ HAL_StatusTypeDef HAL_RF_Init(RF_HandleTypeDef* hrf,RF_ConfgTypeDef *Init)
                              (Init->Protocol.AutoRetransmitDelay+1)*250*Init->Protocol.AutoRetransmitCount + 
                              500 //500是冗余时间
                              ); 
-    RF_LOG("tx_timeout_us=%d\r\n", tx_timeout_us);
+    RF_DRV_LOG("tx_timeout_us=%d\r\n", tx_timeout_us);
 
     hrf->TimeManager.Tx_TimeOut = (tx_timeout_us / 1000);
     hrf->State = HAL_RF_STATE_READY;
@@ -315,7 +319,7 @@ HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uin
         txWaitCounter++;
         if (txWaitCounter > MAX_TX_TIMEOUT) {
             isTimeout = 1;
-            RF_LOG("TX timeout!irq=0x%x\r\n", irq_status);
+            RF_DRV_LOG("TX timeout!irq=0x%x\r\n", irq_status);
             break; 
         }
     }
@@ -325,7 +329,7 @@ HAL_StatusTypeDef HAL_RF_Transmit_ACK(RF_HandleTypeDef *hrf, uint8_t *pData, uin
     if (irq_status & IRQ_TX_DS_MASK) {
         __HAL_RF_CMD_FLUSH_TXFIFO();
         __HAL_RF_CLEAR_IRQ_FLAGS(IRQ_TX_DS_MASK);
-        RF_LOG("TX DS!send_cnt=%d\r\n", send_cnt++);
+        RF_DRV_LOG("TX DS!send_cnt=%d\r\n", send_cnt++);
         ret = HAL_RF_STATE_READY;
     }
 
@@ -365,15 +369,15 @@ HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint
     if (hrf == NULL || pData == NULL || Size == 0) return HAL_ERROR;
     /* 查询当前模式 */
     if(__HAL_RF_Get_TRxMode_Bit() !=0) {
-        RF_LOG("Current mode is not TX,return \r\n");
+        RF_DRV_LOG("Current mode is not TX,return \r\n");
         HAL_RF_SetTxMode(hrf);
     }   
 
     /* 查询是否空闲 */
      /* 如果正在发送，检查是否超时 */
     if (hrf->TxState != TX_IDLE) {
-        RF_LOG("Tx-busy\r\n");
-        RF_LOG("cur_time:%d, start_time:%d, timeout:%d,Mode=%d\r\n",
+        RF_DRV_LOG("Tx-busy\r\n");
+        RF_DRV_LOG("cur_time:%d, start_time:%d, timeout:%d,Mode=%d\r\n",
                     hrf->TimeManager.GetSysTimeMs(),
                     hrf->TimeManager.Tx_start_time,
                     hrf->TimeManager.Tx_TimeOut,
@@ -384,7 +388,7 @@ HAL_StatusTypeDef HAL_RF_Transmit_IT(RF_HandleTypeDef *hrf, uint8_t *pData, uint
         if (elapsed_time >= (hrf->TimeManager.Tx_TimeOut)) {
             /* 发送超时处理 */
             /* 按照经验，这个超时不会触发，一直触发就是没切换到tx(maxrt和tx_ds中断都不触发)/下电了*/
-            RF_LOG("TX timeout detected,\r\n");
+            RF_DRV_LOG("TX timeout detected,\r\n");
             hrf->TxState = TX_TIMEOUT;
             hrf->TimeManager.Tx_Timeout_cnt++;
             /* 清除缓冲区 */
@@ -459,7 +463,7 @@ HAL_StatusTypeDef HAL_RF_Receive(RF_HandleTypeDef *hrf, uint8_t *pData, uint8_t*
     if (hrf == NULL || pData == NULL ) return HAL_RF_STATE_ERROR;
 
     irq_status = __HAL_RF_GET_IRQ_Status();
-    RF_LOG("irq_status: 0x%02X\r\n", irq_status);
+    RF_DRV_LOG("irq_status: 0x%02X\r\n", irq_status);
 
     if (irq_status & IRQ_RX_DR_MASK){  //接收标志位置1，接收FIFO中的数据就绪
         do {
@@ -618,7 +622,7 @@ HAL_StatusTypeDef HAL_RF_SetTxMode(RF_HandleTypeDef *hrf)
             __HAL_RF_CHIP_EN();
         return HAL_RF_STATE_READY; 
     }
-    //RF_LOG("T:%d\n",Get_SysTick_ms());
+    //RF_DRV_LOG("T:%d\n",Get_SysTick_ms());
     hrf->Params.Mode = MODE_TX;
 
     __HAL_RF_PowerUp();
@@ -648,7 +652,7 @@ HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
 
         return HAL_RF_STATE_READY; 
     }
-    //RF_LOG("R:%d\n",Get_SysTick_ms());
+    //RF_DRV_LOG("R:%d\n",Get_SysTick_ms());
 
     hrf->Params.Mode = MODE_RX;
     __HAL_RF_PowerUp();
@@ -668,7 +672,7 @@ HAL_StatusTypeDef HAL_RF_SetRxMode(RF_HandleTypeDef *hrf)
 void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
 {
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_RX_DR_MASK)){
-        //RF_LOG("in RX_DR\r\n");
+        //RF_DRV_LOG("in RX_DR\r\n");
         /* 读取数据到hrf队列 */
         
         //fifo是三层结构，每一层32字节，一次读一层，三层 都没数据则fifo为空
@@ -693,7 +697,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
 
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_TX_DS_MASK)){
-        //RF_LOG("in TX_DS\r\n");
+        //RF_DRV_LOG("in TX_DS\r\n");
         hrf->TxState = TX_Tramsmit_SUCCESS;
 
         if(hrf->Params.IRQ.TxDS.user_cb != NULL){
@@ -705,7 +709,7 @@ void HAL_RF_IRQ_Handler(RF_HandleTypeDef *hrf)
     }
 
     if(__HAL_RF_GET_IRQ_FLAGS(IRQ_MAX_RT_MASK)){
-        //RF_LOG("in MAX_RT\r\n");
+        //RF_DRV_LOG("in MAX_RT\r\n");
         hrf->TxState = TX_Tramsmit_FAIL;
         if(hrf->Params.IRQ.MaxRT.user_cb != NULL){
             hrf->Params.IRQ.MaxRT.user_cb(hrf);

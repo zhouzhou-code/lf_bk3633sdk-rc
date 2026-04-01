@@ -17,7 +17,7 @@
 #include "wdt.h"
 #include "rwprf_config.h"
 
-#define PAIR_LOG_EN 1
+#define PAIR_LOG_EN 0
 #if (PAIR_LOG_EN)
     #define pair_log uart_printf
 #else
@@ -178,11 +178,6 @@ void Slave_Pairing_Task(uint8_t* flag) {
             break;
 
         case SLAVE_PAIR_SEND_REQ:
-            pair_log("Slave: Send REQ T: ");
-            for(int i=0;i<5;i++) pair_log("%02X ", (volatile uint32_t*)(&TRX_TX_ADDR_0)[i]);
-            pair_log("R: ");
-            for(int i=0;i<5;i++) pair_log("%02X ", (volatile uint32_t*)(&TRX_RX_ADDR_P0_0)[i]);
-            pair_log("\n");
 
             // 确保地址正确
             uint8_t def_addr[5];

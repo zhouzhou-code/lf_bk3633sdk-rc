@@ -31,7 +31,14 @@ void LCD_ShowPicture(uint16_t x, uint16_t y, uint16_t width, uint16_t height, co
 void LCD_Show_Space_Hor(uint16_t x, uint16_t y, uint16_t bc, uint8_t sizey);                                 // ��ʾͼƬ
 void test_lcd(void);
 void test_lcd2(void);
-void update_ui_test(uint8_t hall, uint8_t bat_soc);
+
+/* UI模式定义 */
+#define UI_MODE_NORMAL    0
+#define UI_MODE_PAIRING   1
+#define UI_MODE_PAIR_OK   2
+#define UI_MODE_PAIR_FAIL 3
+void update_ui_test(uint8_t hall, uint8_t bat_soc,
+                    uint8_t ui_mode, uint8_t bat_paired, const uint8_t *bat_addr);
 void update_ui(int tatal_kms, uint8_t battery_capacity, uint16_t speed);
 // void Kamingo_Show_Battery(uint16_t x, uint16_t y, uint8_t battery_capacity, uint16_t fc, uint16_t bc, uint8_t sizey) ;
 void Kamingo_Show_Battery(uint16_t x, uint16_t y, uint8_t battery_capacity, uint16_t fc, uint16_t bc, uint8_t sizey, bool is_controller_battery);

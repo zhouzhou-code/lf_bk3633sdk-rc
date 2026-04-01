@@ -1834,15 +1834,57 @@ void update_ui(int tatal_kms, uint8_t battery_capacity, uint16_t speed)
 }
 
 
-void update_ui_test(uint8_t hall, uint8_t bat_soc)
+
+
+void update_ui_test(uint8_t hall, uint8_t bat_soc,
+                    uint8_t ui_mode, uint8_t bat_paired, const uint8_t *bat_addr)
 {
-    //LCD_KEY1_Clr();
-    Delay_ms(30);
+    static uint8_t last_mode = 0xFF;
+    static uint8_t last_paired = 0xFF;
+    static uint8_t last_addr[5];
+    static const char hex_tbl[] = "0123456789ABCDEF";
+
+    /* ---- 模式行: 变化时才刷 (x=52, 4字符) ---- */
+    if (ui_mode != last_mode) {
+        const char *ms;
+        switch (ui_mode) {
+        case UI_MODE_PAIRING:   ms = "Pair"; break;
+        case UI_MODE_PAIR_OK:   ms = "OK  "; break;
+        case UI_MODE_PAIR_FAIL: ms = "Fail"; break;
+        default:                ms = "Norm"; break;
+        }
+        LCD_ShowStr_Hor_dma(52, 239, ms, WHITE, BLACK, 32);
+        Delay_ms(1);
+        last_mode = ui_mode;
+    }
+
+    /* ---- 地址行: 变化时才刷 (x=88, 10字符) ---- */
+    uint8_t addr_dirty = (bat_paired != last_paired);
+    if (!addr_dirty && bat_paired && bat_addr)
+        addr_dirty = memcmp(bat_addr, last_addr, 5) != 0;
+
+    if (addr_dirty) {
+        char line[16];
+        if (bat_paired && bat_addr) {
+            int i;
+            for (i = 0; i < 5; i++) {
+                line[i * 3]     = hex_tbl[bat_addr[i] >> 4];
+                line[i * 3 + 1] = hex_tbl[bat_addr[i] & 0x0F];
+                line[i * 3 + 2] = ':';
+            }
+            line[14] = '\0'; /* 覆盖末尾':' */
+            memcpy(last_addr, bat_addr, 5);
+        } else {
+            memcpy(line, "invalid       ", 14);
+            line[14] = '\0';
+        }
+        LCD_ShowStr_Hor_dma(88, 239, line, WHITE, BLACK, 32);
+        Delay_ms(1);
+        last_paired = bat_paired;
+    }
+
+    /* ---- 电池: Kamingo内部已做增量判断 ---- */
     Kamingo_Show_Battery(10, 135, bat_soc, WHITE, BLACK, BATTERY_DIGITAL_SIZE, true);
-    Delay_ms(30);
-    Kamingo_Show_Total_Kms(50, 135, hall, WHITE, BLACK, TOTAL_KMS_DIGITAL_SIZE, false);
-    Delay_ms(30);
-    //LCD_KEY1_Set();
 }
 
 void test_lcd2(void)

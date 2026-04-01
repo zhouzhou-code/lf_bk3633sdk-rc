@@ -116,21 +116,20 @@ int main(void)
     #endif
 
     #if(ENABLE_LED_DISPLAY)
+    uart_printf("init LED display gpio:%d\r\n", Get_SysTick_ms());
     gpio_config(LCD_RST,GPIO_OUTPUT,GPIO_PULL_NONE);
     gpio_config(LCD_DCX,GPIO_OUTPUT,GPIO_PULL_NONE);     // P0.7 DC
     gpio_config(LCD_SPI_CS,GPIO_OUTPUT,GPIO_PULL_NONE);  // P0.6 CS
     gpio_set(LCD_SPI_CS, 0); // CS常低，LCD是SPI总线唯一设备
     gpio_config(LCD_PWR_EN, GPIO_OUTPUT, GPIO_PULL_NONE);
     gpio_set(LCD_PWR_EN, 0);
+    uart_printf("OLED_Init:%d\r\n", Get_SysTick_ms());
     OLED_Init();
+    uart_printf("OLED_Init done:%d\r\n", Get_SysTick_ms());
     LCD_Fill(0, 0, LCD_W, LCD_H, BLACK);
-    update_ui_test(10, 85);
+    update_ui_test(0, 0, UI_MODE_NORMAL, 0, NULL);
+    uart_printf("init LED display done:%d\r\n", Get_SysTick_ms());
     #endif
-    while(1){
-        uart_printf("Running...\r\n");
-        update_ui_test(10, 85);
-        delay_ms(100);
-    }
 
 
     /* ======================== Test Mode Switch ======================== */

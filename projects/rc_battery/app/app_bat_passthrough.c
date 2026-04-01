@@ -29,8 +29,15 @@
 #include "rc_protocol.h"
 #include "debug.h"
 
-#define APP_BAT_LOG uart0_printf
+#define APP_BAT_LOG 0
+#if (APP_BAT_LOG)
+    #define APP_BAT_LOG uart_printf
+#else
+    #define APP_BAT_LOG(...)  ((void)0) 
+#endif
+
 #define PAIR_IO_PIN  Port_Pin(0, 3)   /* BMS配对信号线, 高电平有效 */
+
 
 extern RF_HandleTypeDef hrf;
 

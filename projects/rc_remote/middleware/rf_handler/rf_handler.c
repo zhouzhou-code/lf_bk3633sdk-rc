@@ -6,6 +6,13 @@
 #include "timer_handler.h"
 
 
+#define RF_HANDLER_LOG 0
+#if (RF_HANDLER_LOG)
+    #define RF_HANDLER_LOG uart_printf
+#else
+    #define RF_HANDLER_LOG(...)  ((void)0) 
+#endif
+
 /* rf_txQueue每一项是固定长度为32+1字节，第一字节存放净荷长度，发送时只发送净荷 */
 
 uint8_t rf_send_queue_buffer[sizeof(Rf_txQueueItem_t)*rf_send_queue_len]; //发送队列缓冲区
@@ -23,7 +30,7 @@ volatile uint32_t rf_int_count_maxrt = 0;
 //接收中断回调函数,数据push到接收队列
 void rxdr_callback(RF_HandleTypeDef *hrf)
 {
-    uart_printf("rxdr!");
+    RF_HANDLER_LOG("rxdr!");
     if(hrf->RxBuff_valid == 1) {
         hrf->RxBuff_valid = 0;
 
