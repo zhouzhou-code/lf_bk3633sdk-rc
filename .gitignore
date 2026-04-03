@@ -25,7 +25,7 @@
 
 # 目录
 obj/
-output/
+output/app/
 Listings/
 
 # IDE相关
